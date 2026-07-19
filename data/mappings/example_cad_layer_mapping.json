@@ -1,0 +1,31 @@
+{
+  "_note": "Example CAD layer mapping only. Customize these layer names to match the real source data before use.",
+  "layer_mappings": {
+    "water_main": [
+      "WATER_MAIN",
+      "WTR_MAIN",
+      "C_WATER",
+      "PROP_WATER"
+    ],
+    "water_valve": [
+      "VALVE",
+      "WTR_VALVE",
+      "GATE_VALVE"
+    ],
+    "sewer_gravity_main": [
+      "GRAVITY_MAIN",
+      "SANITARY_SEWER",
+      "SS_MAIN"
+    ],
+    "sewer_manhole": [
+      "MANHOLE",
+      "SS_MH",
+      "SANITARY_MH"
+    ],
+    "storm_pipe": [
+      "STORM_PIPE",
+      "SD_PIPE",
+      "STORM_DRAIN"
+    ]
+  }
+}

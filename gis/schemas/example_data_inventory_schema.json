@@ -1,0 +1,14 @@
+{
+  "_note": "Example inventory schema only. Customize required fields and sensitivity levels for approved source data.",
+  "layer_name": "",
+  "geometry_type": "",
+  "record_count": 0,
+  "unique_id_field": "",
+  "utility_type": "",
+  "asset_category": "",
+  "source_database": "",
+  "coordinate_system": "",
+  "required_fields": [],
+  "known_issues": [],
+  "sensitivity_level": "unknown"
+}
