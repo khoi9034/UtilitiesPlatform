@@ -101,3 +101,97 @@ def catalog_summary() -> dict[str, object]:
         "by_sensitivity_level": dict(Counter(row.get("sensitivity_level", "") for row in rows if row.get("sensitivity_level"))),
         "message": "Dataset catalog summary generated from registered metadata.",
     }
+
+
+def inventory_report_paths() -> dict[str, Path]:
+    root = Path(os.getenv("UTILITY_DATA_ROOT", r"C:\UtilitiesPlatform_Data"))
+    report_root = root / "05_qa" / "reports"
+    return {
+        "inventory": report_root / "utility_data_inventory.csv",
+        "recommendation": report_root / "staging_recommendation.md",
+        "allowlist": root / "00_admin" / "staging_allowlist.csv",
+    }
+
+
+def read_inventory_layers() -> list[dict[str, str]]:
+    path = inventory_report_paths()["inventory"]
+    if not path.exists():
+        return []
+    safe_fields = [
+        "dataset_id",
+        "source_name",
+        "source_format",
+        "utility_type",
+        "classification_confidence",
+        "asset_category",
+        "layer_name",
+        "geometry_type",
+        "record_count",
+        "spatial_reference",
+        "sensitivity_level",
+        "recommended_action",
+    ]
+    with path.open(newline="", encoding="utf-8") as handle:
+        return [{field: row.get(field, "") for field in safe_fields} for row in csv.DictReader(handle)]
+
+
+def inventory_summary() -> dict[str, object]:
+    layers = read_inventory_layers()
+    if not layers:
+        return {
+            "sources_discovered": 0,
+            "layer_count": 0,
+            "by_utility_type": {},
+            "by_confidence": {},
+            "record_totals_by_system": {},
+            "spatial_references": {},
+            "recommended_staging_layers": 0,
+            "unknown_layers": 0,
+            "message": "No inventory report has been generated yet.",
+        }
+    return {
+        "sources_discovered": len({row.get("source_name", "") for row in layers if row.get("source_name")}),
+        "layer_count": len(layers),
+        "by_utility_type": dict(Counter(row.get("utility_type", "") for row in layers if row.get("utility_type"))),
+        "by_confidence": dict(Counter(row.get("classification_confidence", "") for row in layers if row.get("classification_confidence"))),
+        "record_totals_by_system": record_totals_by_system(layers),
+        "spatial_references": dict(Counter(row.get("spatial_reference", "") for row in layers if row.get("spatial_reference"))),
+        "recommended_staging_layers": sum(1 for row in layers if row.get("recommended_action") == "candidate_for_staging_review"),
+        "unknown_layers": sum(1 for row in layers if row.get("utility_type") == "unknown"),
+        "message": "Inventory summary loaded from generated QA reports.",
+    }
+
+
+def record_totals_by_system(layers: list[dict[str, str]]) -> dict[str, int]:
+    totals: Counter[str] = Counter()
+    for row in layers:
+        try:
+            totals[row.get("utility_type", "")] += int(row.get("record_count") or 0)
+        except ValueError:
+            continue
+    return dict(totals)
+
+
+def inventory_recommendation() -> dict[str, object]:
+    paths = inventory_report_paths()
+    recommendation = paths["recommendation"].read_text(encoding="utf-8") if paths["recommendation"].exists() else ""
+    allowlist_rows = []
+    if paths["allowlist"].exists():
+        with paths["allowlist"].open(newline="", encoding="utf-8") as handle:
+            allowlist_rows = [
+                {
+                    "dataset_id": row.get("dataset_id", ""),
+                    "source_layer_name": row.get("source_layer_name", ""),
+                    "target_layer_name": row.get("target_layer_name", ""),
+                    "utility_type": row.get("utility_type", ""),
+                    "asset_category": row.get("asset_category", ""),
+                    "approved_to_stage": row.get("approved_to_stage", ""),
+                    "reason": row.get("reason", ""),
+                }
+                for row in csv.DictReader(handle)
+            ]
+    return {
+        "recommendation_markdown": recommendation,
+        "allowlist": allowlist_rows,
+        "message": "No staging recommendation has been generated yet." if not recommendation else "Staging recommendation loaded.",
+    }

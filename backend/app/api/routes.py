@@ -5,11 +5,21 @@ from app.schemas.responses import (
     DatasetCatalogResponse,
     DatasetCatalogSummaryResponse,
     DataSourcesResponse,
+    InventoryLayersResponse,
+    InventoryRecommendationResponse,
+    InventorySummaryResponse,
     PlatformStatusResponse,
     QaSummaryResponse,
     StorageStatusResponse,
 )
-from app.services.data_storage_service import catalog_summary, read_safe_catalog, storage_status
+from app.services.data_storage_service import (
+    catalog_summary,
+    inventory_recommendation,
+    inventory_summary,
+    read_inventory_layers,
+    read_safe_catalog,
+    storage_status,
+)
 
 router = APIRouter(prefix="/api")
 
@@ -67,3 +77,20 @@ def get_storage_catalog() -> DatasetCatalogResponse:
 @router.get("/storage/catalog/summary", response_model=DatasetCatalogSummaryResponse)
 def get_storage_catalog_summary() -> dict[str, object]:
     return catalog_summary()
+
+
+@router.get("/inventory/summary", response_model=InventorySummaryResponse)
+def get_inventory_summary() -> dict[str, object]:
+    return inventory_summary()
+
+
+@router.get("/inventory/layers", response_model=InventoryLayersResponse)
+def get_inventory_layers() -> InventoryLayersResponse:
+    layers = read_inventory_layers()
+    message = "No inventory report has been generated yet." if not layers else "Inventory layers loaded."
+    return InventoryLayersResponse(layers=layers, message=message)
+
+
+@router.get("/inventory/recommendation", response_model=InventoryRecommendationResponse)
+def get_inventory_recommendation() -> dict[str, object]:
+    return inventory_recommendation()

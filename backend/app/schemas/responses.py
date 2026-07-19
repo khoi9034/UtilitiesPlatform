@@ -75,3 +75,41 @@ class DatasetCatalogSummaryResponse(BaseModel):
     by_source_format: dict[str, int]
     by_sensitivity_level: dict[str, int]
     message: str
+
+
+class InventoryLayerRow(BaseModel):
+    dataset_id: str
+    source_name: str
+    source_format: str
+    utility_type: str
+    classification_confidence: str
+    asset_category: str
+    layer_name: str
+    geometry_type: str
+    record_count: str
+    spatial_reference: str
+    sensitivity_level: str
+    recommended_action: str
+
+
+class InventorySummaryResponse(BaseModel):
+    sources_discovered: int
+    layer_count: int
+    by_utility_type: dict[str, int]
+    by_confidence: dict[str, int]
+    record_totals_by_system: dict[str, int]
+    spatial_references: dict[str, int]
+    recommended_staging_layers: int
+    unknown_layers: int
+    message: str
+
+
+class InventoryLayersResponse(BaseModel):
+    layers: list[InventoryLayerRow]
+    message: str
+
+
+class InventoryRecommendationResponse(BaseModel):
+    recommendation_markdown: str
+    allowlist: list[dict[str, str]]
+    message: str

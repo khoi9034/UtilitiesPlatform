@@ -82,6 +82,9 @@ export default function DataSourcesPage() {
         <Link href="/" className={styles.backLink}>
           Utilities Platform
         </Link>
+        <Link href="/data-sources/inventory" className={styles.backLink}>
+          Inventory
+        </Link>
         <h1>Data Sources</h1>
         <p>Local master storage, dataset catalog, and controlled export workflow.</p>
       </header>
@@ -157,7 +160,7 @@ export default function DataSourcesPage() {
             <div className={styles.workflowItem} key={stage}>
               <strong>{stage}</strong>
               <p>{description}</p>
-              {index < workflow.length - 1 ? <span aria-hidden="true">→</span> : null}
+              {index < workflow.length - 1 ? <span aria-hidden="true">-&gt;</span> : null}
             </div>
           ))}
         </div>

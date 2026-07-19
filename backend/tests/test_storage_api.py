@@ -92,3 +92,25 @@ def test_storage_summary_empty_catalog(tmp_path: Path, monkeypatch) -> None:
     assert payload["total_datasets"] == 0
     assert payload["by_utility_type"] == {}
     assert payload["message"] == "No utility datasets have been registered yet."
+
+
+def test_inventory_api_does_not_expose_source_paths(tmp_path: Path, monkeypatch) -> None:
+    report_root = tmp_path / "05_qa" / "reports"
+    report_root.mkdir(parents=True)
+    (report_root / "utility_data_inventory.csv").write_text(
+        "\n".join(
+            [
+                "dataset_id,source_name,source_path,source_format,utility_type,classification_confidence,asset_category,feature_dataset,layer_name,geometry_type,record_count,spatial_reference,unique_id_field,status_field,material_field,diameter_field,install_date_field,inspection_date_field,project_id_field,work_order_field,has_domains,has_subtypes,has_relationships,has_attachments,editor_tracking_enabled,sensitivity_level,recommended_action,notes",
+                f"abc,SecretSource,{tmp_path}\\01_raw\\Secret.gdb,shapefile,wastewater,high,manhole,,Manholes,Point,10,NAD83,OBJECTID,,,,,,,,false,false,false,false,false,restricted,candidate_for_staging_review,sensitive note",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("UTILITY_DATA_ROOT", str(tmp_path))
+
+    response = client.get("/api/inventory/layers")
+
+    assert response.status_code == 200
+    assert "Secret.gdb" not in response.text
+    assert "sensitive note" not in response.text
+    assert response.json()["layers"][0]["layer_name"] == "Manholes"
