@@ -2,10 +2,14 @@ from fastapi import APIRouter
 
 from app.schemas.responses import (
     AssetSummaryResponse,
+    DatasetCatalogResponse,
+    DatasetCatalogSummaryResponse,
     DataSourcesResponse,
     PlatformStatusResponse,
     QaSummaryResponse,
+    StorageStatusResponse,
 )
+from app.services.data_storage_service import catalog_summary, read_safe_catalog, storage_status
 
 router = APIRouter(prefix="/api")
 
@@ -46,3 +50,20 @@ def qa_summary() -> QaSummaryResponse:
         values_connected=False,
         message=NO_DATABASE_MESSAGE,
     )
+
+
+@router.get("/storage/status", response_model=StorageStatusResponse)
+def get_storage_status() -> dict[str, object]:
+    return storage_status()
+
+
+@router.get("/storage/catalog", response_model=DatasetCatalogResponse)
+def get_storage_catalog() -> DatasetCatalogResponse:
+    rows = read_safe_catalog()
+    message = "No utility datasets have been registered yet." if not rows else "Dataset catalog loaded."
+    return DatasetCatalogResponse(datasets=rows, message=message)
+
+
+@router.get("/storage/catalog/summary", response_model=DatasetCatalogSummaryResponse)
+def get_storage_catalog_summary() -> dict[str, object]:
+    return catalog_summary()

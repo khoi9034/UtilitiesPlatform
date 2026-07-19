@@ -56,6 +56,25 @@ uvicorn app.main:app --reload
 
 Never commit county production data, utility infrastructure datasets, CAD files, PDFs, spreadsheets, database exports, credentials, or local environment files. Use sanitized JSON or GeoJSON samples only when explicitly approved for demonstration.
 
+## Local Master Data Storage
+
+Approved local utility data belongs in:
+
+```text
+C:\UtilitiesPlatform_Data
+```
+
+This directory is intentionally outside the Git repository. It is the local warehouse for raw approved source copies, staging work, standardized layers, curated analysis-ready data, QA reports, export packages, samples, archives, backups, and catalog files.
+
+Initialize it with:
+
+```powershell
+python scripts\data_storage\initialize_data_storage.py
+python scripts\data_storage\validate_data_storage.py
+```
+
+File geodatabases are created only when the script runs inside an ArcGIS Pro Python environment with ArcPy available.
+
 ## Initial API Endpoints
 
 - `GET /health`
@@ -63,6 +82,9 @@ Never commit county production data, utility infrastructure datasets, CAD files,
 - `GET /api/data-sources`
 - `GET /api/assets/summary`
 - `GET /api/qa/summary`
+- `GET /api/storage/status`
+- `GET /api/storage/catalog`
+- `GET /api/storage/catalog/summary`
 
 All initial responses are placeholders and state that no production utility database has been connected.
 

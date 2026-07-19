@@ -1,0 +1,21 @@
+{
+  "master_data_root": "C:\\UtilitiesPlatform_Data",
+  "admin_root": "C:\\UtilitiesPlatform_Data\\00_admin",
+  "raw_root": "C:\\UtilitiesPlatform_Data\\01_raw",
+  "staging_root": "C:\\UtilitiesPlatform_Data\\02_staging",
+  "standardized_root": "C:\\UtilitiesPlatform_Data\\03_standardized",
+  "curated_root": "C:\\UtilitiesPlatform_Data\\04_curated",
+  "qa_root": "C:\\UtilitiesPlatform_Data\\05_qa",
+  "exports_root": "C:\\UtilitiesPlatform_Data\\06_exports",
+  "samples_root": "C:\\UtilitiesPlatform_Data\\07_samples",
+  "archive_root": "C:\\UtilitiesPlatform_Data\\08_archive",
+  "backup_root": "C:\\UtilitiesPlatform_Data\\09_backups",
+  "logs_root": "C:\\UtilitiesPlatform_Data\\logs",
+  "temp_root": "C:\\UtilitiesPlatform_Data\\temp",
+  "staging_geodatabase": "C:\\UtilitiesPlatform_Data\\02_staging\\Utility_Staging.gdb",
+  "standardized_geodatabase": "C:\\UtilitiesPlatform_Data\\03_standardized\\Utility_Standardized.gdb",
+  "master_geodatabase": "C:\\UtilitiesPlatform_Data\\04_curated\\Utility_Master.gdb",
+  "data_catalog": "C:\\UtilitiesPlatform_Data\\00_admin\\data_catalog.csv",
+  "processing_history": "C:\\UtilitiesPlatform_Data\\00_admin\\processing_history.csv",
+  "export_registry": "C:\\UtilitiesPlatform_Data\\00_admin\\export_registry.csv"
+}

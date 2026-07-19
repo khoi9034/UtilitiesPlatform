@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+config/data_storage.local.json
 secrets/
 local-data/
 
@@ -42,13 +43,24 @@ Thumbs.db
 *.dbf
 *.shx
 *.prj
+*.cpg
 *.gpkg
 *.sqlite
 *.tif
 *.tiff
 *.pdf
 *.xlsx
+*.xls
 *.csv
+*.zip
+*.7z
+*.bak
+*.lock
+*.sr.lock
+
+# Allow intentional source-code CSV fixtures.
+!tests/**/*.csv
+!backend/tests/**/*.csv
 
 # Raw or derived production data must stay out of Git.
 data/incoming/**

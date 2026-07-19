@@ -1,15 +1,15 @@
 import styles from "./page.module.css";
 
 const navigation = [
-  "Overview",
-  "Asset Inventory",
-  "Data Quality",
-  "CAD Intake",
-  "Network Intelligence",
-  "Projects",
-  "Maintenance",
-  "Data Sources",
-  "Methodology",
+  ["Overview", "#overview"],
+  ["Asset Inventory", "#overview"],
+  ["Data Quality", "#overview"],
+  ["CAD Intake", "#overview"],
+  ["Network Intelligence", "#overview"],
+  ["Projects", "#overview"],
+  ["Maintenance", "#overview"],
+  ["Data Sources", "/data-sources"],
+  ["Methodology", "#overview"],
 ];
 
 const metrics = [
@@ -30,8 +30,8 @@ export default function Home() {
           <span>Utilities Platform</span>
         </div>
         <nav className={styles.nav}>
-          {navigation.map((item) => (
-            <a key={item} href="#overview">
+          {navigation.map(([item, href]) => (
+            <a key={item} href={href}>
               {item}
             </a>
           ))}
