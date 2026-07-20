@@ -108,7 +108,11 @@ def test_skipped_rule_explanations() -> None:
 
 def test_frontend_uses_reusable_utility_health_components() -> None:
     page = (ROOT / "frontend" / "app" / "data-health" / "page.tsx").read_text(encoding="utf-8")
+    workspace = (ROOT / "frontend" / "components" / "data-health" / "DataHealthWorkspace.tsx").read_text(encoding="utf-8")
+    map_component = (ROOT / "frontend" / "components" / "maps" / "UtilityMap.tsx").read_text(encoding="utf-8")
 
-    assert "function UtilityHealthSummary" in page
-    assert "function IssueExplorer" in page
-    assert "function UtilityMap" in page
+    assert "DataHealthWorkspace" in page
+    assert "function IssueTable" in workspace
+    assert "function IssueDrawer" in workspace
+    assert "function BatchActionBar" in workspace
+    assert "export function UtilityMap" in map_component

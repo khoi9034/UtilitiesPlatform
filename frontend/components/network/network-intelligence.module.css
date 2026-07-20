@@ -1,0 +1,22 @@
+.componentLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 8fr) minmax(320px, 4fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.limitations {
+  display: grid;
+  gap: 8px;
+}
+
+.limitations li {
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+@media (max-width: 1020px) {
+  .componentLayout {
+    grid-template-columns: 1fr;
+  }
+}

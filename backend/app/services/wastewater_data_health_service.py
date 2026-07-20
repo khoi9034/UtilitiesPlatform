@@ -130,6 +130,7 @@ def issues(
     category: str | None = None,
     rule_code: str | None = None,
     review_status: str | None = None,
+    disposition: str | None = None,
     source_layer: str | None = None,
     run_id: str | None = None,
     asset: str | None = None,
@@ -143,7 +144,8 @@ def issues(
         if matches(row, "severity", severity)
         and matches(row, "category", category)
         and matches(row, "rule_code", rule_code)
-        and matches(row, "review_status", review_status)
+        and matches_review_status(row, review_status)
+        and matches(row, "disposition", disposition)
         and matches(row, "source_layer", source_layer)
         and matches(row, "run_id", run_id)
         and matches_asset(row, asset)
@@ -198,7 +200,7 @@ def runs() -> dict[str, Any]:
                 "dataset_id": row.get("dataset_id", ""),
                 "process_name": row.get("process_name", ""),
                 "input_layer": Path(row.get("input_path", "")).name,
-                "output_workspace": Path(row.get("output_path", "")).name,
+                "output_workspace": Path(row.get("output_path", "")).stem,
                 "started_at": row.get("started_at", ""),
                 "completed_at": row.get("completed_at", ""),
                 "status": row.get("status", ""),
@@ -277,6 +279,12 @@ def safe_geometry(geometry: dict[str, Any]) -> dict[str, Any]:
 
 def matches(row: dict[str, Any], field: str, expected: str | None) -> bool:
     return not expected or str(row.get(field, "")).lower() == expected.lower()
+
+
+def matches_review_status(row: dict[str, Any], expected: str | None) -> bool:
+    if not expected:
+        return True
+    return expected.lower() in {str(row.get("workflow_status", "")).lower(), str(row.get("review_status", "")).lower()}
 
 
 def matches_asset(row: dict[str, Any], asset: str | None) -> bool:
@@ -463,6 +471,68 @@ def trust_pipeline() -> dict[str, Any]:
             {"stage": "Standardized", "state": "not_started"},
             {"stage": "Curated", "state": "not_started"},
             {"stage": "Exported", "state": "not_started"},
+        ],
+    }
+
+
+def command_center() -> dict[str, Any]:
+    qa_summary = summary()
+    network_summary = network().get("summary", {})
+    reviewed_issues = current_reviewed_issues()
+    calibration_data = calibration_rows(reviewed_issues, rules().get("rules", []))
+    reviewed = sum(int(row.get("reviewed_findings") or 0) for row in calibration_data)
+    sample = review_sample()
+    pipeline = trust_pipeline()
+    dependencies_path = REPO_ROOT / "config" / "utility_dependencies" / "wastewater.json"
+    dependencies = json.loads(dependencies_path.read_text(encoding="utf-8")).get("dependencies", []) if dependencies_path.exists() else []
+    counts = qa_summary.get("input_feature_counts", {})
+    total_assets = sum(int(value or 0) for value in counts.values()) if counts else None
+    storage = {
+        key: value
+        for key, value in {
+            "master_root_available": (data_root()).exists(),
+            "reports_available": reports_root().exists(),
+            "qa_gdb_available": (data_root() / "05_qa" / "Wastewater_QA.gdb").exists(),
+        }.items()
+    }
+    open_reviews = sum(1 for item in reviewed_issues if item.get("workflow_status", item.get("review_status")) not in {"resolved", "deferred"})
+    return {
+        "utility_system": "wastewater",
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "platform_status": "local_research",
+        "assets": {
+            "total": total_assets,
+            "by_network_group": {"gravity_network": counts.get("wastewater_gravity_main", 0), "structures": counts.get("wastewater_manhole", 0)},
+            "by_asset_category": {"pipe": counts.get("wastewater_gravity_main", 0), "access_structure": counts.get("wastewater_manhole", 0)},
+        },
+        "qa": {
+            "total_findings": qa_summary.get("total_issues"),
+            "by_severity": qa_summary.get("issues_by_severity", {}),
+            "open_reviews": open_reviews,
+            "reviewed_findings": reviewed,
+            "review_sample": sample.get("total", 0),
+            "high_priority": sum(1 for item in reviewed_issues if item.get("severity") == "high" and item.get("confidence") == "high"),
+        },
+        "network": {
+            "endpoint_match_rate": network_summary.get("endpoint_match_rate"),
+            "connected_components": network_summary.get("total_connected_components"),
+            "isolated_pipes": network_summary.get("isolated_pipes"),
+            "isolated_manholes": network_summary.get("isolated_manholes"),
+            "unmatched_endpoints": network_summary.get("unmatched_pipe_endpoints"),
+        },
+        "pipeline": {"current_stage": "Human Review", "stages": pipeline.get("stages", [])},
+        "dependencies": {
+            "available": sum(1 for item in dependencies if item.get("currently_available")),
+            "total": len(dependencies),
+            "missing": [item.get("dependency_code", "") for item in dependencies if not item.get("currently_available")],
+        },
+        "recent_runs": runs().get("runs", [])[:5],
+        "storage": storage,
+        "module_status": [
+            {"label": "Data Health", "href": "/data-health", "status": "Active"},
+            {"label": "Trust Pipeline", "href": "/trust-pipeline", "status": "Active"},
+            {"label": "Data Sources", "href": "/data-sources", "status": "Active"},
+            {"label": "CAD Intake", "href": "/cad-intake", "status": "Planned"},
         ],
     }
 

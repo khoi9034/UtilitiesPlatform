@@ -16,6 +16,7 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://127.0.0.1:3001",
     ],
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):3\d{3}",
     allow_methods=["GET", "PATCH"],
     allow_headers=["*"],
 )

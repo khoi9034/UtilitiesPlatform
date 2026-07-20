@@ -1,0 +1,115 @@
+.mapShell {
+  position: relative;
+  min-height: var(--map-height, 520px);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #061019;
+}
+
+.mapCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  min-height: inherit;
+}
+
+.fallbackSvg {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background:
+    linear-gradient(color-mix(in srgb, var(--color-border-subtle) 50%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-border-subtle) 50%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+.overlay {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  z-index: 2;
+  display: grid;
+  gap: 10px;
+  width: min(430px, calc(100% - 24px));
+  padding: 12px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-map-overlay);
+  backdrop-filter: blur(12px);
+}
+
+.overlayHeader {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.overlayHeader span,
+.legend,
+.empty {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.toggleGrid,
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.toggleGrid label {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  min-height: 28px;
+  padding: 3px 8px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-surface-2) 88%, transparent);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.legendItem {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--swatch);
+}
+
+.lineSwatch {
+  width: 22px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--swatch);
+}
+
+.mapLink {
+  color: var(--color-accent);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+@media (max-width: 760px) {
+  .mapShell {
+    min-height: 380px;
+  }
+
+  .overlay {
+    position: static;
+    width: auto;
+    border-width: 0 0 1px;
+    border-radius: 0;
+  }
+}

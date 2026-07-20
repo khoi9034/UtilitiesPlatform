@@ -42,6 +42,25 @@ def platform_status() -> PlatformStatusResponse:
     )
 
 
+@router.get("/platform/command-center")
+def platform_command_center(utility_system: str = "wastewater") -> dict[str, object]:
+    if utility_system not in {"wastewater", "all"}:
+        return {
+            "utility_system": utility_system,
+            "generated_at": "",
+            "platform_status": "not_onboarded",
+            "assets": {"total": None, "by_network_group": {}, "by_asset_category": {}},
+            "qa": {"total_findings": None, "by_severity": {}, "open_reviews": None, "reviewed_findings": None, "review_sample": None, "high_priority": None},
+            "network": {"endpoint_match_rate": None, "connected_components": None, "isolated_pipes": None, "isolated_manholes": None, "unmatched_endpoints": None},
+            "pipeline": {"current_stage": "Not onboarded", "stages": []},
+            "dependencies": {"available": 0, "total": 0, "missing": []},
+            "recent_runs": [],
+            "storage": {},
+            "module_status": [],
+        }
+    return wastewater_health.command_center()
+
+
 @router.get("/data-sources", response_model=DataSourcesResponse)
 def data_sources() -> DataSourcesResponse:
     return DataSourcesResponse(data_sources=[], message=NO_DATABASE_MESSAGE)
@@ -122,6 +141,7 @@ def wastewater_health_issues(
     category: str | None = None,
     rule_code: str | None = None,
     review_status: str | None = None,
+    disposition: str | None = None,
     source_layer: str | None = None,
     run_id: str | None = None,
     asset: str | None = None,
@@ -133,6 +153,7 @@ def wastewater_health_issues(
         category=category,
         rule_code=rule_code,
         review_status=review_status,
+        disposition=disposition,
         source_layer=source_layer,
         run_id=run_id,
         asset=asset,

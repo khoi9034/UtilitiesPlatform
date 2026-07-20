@@ -1,0 +1,106 @@
+.layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr) 320px;
+  gap: 16px;
+  align-items: start;
+}
+
+.tree {
+  display: grid;
+  gap: 8px;
+}
+
+.treeButton {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.treeButton[aria-pressed="true"] {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-selected);
+}
+
+.tabBar,
+.filterRow,
+.workflow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.tabButton {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  color: var(--color-text-secondary);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.tabButton[aria-selected="true"] {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-selected);
+  color: var(--color-text-primary);
+}
+
+.workflowStep {
+  display: grid;
+  gap: 4px;
+  min-width: 150px;
+  padding: 10px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+}
+
+.metadataList {
+  display: grid;
+  gap: 10px;
+}
+
+.metadataList div {
+  display: grid;
+  gap: 3px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.metadataList dt {
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.metadataList dd,
+.muted {
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 1180px) {
+  .layout {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+
+  .layout > :last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}

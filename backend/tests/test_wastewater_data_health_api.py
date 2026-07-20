@@ -136,10 +136,13 @@ def test_wastewater_no_results_and_runs_are_sanitized(tmp_path: Path, monkeypatc
     monkeypatch.setenv("UTILITY_DATA_ROOT", str(tmp_path))
 
     no_results = client.get("/api/data-health/wastewater/issues", params={"rule_code": "NOPE"}).json()
+    disposition = client.get("/api/data-health/wastewater/issues", params={"disposition": "unreviewed"})
     runs = client.get("/api/data-health/wastewater/runs")
 
     assert no_results["items"] == []
     assert "No wastewater QA issues" in no_results["message"]
+    assert disposition.status_code == 200
+    assert disposition.json()["pagination"]["total"] == 2
     assert runs.status_code == 200
     assert "hidden.gdb" not in runs.text
     assert runs.json()["runs"][0]["input_layer"] == "wastewater_gravity_main"
@@ -175,6 +178,20 @@ def test_phase2_review_routes_and_batch_update_are_safe(tmp_path: Path, monkeypa
     assert readiness.json()["writes_to_standardized_gdb"] is False
     assert mappings.json()["mappings"][0]["approved_to_standardize"] == "false"
     assert pipeline.json()["stages"][0]["state"] == "complete"
+
+
+def test_command_center_aggregates_are_safe(tmp_path: Path, monkeypatch) -> None:
+    write_reports(tmp_path)
+    monkeypatch.setenv("UTILITY_DATA_ROOT", str(tmp_path))
+
+    response = client.get("/api/platform/command-center", params={"utility_system": "wastewater"})
+    not_onboarded = client.get("/api/platform/command-center", params={"utility_system": "telecom"})
+
+    assert response.status_code == 200
+    assert response.json()["qa"]["total_findings"] == 2
+    assert response.json()["qa"]["open_reviews"] == 2
+    assert "hidden.gdb" not in response.text
+    assert not_onboarded.json()["platform_status"] == "not_onboarded"
 
 
 def test_review_history_is_immutable_for_metadata_changes(tmp_path: Path, monkeypatch) -> None:

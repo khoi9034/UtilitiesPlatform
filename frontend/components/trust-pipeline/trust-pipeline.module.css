@@ -1,0 +1,72 @@
+.stageRail {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(110px, 1fr));
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.stageButton {
+  display: grid;
+  gap: 8px;
+  min-height: 116px;
+  padding: 12px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.stageButton[aria-selected="true"] {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-selected);
+}
+
+.stageNumber {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  color: var(--color-accent);
+  font: 700 12px var(--font-geist-mono), monospace;
+}
+
+.detailsGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(300px, 5fr);
+  gap: 16px;
+}
+
+.sourceChips,
+.activityList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.activityList {
+  display: grid;
+}
+
+.activityItem {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+}
+
+.muted {
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 900px) {
+  .detailsGrid {
+    grid-template-columns: 1fr;
+  }
+}

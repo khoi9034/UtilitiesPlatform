@@ -163,6 +163,45 @@ http://localhost:3001/trust-pipeline
 
 Phase 2 does not repair source data, alter QA thresholds, write standardized records, or create curated records. All standardization mappings default to not approved.
 
+## Enterprise Interface
+
+The frontend now uses a shared enterprise application shell for every platform route. It includes grouped navigation, active route state, persisted sidebar collapse, dark/light/system theme control, a keyboard command palette (`Ctrl+K` or `Cmd+K`), a utility-system selector, backend/storage status, last run context, and a restrained `LOCAL RESEARCH` indicator.
+
+Routes:
+
+- `http://localhost:3001/` - Command Center
+- `http://localhost:3001/asset-inventory`
+- `http://localhost:3001/data-health`
+- `http://localhost:3001/network-intelligence`
+- `http://localhost:3001/cad-intake`
+- `http://localhost:3001/trust-pipeline`
+- `http://localhost:3001/data-sources`
+- `http://localhost:3001/data-sources/inventory`
+- `http://localhost:3001/projects`
+- `http://localhost:3001/maintenance`
+- `http://localhost:3001/methodology`
+
+Frontend startup:
+
+```powershell
+cd C:\Projects\UtilitiesPlatform\frontend
+$env:NEXT_PUBLIC_API_URL="http://127.0.0.1:8001"
+npm install
+npm run dev -- --port 3001
+```
+
+Frontend checks:
+
+```powershell
+npm run lint
+npm run build
+npm run test:e2e
+npm run test:a11y
+npm audit --audit-level=moderate
+```
+
+The interface uses Calcite components/assets selectively, CSS Modules, semantic design tokens, and the existing ArcGIS Maps SDK workflow. Screenshot review artifacts belong outside Git under `C:\UtilitiesPlatform_Data\logs\ui-review`.
+
 ## Repository Structure
 
 ```text

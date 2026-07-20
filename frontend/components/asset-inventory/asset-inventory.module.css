@@ -1,0 +1,35 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(360px, 5fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.viewToggle {
+  margin-left: auto;
+}
+
+.assetId {
+  font-family: var(--font-geist-mono), monospace;
+}
+
+.muted {
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 1020px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .viewToggle {
+    margin-left: 0;
+  }
+}
