@@ -88,6 +88,46 @@ File geodatabases are created only when the script runs inside an ArcGIS Pro Pyt
 
 All initial responses are placeholders and state that no production utility database has been connected.
 
+## Wastewater Data Health V1
+
+Wastewater Data Health V1 reviews the staged wastewater gravity mains and manholes in `C:\UtilitiesPlatform_Data\02_staging\Utility_Staging.gdb`. It generates transparent schema, identity, attribute, geometry, flow, and proximity-connectivity QA outputs without editing raw or staged data.
+
+Dry run:
+
+```powershell
+& "C:\Program Files\ArcGIS\Pro\bin\Python\envs\arcgispro-py3\python.exe" gis\qa\wastewater\run_wastewater_qa.py --dry-run
+```
+
+Execute:
+
+```powershell
+& "C:\Program Files\ArcGIS\Pro\bin\Python\envs\arcgispro-py3\python.exe" gis\qa\wastewater\run_wastewater_qa.py --execute --replace-output
+```
+
+Backend:
+
+```powershell
+cd C:\Projects\UtilitiesPlatform\backend
+$env:UTILITY_DATA_ROOT="C:\UtilitiesPlatform_Data"
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8001
+```
+
+Frontend:
+
+```powershell
+cd C:\Projects\UtilitiesPlatform\frontend
+$env:NEXT_PUBLIC_API_URL="http://127.0.0.1:8001"
+npm run dev -- --port 3001
+```
+
+View:
+
+```text
+http://localhost:3001/data-health
+```
+
+Wastewater Data Health V1 is proximity-based QA. It is not an ArcGIS Utility Network and does not claim authoritative topology.
+
 ## Repository Structure
 
 ```text

@@ -1,0 +1,241 @@
+.page {
+  min-height: 100svh;
+  padding: 28px;
+  background: var(--background);
+}
+
+.header {
+  display: grid;
+  gap: 8px;
+  max-width: 1180px;
+  margin-bottom: 18px;
+}
+
+.backLink {
+  width: fit-content;
+  color: var(--green);
+  font-weight: 700;
+}
+
+.header h1 {
+  font-size: 34px;
+  line-height: 1.1;
+}
+
+.header p,
+.muted {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.warning,
+.panel,
+.metric,
+.detailPanel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.warning {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  color: #7a2f1c;
+  background: #fff4ee;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.metric {
+  min-height: 118px;
+  padding: 16px;
+}
+
+.metric span {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.metric strong {
+  color: var(--blue);
+  font-size: 24px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(360px, 0.75fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.panel,
+.detailPanel {
+  padding: 18px;
+  margin-bottom: 16px;
+}
+
+.panel h2,
+.detailPanel h2 {
+  margin-bottom: 12px;
+  font-size: 20px;
+}
+
+.breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.breadcrumb strong {
+  color: var(--green);
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  min-width: 920px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table th,
+.table td {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.table th {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.filters input,
+.filters select,
+.detailPanel input,
+.detailPanel select,
+.detailPanel textarea {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  font: inherit;
+}
+
+.detailPanel textarea {
+  min-height: 78px;
+  resize: vertical;
+}
+
+.buttonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f7faf8;
+  color: var(--foreground);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.map {
+  width: 100%;
+  height: 520px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.toggles label {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.severity {
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.detailGrid {
+  display: grid;
+  gap: 10px;
+}
+
+.detailGrid dt {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.detailGrid dd {
+  margin-top: 2px;
+  line-height: 1.45;
+}
+
+@media (max-width: 1100px) {
+  .grid,
+  .layout,
+  .filters {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .page {
+    padding: 20px;
+  }
+
+  .grid,
+  .layout,
+  .filters {
+    grid-template-columns: 1fr;
+  }
+}

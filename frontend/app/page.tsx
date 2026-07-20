@@ -3,7 +3,7 @@ import styles from "./page.module.css";
 const navigation = [
   ["Overview", "#overview"],
   ["Asset Inventory", "#overview"],
-  ["Data Quality", "#overview"],
+  ["Data Health", "/data-health"],
   ["CAD Intake", "#overview"],
   ["Network Intelligence", "#overview"],
   ["Projects", "#overview"],

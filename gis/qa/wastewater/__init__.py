@@ -1,0 +1,41 @@
+"""Wastewater Data Health V1 QA engine."""
+
+ISSUE_FIELDS = [
+    "issue_id",
+    "rule_code",
+    "rule_name",
+    "category",
+    "severity",
+    "utility_system",
+    "network_group",
+    "asset_category",
+    "asset_subcategory",
+    "source_layer",
+    "source_asset_id",
+    "source_objectid",
+    "related_asset_id",
+    "related_objectid",
+    "description",
+    "why_it_matters",
+    "recommended_action",
+    "detection_method",
+    "threshold_used",
+    "confidence",
+    "review_status",
+    "reviewer",
+    "reviewed_at",
+    "resolution_notes",
+    "run_id",
+    "created_at",
+]
+
+ALLOWED_REVIEW_STATUSES = {
+    "open",
+    "under_review",
+    "confirmed_issue",
+    "false_positive",
+    "needs_field_verification",
+    "needs_engineering_review",
+    "resolved",
+    "deferred",
+}

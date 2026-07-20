@@ -128,3 +128,11 @@ class InventoryRecommendationResponse(BaseModel):
     recommendation_markdown: str
     allowlist: list[dict[str, str]]
     message: str
+
+
+class IssueReviewUpdate(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    review_status: str | None = None
+    reviewer: str | None = None
+    resolution_notes: str | None = None
