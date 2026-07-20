@@ -128,6 +128,41 @@ http://localhost:3001/data-health
 
 Wastewater Data Health V1 is proximity-based QA. It is not an ArcGIS Utility Network and does not claim authoritative topology.
 
+## QA Calibration And Review Phase 2
+
+Phase 2 adds deterministic issue fingerprints, local review persistence, immutable review history, rule calibration summaries, dependency-aware explanations, review sampling, component review, and standardization-readiness previews.
+
+Generate Phase 2 artifacts after a Wastewater Data Health V1 run:
+
+```powershell
+python gis\qa\wastewater\review_phase2.py --data-root C:\UtilitiesPlatform_Data
+```
+
+Start the backend:
+
+```powershell
+cd C:\Projects\UtilitiesPlatform\backend
+$env:UTILITY_DATA_ROOT="C:\UtilitiesPlatform_Data"
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8001
+```
+
+Start the frontend:
+
+```powershell
+cd C:\Projects\UtilitiesPlatform\frontend
+$env:NEXT_PUBLIC_API_URL="http://127.0.0.1:8001"
+npm run dev -- --port 3001
+```
+
+Review pages:
+
+```text
+http://localhost:3001/data-health
+http://localhost:3001/trust-pipeline
+```
+
+Phase 2 does not repair source data, alter QA thresholds, write standardized records, or create curated records. All standardization mappings default to not approved.
+
 ## Repository Structure
 
 ```text

@@ -80,6 +80,16 @@ def write_reports(root: Path) -> str:
         writer.writeheader()
         writer.writerow({"component_id": "1", "pipe_count": "1", "manhole_count": "1"})
     (reports / "wastewater_map_layers.json").write_text(json.dumps({"pipes": [], "manholes": [], "issues": []}), encoding="utf-8")
+    (reports / "wastewater_rule_calibration.json").write_text(json.dumps({"rows": [{"rule_code": "WW_ID_003", "total_findings": 1, "reviewed_findings": 0, "confirmed_defects": 0, "false_positives": 0, "source_limitations": 0, "confirmation_rate": 0, "false_positive_rate": 0, "review_coverage": 0, "threshold": "", "calibration_status": "not_reviewed"}]}), encoding="utf-8")
+    with (reports / "wastewater_review_sample.csv").open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=["issue_id", "rule_code"])
+        writer.writeheader()
+        writer.writerow({"issue_id": issue_id, "rule_code": "WW_ID_003"})
+    (reports / "wastewater_network_component_review.json").write_text(json.dumps({"components": [{"component_id": "1", "pipe_count": 1, "manhole_count": 1, "total_asset_count": 2, "unmatched_endpoints": 0, "likely_classification": "primary_network"}]}), encoding="utf-8")
+    (reports / "wastewater_standardization_readiness.json").write_text(json.dumps({"standardization_status": "pending_human_review", "writes_to_standardized_gdb": False, "writes_to_curated_gdb": False, "fields_unavailable": [], "fields_blocked": []}), encoding="utf-8")
+    (reports / "wastewater_standardization_mapping.json").write_text(json.dumps({"mappings": [{"source_layer": "wastewater_gravity_main", "source_field": "ASSET", "target_field": "source_asset_id", "approved_to_standardize": "false"}]}), encoding="utf-8")
+    (reports / "wastewater_data_owner_questions.md").write_text("# Questions\n", encoding="utf-8")
+    (reports / "wastewater_trust_pipeline.json").write_text(json.dumps({"stages": [{"stage": "Raw", "state": "complete"}]}), encoding="utf-8")
     admin = root / "00_admin"
     admin.mkdir()
     with (admin / "processing_history.csv").open("w", newline="", encoding="utf-8") as handle:
@@ -110,12 +120,13 @@ def test_wastewater_issue_patch_restrictions_and_status_validation(tmp_path: Pat
     issue_id = write_reports(tmp_path)
     monkeypatch.setenv("UTILITY_DATA_ROOT", str(tmp_path))
 
-    ok = client.patch(f"/api/data-health/wastewater/issues/{issue_id}", json={"review_status": "confirmed_issue", "reviewer": "tester"})
+    ok = client.patch(f"/api/data-health/wastewater/issues/{issue_id}", json={"workflow_status": "decision_recorded", "disposition": "confirmed_defect", "reviewer": "tester"})
     forbidden = client.patch(f"/api/data-health/wastewater/issues/{issue_id}", json={"source_layer": "edit"})
     invalid = client.patch(f"/api/data-health/wastewater/issues/{issue_id}", json={"review_status": "bad"})
 
     assert ok.status_code == 200
-    assert ok.json()["review_status"] == "confirmed_issue"
+    assert ok.json()["workflow_status"] == "decision_recorded"
+    assert ok.json()["disposition"] == "confirmed_defect"
     assert forbidden.status_code == 422
     assert invalid.status_code == 422
 
@@ -132,3 +143,51 @@ def test_wastewater_no_results_and_runs_are_sanitized(tmp_path: Path, monkeypatc
     assert runs.status_code == 200
     assert "hidden.gdb" not in runs.text
     assert runs.json()["runs"][0]["input_layer"] == "wastewater_gravity_main"
+
+
+def test_phase2_review_routes_and_batch_update_are_safe(tmp_path: Path, monkeypatch) -> None:
+    issue_id = write_reports(tmp_path)
+    monkeypatch.setenv("UTILITY_DATA_ROOT", str(tmp_path))
+
+    queue = client.get("/api/review/wastewater/queue")
+    batch = client.patch(
+        "/api/review/wastewater/issues/batch",
+        json={"issue_ids": [issue_id], "workflow_status": "assigned", "disposition": "needs_field_verification", "assigned_to": "steward"},
+    )
+    calibration = client.get("/api/review/wastewater/calibration")
+    sample = client.get("/api/review/wastewater/sample")
+    questions = client.get("/api/review/wastewater/data-owner-questions")
+    component = client.patch("/api/data-health/wastewater/components/1", json={"classification": "primary_network", "workflow_status": "decision_recorded"})
+    readiness = client.get("/api/standardization/wastewater/readiness")
+    mappings = client.get("/api/standardization/wastewater/mappings")
+    pipeline = client.get("/api/trust-pipeline/wastewater")
+
+    assert queue.status_code == 200
+    assert queue.json()["items"][0]["issue_fingerprint"]
+    assert "hidden.gdb" not in queue.text
+    assert batch.status_code == 200
+    assert batch.json()["updated_count"] == 1
+    assert calibration.json()["rows"][0]["calibration_status"] == "not_reviewed"
+    assert sample.json()["total"] == 1
+    assert questions.json()["markdown"].startswith("# Questions")
+    assert component.status_code == 200
+    assert component.json()["review_classification"] == "primary_network"
+    assert readiness.json()["writes_to_standardized_gdb"] is False
+    assert mappings.json()["mappings"][0]["approved_to_standardize"] == "false"
+    assert pipeline.json()["stages"][0]["state"] == "complete"
+
+
+def test_review_history_is_immutable_for_metadata_changes(tmp_path: Path, monkeypatch) -> None:
+    issue_id = write_reports(tmp_path)
+    monkeypatch.setenv("UTILITY_DATA_ROOT", str(tmp_path))
+
+    client.patch(f"/api/data-health/wastewater/issues/{issue_id}", json={"workflow_status": "in_review", "reviewer": "one"})
+    client.patch(f"/api/data-health/wastewater/issues/{issue_id}", json={"workflow_status": "resolved", "reviewer": "one"})
+
+    import sqlite3
+
+    db_path = tmp_path / "05_qa" / "review" / "wastewater_review.sqlite"
+    with sqlite3.connect(db_path) as connection:
+        history_count = connection.execute("SELECT COUNT(*) FROM review_history WHERE event_type IN ('status_changed', 'resolved')").fetchone()[0]
+
+    assert history_count >= 2

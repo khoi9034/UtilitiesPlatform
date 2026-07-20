@@ -134,5 +134,29 @@ class IssueReviewUpdate(BaseModel):
     model_config = {"extra": "forbid"}
 
     review_status: str | None = None
+    workflow_status: str | None = None
+    disposition: str | None = None
     reviewer: str | None = None
+    assigned_to: str | None = None
+    review_priority: str | None = None
+    review_notes: str | None = None
+    evidence_notes: str | None = None
     resolution_notes: str | None = None
+    due_date: str | None = None
+    source_confirmation: str | None = None
+    field_verification_required: bool | None = None
+    engineering_review_required: bool | None = None
+    rule_adjustment_candidate: bool | None = None
+
+
+class BatchIssueReviewUpdate(IssueReviewUpdate):
+    issue_ids: list[str]
+
+
+class ComponentReviewUpdate(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    classification: str | None = None
+    workflow_status: str | None = None
+    reviewer: str | None = None
+    reviewer_notes: str | None = None

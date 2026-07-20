@@ -3,6 +3,8 @@ from fastapi.responses import FileResponse
 
 from app.schemas.responses import (
     AssetSummaryResponse,
+    BatchIssueReviewUpdate,
+    ComponentReviewUpdate,
     DatasetCatalogResponse,
     DatasetCatalogSummaryResponse,
     DataSourcesResponse,
@@ -158,9 +160,62 @@ def update_wastewater_health_issue(issue_id: str, update: IssueReviewUpdate) -> 
     return issue
 
 
+@router.get("/review/wastewater/queue")
+def wastewater_review_queue(limit: int = Query(default=100, ge=1, le=500), offset: int = Query(default=0, ge=0)) -> dict[str, object]:
+    return wastewater_health.review_queue(limit=limit, offset=offset)
+
+
+@router.patch("/review/wastewater/issues/batch")
+def update_wastewater_issues_batch(update: BatchIssueReviewUpdate) -> dict[str, object]:
+    try:
+        issue_update = IssueReviewUpdate(**update.model_dump(exclude={"issue_ids"}))
+        return wastewater_health.batch_update_issue_reviews(update.issue_ids, issue_update)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.get("/review/wastewater/calibration")
+def wastewater_review_calibration() -> dict[str, object]:
+    return wastewater_health.calibration()
+
+
+@router.get("/review/wastewater/sample")
+def wastewater_review_sample() -> dict[str, object]:
+    return wastewater_health.review_sample()
+
+
+@router.get("/review/wastewater/data-owner-questions")
+def wastewater_data_owner_questions() -> dict[str, str]:
+    return wastewater_health.data_owner_questions()
+
+
 @router.get("/data-health/wastewater/network")
 def wastewater_health_network() -> dict[str, object]:
     return wastewater_health.network()
+
+
+@router.get("/data-health/wastewater/components")
+def wastewater_components(limit: int = Query(default=100, ge=1, le=500), offset: int = Query(default=0, ge=0)) -> dict[str, object]:
+    return wastewater_health.components(limit=limit, offset=offset)
+
+
+@router.get("/data-health/wastewater/components/{component_id}")
+def wastewater_component(component_id: str) -> dict[str, object]:
+    component = wastewater_health.component_detail(component_id)
+    if not component:
+        raise HTTPException(status_code=404, detail="Component not found.")
+    return component
+
+
+@router.patch("/data-health/wastewater/components/{component_id}")
+def update_wastewater_component(component_id: str, update: ComponentReviewUpdate) -> dict[str, object]:
+    try:
+        component = wastewater_health.update_component(component_id, update)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if not component:
+        raise HTTPException(status_code=404, detail="Component not found.")
+    return component
 
 
 @router.get("/data-health/wastewater/runs")
@@ -174,3 +229,18 @@ def wastewater_health_map() -> object:
     if not path.exists():
         return {"pipes": [], "manholes": [], "issues": []}
     return FileResponse(path, media_type="application/json")
+
+
+@router.get("/standardization/wastewater/readiness")
+def wastewater_standardization_readiness() -> dict[str, object]:
+    return wastewater_health.standardization_readiness()
+
+
+@router.get("/standardization/wastewater/mappings")
+def wastewater_standardization_mappings() -> dict[str, object]:
+    return wastewater_health.standardization_mappings()
+
+
+@router.get("/trust-pipeline/wastewater")
+def wastewater_trust_pipeline() -> dict[str, object]:
+    return wastewater_health.trust_pipeline()

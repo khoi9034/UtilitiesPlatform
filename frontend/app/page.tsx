@@ -4,6 +4,7 @@ const navigation = [
   ["Overview", "#overview"],
   ["Asset Inventory", "#overview"],
   ["Data Health", "/data-health"],
+  ["Trust Pipeline", "/trust-pipeline"],
   ["CAD Intake", "#overview"],
   ["Network Intelligence", "#overview"],
   ["Projects", "#overview"],

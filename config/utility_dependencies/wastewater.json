@@ -1,0 +1,138 @@
+{
+  "utility_system": "wastewater",
+  "version": "wastewater_dependencies_v1",
+  "dependencies": [
+    {
+      "dependency_code": "gravity_mains",
+      "name": "Gravity mains",
+      "purpose": "Primary pipe edges for proximity connectivity QA.",
+      "required_for_analysis_types": ["connectivity", "component_analysis", "standardization_preview"],
+      "currently_available": true,
+      "source_layer": "wastewater_gravity_main",
+      "effect_when_missing": "Pipe network analysis cannot be run.",
+      "affected_rules": ["WW_NET_001", "WW_NET_003", "WW_NET_005", "WW_NET_006"],
+      "notes": "Available in staged data for this phase."
+    },
+    {
+      "dependency_code": "manholes",
+      "name": "Manholes",
+      "purpose": "Primary access structures for endpoint matching.",
+      "required_for_analysis_types": ["connectivity", "component_analysis", "standardization_preview"],
+      "currently_available": true,
+      "source_layer": "wastewater_manhole",
+      "effect_when_missing": "Endpoint matching would overstate unmatched pipe ends.",
+      "affected_rules": ["WW_NET_001", "WW_NET_002", "WW_NET_003", "WW_NET_007", "WW_NET_008"],
+      "notes": "Available in staged data for this phase."
+    },
+    {
+      "dependency_code": "force_main",
+      "name": "Force mains",
+      "purpose": "Pressure sewer segments that may connect separated gravity components.",
+      "required_for_analysis_types": ["network_context", "component_review"],
+      "currently_available": false,
+      "source_layer": "",
+      "effect_when_missing": "Some apparent component breaks may be missing pressure-main connections.",
+      "affected_rules": ["WW_NET_001", "WW_NET_003", "WW_NET_005", "WW_NET_006"],
+      "notes": "Do not dismiss connectivity issues; use this as review context."
+    },
+    {
+      "dependency_code": "lift_station",
+      "name": "Lift stations",
+      "purpose": "Pumping nodes that can connect gravity and force-main systems.",
+      "required_for_analysis_types": ["network_context", "component_review"],
+      "currently_available": false,
+      "source_layer": "",
+      "effect_when_missing": "A legitimate network break may look like a disconnected component.",
+      "affected_rules": ["WW_NET_001", "WW_NET_003", "WW_NET_005"],
+      "notes": "Needs data-owner confirmation."
+    },
+    {
+      "dependency_code": "pump_station",
+      "name": "Pump stations",
+      "purpose": "Operational pump assets related to force-main connectivity.",
+      "required_for_analysis_types": ["network_context"],
+      "currently_available": false,
+      "source_layer": "",
+      "effect_when_missing": "Operational connectivity may be incomplete.",
+      "affected_rules": ["WW_NET_005", "WW_NET_006"],
+      "notes": ""
+    },
+    {
+      "dependency_code": "treatment_facility",
+      "name": "Treatment facilities",
+      "purpose": "Terminal wastewater facilities and system boundaries.",
+      "required_for_analysis_types": ["network_context", "lineage"],
+      "currently_available": false,
+      "source_layer": "",
+      "effect_when_missing": "Terminal components may appear disconnected from downstream facilities.",
+      "affected_rules": ["WW_NET_005"],
+      "notes": ""
+    },
+    {
+      "dependency_code": "service_lateral",
+      "name": "Service laterals",
+      "purpose": "Small service pipes that can explain isolated manholes or local endpoint patterns.",
+      "required_for_analysis_types": ["component_review", "coverage_review"],
+      "currently_available": false,
+      "source_layer": "",
+      "effect_when_missing": "Some isolated structure findings may be expected or incomplete.",
+      "affected_rules": ["WW_NET_002", "WW_NET_007"],
+      "notes": ""
+    },
+    {
+      "dependency_code": "cleanout",
+      "name": "Cleanouts",
+      "purpose": "Access points that may participate in local collection-system context.",
+      "required_for_analysis_types": ["coverage_review"],
+      "currently_available": false,
+      "source_layer": "",
+      "effect_when_missing": "Some endpoint context may be unavailable.",
+      "affected_rules": ["WW_NET_001", "WW_NET_002"],
+      "notes": ""
+    },
+    {
+      "dependency_code": "sewer_basin",
+      "name": "Sewer basins",
+      "purpose": "Operational areas for reviewing completeness and jurisdictional boundaries.",
+      "required_for_analysis_types": ["coverage_review", "component_review"],
+      "currently_available": false,
+      "source_layer": "",
+      "effect_when_missing": "Component classification cannot use basin context yet.",
+      "affected_rules": ["WW_NET_005", "WW_NET_006", "WW_NET_007"],
+      "notes": "WSACC_Subbasins_Cabarrus_Only remains review_required."
+    },
+    {
+      "dependency_code": "inspection_record",
+      "name": "Inspection records",
+      "purpose": "Condition and validation evidence for defects.",
+      "required_for_analysis_types": ["human_review", "defect_confirmation"],
+      "currently_available": false,
+      "source_layer": "",
+      "effect_when_missing": "Some defects require field or owner confirmation.",
+      "affected_rules": ["WW_ATTR_006", "WW_GEOM_002", "WW_GEOM_007"],
+      "notes": ""
+    },
+    {
+      "dependency_code": "work_order",
+      "name": "Work orders",
+      "purpose": "Lineage and construction/repair validation.",
+      "required_for_analysis_types": ["lineage", "human_review"],
+      "currently_available": false,
+      "source_layer": "",
+      "effect_when_missing": "Project lineage and repair context remain incomplete.",
+      "affected_rules": ["WW_ATTR_006"],
+      "notes": ""
+    },
+    {
+      "dependency_code": "repair_record",
+      "name": "Repair records",
+      "purpose": "Resolution evidence and lifecycle validation.",
+      "required_for_analysis_types": ["human_review", "lineage"],
+      "currently_available": false,
+      "source_layer": "",
+      "effect_when_missing": "Resolved historical conditions may still appear as active findings.",
+      "affected_rules": ["WW_ATTR_003", "WW_ATTR_005", "WW_ATTR_008"],
+      "notes": ""
+    }
+  ]
+}

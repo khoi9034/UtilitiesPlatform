@@ -11,9 +11,11 @@ type SafeGeometry =
 
 type Issue = {
   issue_id: string;
+  issue_fingerprint: string;
   rule_code: string;
   rule_name: string;
   category: string;
+  finding_class: string;
   severity: string;
   utility_system: string;
   network_group: string;
@@ -31,9 +33,29 @@ type Issue = {
   threshold_used: string;
   confidence: string;
   review_status: string;
+  workflow_status: string;
+  disposition: string;
   reviewer: string;
+  assigned_to: string;
+  review_priority: string;
+  review_notes: string;
+  evidence_notes: string;
   reviewed_at: string;
+  resolved_at: string;
+  due_date: string;
+  source_confirmation: string;
+  field_verification_required: boolean;
+  engineering_review_required: boolean;
+  rule_adjustment_candidate: boolean;
   resolution_notes: string;
+  possible_missing_dependency: string;
+  dependency_explanation: string;
+  first_seen_run_id: string;
+  latest_seen_run_id: string;
+  first_seen_at: string;
+  latest_seen_at: string;
+  occurrence_count: number;
+  currently_present: boolean;
   run_id: string;
   created_at: string;
   safe_geometry: SafeGeometry;
@@ -88,6 +110,10 @@ type NetworkResponse = {
 
 type MapFeature = { objectid?: number; asset_id?: string; issue_id?: string; rule_code?: string; category?: string; severity?: string; source_layer?: string; source_objectid?: string; geometry: SafeGeometry };
 type MapData = { pipes: MapFeature[]; manholes: MapFeature[]; issues: MapFeature[] };
+type CalibrationRow = { rule_code: string; total_findings: number; reviewed_findings: number; confirmed_defects: number; false_positives: number; source_limitations: number; confirmation_rate: number; false_positive_rate: number; review_coverage: number; threshold: string; calibration_status: string };
+type ComponentRow = { component_id: string; pipe_count: number; manhole_count: number; total_asset_count: number; approximate_network_length: number; bounding_extent: string; nearest_other_component_distance: number | string; unmatched_endpoints: number; isolated_status: string; likely_classification: string; review_status: string; review_classification: string; reviewer_notes: string };
+type Readiness = { standardization_status?: string; fields_ready_to_map_directly?: string[]; fields_requiring_unit_confirmation?: string[]; fields_requiring_code_translation?: string[]; fields_unavailable?: string[]; fields_blocked?: string[]; dependencies_still_missing?: string[]; records_eligible_for_preview?: number; records_requiring_review?: number; writes_to_standardized_gdb?: boolean; writes_to_curated_gdb?: boolean };
+type MappingRow = { source_layer: string; source_field: string; target_field: string; confidence: string; unit_conversion: string; code_translation: string; approved_to_standardize: string; blocked_reason: string };
 type ArcGisConstructor = new (properties?: Record<string, unknown>) => unknown;
 type ArcGisLayer = { addMany: (items: unknown[]) => void };
 type ArcGisView = {
@@ -112,7 +138,8 @@ declare global {
 }
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-const reviewStatuses = ["open", "under_review", "confirmed_issue", "false_positive", "needs_field_verification", "needs_engineering_review", "resolved", "deferred"];
+const workflowStatuses = ["open", "assigned", "in_review", "decision_recorded", "resolved", "reopened", "deferred"];
+const dispositions = ["unreviewed", "under_review", "confirmed_defect", "likely_defect", "false_positive", "source_data_limitation", "expected_condition", "missing_dependent_data", "needs_field_verification", "needs_engineering_review", "deferred", "resolved"];
 
 function label(value = "") {
   return value
@@ -132,6 +159,13 @@ export default function DataHealthPage() {
   const [issues, setIssues] = useState<IssuesResponse>({ items: [], pagination: { total: 0, limit: 50, offset: 0, has_more: false }, message: "" });
   const [network, setNetwork] = useState<NetworkResponse>({ summary: {}, limitations: [] });
   const [mapData, setMapData] = useState<MapData>({ pipes: [], manholes: [], issues: [] });
+  const [queue, setQueue] = useState<Issue[]>([]);
+  const [selectedIssueIds, setSelectedIssueIds] = useState<string[]>([]);
+  const [calibration, setCalibration] = useState<CalibrationRow[]>([]);
+  const [sampleTotal, setSampleTotal] = useState(0);
+  const [components, setComponents] = useState<ComponentRow[]>([]);
+  const [readiness, setReadiness] = useState<Readiness>({});
+  const [mappings, setMappings] = useState<MappingRow[]>([]);
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [error, setError] = useState("");
   const [filters, setFilters] = useState({ severity: "", category: "", rule_code: "", review_status: "", source_layer: "", asset: "" });
@@ -140,19 +174,31 @@ export default function DataHealthPage() {
   useEffect(() => {
     async function loadStaticData() {
       try {
-        const [summaryResponse, rulesResponse, networkResponse, mapResponse] = await Promise.all([
+        const [summaryResponse, rulesResponse, networkResponse, mapResponse, queueResponse, calibrationResponse, sampleResponse, componentsResponse, readinessResponse, mappingsResponse] = await Promise.all([
           fetch(`${apiUrl}/api/data-health/wastewater/summary`),
           fetch(`${apiUrl}/api/data-health/wastewater/rules`),
           fetch(`${apiUrl}/api/data-health/wastewater/network`),
           fetch(`${apiUrl}/api/data-health/wastewater/map`),
+          fetch(`${apiUrl}/api/review/wastewater/queue?limit=12`),
+          fetch(`${apiUrl}/api/review/wastewater/calibration`),
+          fetch(`${apiUrl}/api/review/wastewater/sample`),
+          fetch(`${apiUrl}/api/data-health/wastewater/components?limit=77`),
+          fetch(`${apiUrl}/api/standardization/wastewater/readiness`),
+          fetch(`${apiUrl}/api/standardization/wastewater/mappings`),
         ]);
-        if (!summaryResponse.ok || !rulesResponse.ok || !networkResponse.ok || !mapResponse.ok) {
+        if (!summaryResponse.ok || !rulesResponse.ok || !networkResponse.ok || !mapResponse.ok || !queueResponse.ok || !calibrationResponse.ok || !sampleResponse.ok || !componentsResponse.ok || !readinessResponse.ok || !mappingsResponse.ok) {
           throw new Error("Data Health API request failed.");
         }
         setSummary(await summaryResponse.json());
         setRules((await rulesResponse.json()).rules ?? []);
         setNetwork(await networkResponse.json());
         setMapData(await mapResponse.json());
+        setQueue((await queueResponse.json()).items ?? []);
+        setCalibration((await calibrationResponse.json()).rows ?? []);
+        setSampleTotal((await sampleResponse.json()).total ?? 0);
+        setComponents((await componentsResponse.json()).items ?? []);
+        setReadiness(await readinessResponse.json());
+        setMappings((await mappingsResponse.json()).mappings ?? []);
       } catch {
         setError("Data Health API is unavailable. Confirm the FastAPI backend is running and QA reports exist.");
       }
@@ -193,16 +239,29 @@ export default function DataHealthPage() {
     }
   }
 
-  async function saveReview(review_status: string, reviewer: string, resolution_notes: string) {
+  async function saveReview(workflow_status: string, disposition: string, reviewer: string, review_notes: string) {
     if (!selectedIssue) return;
     const response = await fetch(`${apiUrl}/api/data-health/wastewater/issues/${selectedIssue.issue_id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ review_status, reviewer, resolution_notes }),
+      body: JSON.stringify({ workflow_status, disposition, reviewer, review_notes }),
     });
     if (response.ok) {
       const updated = await response.json();
       setSelectedIssue(updated);
+      setOffset((value) => value);
+    }
+  }
+
+  async function applyBatchReview(update: Record<string, string | boolean>) {
+    if (selectedIssueIds.length === 0 || !confirm(`Apply review update to ${selectedIssueIds.length} selected issue(s)?`)) return;
+    const response = await fetch(`${apiUrl}/api/review/wastewater/issues/batch`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ issue_ids: selectedIssueIds, ...update }),
+    });
+    if (response.ok) {
+      setSelectedIssueIds([]);
       setOffset((value) => value);
     }
   }
@@ -225,6 +284,8 @@ export default function DataHealthPage() {
       <div className={styles.layout}>
         <div>
           <CategoryMetrics summary={summary} />
+          <PriorityReviewQueue queue={queue} sampleTotal={sampleTotal} onSelect={setSelectedIssue} />
+          <BatchReview selectedCount={selectedIssueIds.length} onApply={applyBatchReview} />
           <IssueExplorer
             issues={issues}
             filters={filters}
@@ -233,9 +294,12 @@ export default function DataHealthPage() {
             ruleCodes={ruleCodes}
             onFilter={updateFilter}
             onSelect={(issue) => setSelectedIssue(issue)}
+            selectedIssueIds={selectedIssueIds}
+            setSelectedIssueIds={setSelectedIssueIds}
             offset={offset}
             setOffset={setOffset}
           />
+          <RuleCalibrationView rows={calibration} />
           <RuleCatalog rules={rules} />
         </div>
 
@@ -243,6 +307,8 @@ export default function DataHealthPage() {
           <UtilityMap mapData={mapData} selectedIssue={selectedIssue} categories={categories} onSelectIssue={loadIssue} />
           <IssueDetail issue={selectedIssue} onSave={saveReview} />
           <NetworkMetrics network={network} summary={summary} />
+          <ComponentExplorer components={components} />
+          <StandardizationReadiness readiness={readiness} mappings={mappings} />
         </aside>
       </div>
     </main>
@@ -305,6 +371,97 @@ function Metric({ labelText, value, detail }: { labelText: string; value: string
   );
 }
 
+function PriorityReviewQueue({ queue, sampleTotal, onSelect }: { queue: Issue[]; sampleTotal: number; onSelect: (issue: Issue) => void }) {
+  return (
+    <section className={styles.panel}>
+      <h2>Priority review queue</h2>
+      <p className={styles.muted}>Review sample contains {sampleTotal} finding(s). Default ordering favors high-confidence severe findings, unmatched endpoints, isolated assets, identity, geometry, then completeness gaps.</p>
+      <div className={styles.tableWrap}>
+        <table className={styles.table}>
+          <thead>
+            <tr><th>Priority</th><th>Rule</th><th>Finding</th><th>Class</th><th>Disposition</th></tr>
+          </thead>
+          <tbody>
+            {queue.map((issue) => (
+              <tr key={issue.issue_id} onClick={() => onSelect(issue)}>
+                <td>{label(issue.review_priority)}</td>
+                <td>{issue.rule_code}</td>
+                <td>{issue.description}</td>
+                <td>{label(issue.finding_class)}</td>
+                <td>{label(issue.disposition)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function BatchReview({ selectedCount, onApply }: { selectedCount: number; onApply: (update: Record<string, string | boolean>) => void }) {
+  const [assignedTo, setAssignedTo] = useState("");
+  const [workflowStatus, setWorkflowStatus] = useState("");
+  const [disposition, setDisposition] = useState("");
+  const [note, setNote] = useState("");
+  const [fieldVerification, setFieldVerification] = useState(false);
+  const [engineeringReview, setEngineeringReview] = useState(false);
+
+  return (
+    <section className={styles.panel}>
+      <h2>Batch review</h2>
+      <div className={styles.filters}>
+        <input value={assignedTo} onChange={(event) => setAssignedTo(event.target.value)} placeholder="Assign reviewer" />
+        <Select labelText="Workflow" value={workflowStatus} options={workflowStatuses} onChange={setWorkflowStatus} />
+        <Select labelText="Disposition" value={disposition} options={dispositions} onChange={setDisposition} />
+        <input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Shared note" />
+        <label><input type="checkbox" checked={fieldVerification} onChange={(event) => setFieldVerification(event.target.checked)} /> Field verification</label>
+        <label><input type="checkbox" checked={engineeringReview} onChange={(event) => setEngineeringReview(event.target.checked)} /> Engineering review</label>
+      </div>
+      <div className={styles.buttonRow}>
+        <button
+          className={styles.button}
+          disabled={selectedCount === 0}
+          onClick={() => onApply({ assigned_to: assignedTo, workflow_status: workflowStatus, disposition, review_notes: note, field_verification_required: fieldVerification, engineering_review_required: engineeringReview })}
+        >
+          Apply to {selectedCount} selected
+        </button>
+        <button className={styles.button} disabled={selectedCount === 0} onClick={() => onApply({ workflow_status: "deferred", disposition: "deferred", review_notes: note })}>Defer</button>
+      </div>
+    </section>
+  );
+}
+
+function RuleCalibrationView({ rows }: { rows: CalibrationRow[] }) {
+  return (
+    <section className={styles.panel}>
+      <h2>Rule calibration</h2>
+      <div className={styles.tableWrap}>
+        <table className={styles.table}>
+          <thead>
+            <tr><th>Rule</th><th>Total</th><th>Reviewed</th><th>Confirmed</th><th>False positives</th><th>Source limitations</th><th>Confirmation rate</th><th>False-positive rate</th><th>Threshold</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.rule_code}>
+                <td>{row.rule_code}</td>
+                <td>{row.total_findings}</td>
+                <td>{row.reviewed_findings}</td>
+                <td>{row.confirmed_defects}</td>
+                <td>{row.false_positives}</td>
+                <td>{row.source_limitations}</td>
+                <td>{pct(row.confirmation_rate)}</td>
+                <td>{pct(row.false_positive_rate)}</td>
+                <td>{row.threshold || "None"}</td>
+                <td>{label(row.calibration_status)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 function IssueExplorer({
   issues,
   filters,
@@ -313,6 +470,8 @@ function IssueExplorer({
   ruleCodes,
   onFilter,
   onSelect,
+  selectedIssueIds,
+  setSelectedIssueIds,
   offset,
   setOffset,
 }: {
@@ -323,9 +482,15 @@ function IssueExplorer({
   ruleCodes: string[];
   onFilter: (key: "severity" | "category" | "rule_code" | "review_status" | "source_layer" | "asset", value: string) => void;
   onSelect: (issue: Issue) => void;
+  selectedIssueIds: string[];
+  setSelectedIssueIds: (value: string[]) => void;
   offset: number;
   setOffset: (value: number) => void;
 }) {
+  function toggleIssue(issueId: string, checked: boolean) {
+    setSelectedIssueIds(checked ? [...selectedIssueIds, issueId] : selectedIssueIds.filter((id) => id !== issueId));
+  }
+
   return (
     <section className={styles.panel}>
       <h2>QA issue explorer</h2>
@@ -333,7 +498,7 @@ function IssueExplorer({
         <Select labelText="Severity" value={filters.severity} options={severities} onChange={(value) => onFilter("severity", value)} />
         <Select labelText="Category" value={filters.category} options={categories} onChange={(value) => onFilter("category", value)} />
         <Select labelText="Rule" value={filters.rule_code} options={ruleCodes} onChange={(value) => onFilter("rule_code", value)} />
-        <Select labelText="Status" value={filters.review_status} options={reviewStatuses} onChange={(value) => onFilter("review_status", value)} />
+        <Select labelText="Status" value={filters.review_status} options={workflowStatuses} onChange={(value) => onFilter("review_status", value)} />
         <Select labelText="Layer" value={filters.source_layer} options={["wastewater_gravity_main", "wastewater_manhole", "network"]} onChange={(value) => onFilter("source_layer", value)} />
         <input value={filters.asset} placeholder="Asset search" onChange={(event) => onFilter("asset", event.target.value)} />
       </div>
@@ -344,25 +509,33 @@ function IssueExplorer({
           <table className={styles.table}>
             <thead>
               <tr>
+                <th>Select</th>
                 <th>Severity</th>
                 <th>Rule</th>
                 <th>Asset</th>
                 <th>Layer</th>
                 <th>Description</th>
+                <th>Class</th>
                 <th>Confidence</th>
-                <th>Review Status</th>
+                <th>Workflow</th>
+                <th>Disposition</th>
               </tr>
             </thead>
             <tbody>
               {issues.items.map((issue) => (
                 <tr key={issue.issue_id} onClick={() => onSelect(issue)}>
+                  <td onClick={(event) => event.stopPropagation()}>
+                    <input aria-label={`Select ${issue.issue_id}`} type="checkbox" checked={selectedIssueIds.includes(issue.issue_id)} onChange={(event) => toggleIssue(issue.issue_id, event.target.checked)} />
+                  </td>
                   <td className={styles.severity}>{issue.severity}</td>
                   <td>{issue.rule_code}</td>
                   <td>{issue.source_asset_id || issue.source_objectid}</td>
                   <td>{label(issue.source_layer)}</td>
                   <td>{issue.description}</td>
+                  <td>{label(issue.finding_class)}</td>
                   <td>{issue.confidence}</td>
-                  <td>{label(issue.review_status)}</td>
+                  <td>{label(issue.workflow_status || issue.review_status)}</td>
+                  <td>{label(issue.disposition)}</td>
                 </tr>
               ))}
             </tbody>
@@ -530,7 +703,7 @@ function featureGraphic(Graphic: ArcGisConstructor, Polyline: ArcGisConstructor,
   return null;
 }
 
-function IssueDetail({ issue, onSave }: { issue: Issue | null; onSave: (reviewStatus: string, reviewer: string, notes: string) => void }) {
+function IssueDetail({ issue, onSave }: { issue: Issue | null; onSave: (workflowStatus: string, disposition: string, reviewer: string, notes: string) => void }) {
   if (!issue) {
     return (
       <section className={styles.detailPanel}>
@@ -543,10 +716,11 @@ function IssueDetail({ issue, onSave }: { issue: Issue | null; onSave: (reviewSt
   return <IssueReviewForm key={issue.issue_id} issue={issue} onSave={onSave} />;
 }
 
-function IssueReviewForm({ issue, onSave }: { issue: Issue; onSave: (reviewStatus: string, reviewer: string, notes: string) => void }) {
-  const [reviewStatus, setReviewStatus] = useState(issue.review_status || "open");
+function IssueReviewForm({ issue, onSave }: { issue: Issue; onSave: (workflowStatus: string, disposition: string, reviewer: string, notes: string) => void }) {
+  const [workflowStatus, setWorkflowStatus] = useState(issue.workflow_status || issue.review_status || "open");
+  const [disposition, setDisposition] = useState(issue.disposition || "unreviewed");
   const [reviewer, setReviewer] = useState(issue.reviewer || "");
-  const [notes, setNotes] = useState(issue.resolution_notes || "");
+  const [notes, setNotes] = useState(issue.review_notes || issue.resolution_notes || "");
 
   return (
     <section className={styles.detailPanel}>
@@ -557,16 +731,24 @@ function IssueReviewForm({ issue, onSave }: { issue: Issue; onSave: (reviewStatu
         <div><dt>Recommended action</dt><dd>{issue.recommended_action}</dd></div>
         <div><dt>Detection method</dt><dd>{issue.detection_method}</dd></div>
         <div><dt>Threshold</dt><dd>{issue.threshold_used || "Not applicable"}</dd></div>
+        <div><dt>Finding class</dt><dd>{label(issue.finding_class)}</dd></div>
+        <div><dt>Possible missing dependency</dt><dd>{label(issue.possible_missing_dependency) || "None"}</dd></div>
+        <div><dt>Dependency context</dt><dd>{issue.dependency_explanation || "No dependency warning."}</dd></div>
+        <div><dt>Fingerprint</dt><dd>{issue.issue_fingerprint}</dd></div>
         <div><dt>Related asset</dt><dd>{issue.related_asset_id || issue.related_objectid || "None"}</dd></div>
         <div><dt>Run ID</dt><dd>{issue.run_id}</dd></div>
+        <div><dt>Seen</dt><dd>{issue.occurrence_count} occurrence(s), latest run {issue.latest_seen_run_id}</dd></div>
       </dl>
       <div className={styles.buttonRow}>
-        <select value={reviewStatus} onChange={(event) => setReviewStatus(event.target.value)} aria-label="Review status">
-          {reviewStatuses.map((status) => <option value={status} key={status}>{label(status)}</option>)}
+        <select value={workflowStatus} onChange={(event) => setWorkflowStatus(event.target.value)} aria-label="Workflow status">
+          {workflowStatuses.map((status) => <option value={status} key={status}>{label(status)}</option>)}
+        </select>
+        <select value={disposition} onChange={(event) => setDisposition(event.target.value)} aria-label="Disposition">
+          {dispositions.map((value) => <option value={value} key={value}>{label(value)}</option>)}
         </select>
         <input value={reviewer} onChange={(event) => setReviewer(event.target.value)} placeholder="Reviewer" />
-        <textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Resolution notes" />
-        <button className={styles.button} onClick={() => onSave(reviewStatus, reviewer, notes)}>Save review</button>
+        <textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Review notes" />
+        <button className={styles.button} onClick={() => onSave(workflowStatus, disposition, reviewer, notes)}>Save review</button>
       </div>
     </section>
   );
@@ -583,6 +765,72 @@ function NetworkMetrics({ network, summary }: { network: NetworkResponse; summar
         <Metric labelText="Isolated assets" value={`${summary.isolated_pipes ?? 0} / ${summary.isolated_manholes ?? 0}`} detail="Pipes / manholes." />
       </div>
       <p className={styles.muted}>{network.limitations.join(" ")}</p>
+    </section>
+  );
+}
+
+function ComponentExplorer({ components }: { components: ComponentRow[] }) {
+  return (
+    <section className={styles.panel}>
+      <h2>Component explorer</h2>
+      <p className={styles.muted}>{components.length} proximity component(s). Classifications are review metadata, not automatic defects.</p>
+      <div className={styles.tableWrap}>
+        <table className={styles.table}>
+          <thead>
+            <tr><th>ID</th><th>Assets</th><th>Pipes</th><th>Manholes</th><th>Unmatched</th><th>Nearest</th><th>Likely reason</th><th>Review</th></tr>
+          </thead>
+          <tbody>
+            {components.map((component) => (
+              <tr key={component.component_id}>
+                <td>{component.component_id}</td>
+                <td>{component.total_asset_count}</td>
+                <td>{component.pipe_count}</td>
+                <td>{component.manhole_count}</td>
+                <td>{component.unmatched_endpoints}</td>
+                <td>{component.nearest_other_component_distance}</td>
+                <td>{label(component.likely_classification)}</td>
+                <td>{label(component.review_classification || component.review_status)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function StandardizationReadiness({ readiness, mappings }: { readiness: Readiness; mappings: MappingRow[] }) {
+  const awaiting = mappings.filter((row) => row.approved_to_standardize !== "true" && !row.blocked_reason).length;
+  return (
+    <section className={styles.panel}>
+      <h2>Standardization readiness</h2>
+      <div className={styles.grid}>
+        <Metric labelText="Status" value={label(readiness.standardization_status ?? "pending")} detail="No standardized writes are enabled." />
+        <Metric labelText="Awaiting confirmation" value={String(awaiting)} detail="Mappings default to not approved." />
+        <Metric labelText="Unavailable fields" value={String(readiness.fields_unavailable?.length ?? 0)} detail="No source mapping proposed." />
+        <Metric labelText="Missing dependencies" value={String(readiness.dependencies_still_missing?.length ?? 0)} detail="Additional utility layers needed for context." />
+      </div>
+      <p className={styles.muted}>Writes to standardized GDB: {String(readiness.writes_to_standardized_gdb)}. Writes to curated GDB: {String(readiness.writes_to_curated_gdb)}.</p>
+      <div className={styles.tableWrap}>
+        <table className={styles.table}>
+          <thead>
+            <tr><th>Source</th><th>Field</th><th>Target</th><th>Confidence</th><th>Unit</th><th>Codes</th><th>Approved</th></tr>
+          </thead>
+          <tbody>
+            {mappings.slice(0, 12).map((row) => (
+              <tr key={`${row.source_layer}-${row.source_field}-${row.target_field}`}>
+                <td>{label(row.source_layer)}</td>
+                <td>{row.source_field}</td>
+                <td>{row.target_field}</td>
+                <td>{row.confidence}</td>
+                <td>{row.unit_conversion}</td>
+                <td>{row.code_translation}</td>
+                <td>{row.approved_to_standardize}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }
