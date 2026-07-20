@@ -4,7 +4,8 @@
     {
       "rule_name": "Required Asset ID",
       "rule_code": "REQUIRED_ASSET_ID",
-      "utility_type": "other",
+      "utility_system": "shared_reference",
+      "network_group": "general",
       "layer_type": "asset",
       "severity": "high",
       "description": "Asset records should include the approved unique identifier field.",
@@ -13,7 +14,8 @@
     {
       "rule_name": "CAD Layer Has Mapping",
       "rule_code": "CAD_LAYER_HAS_MAPPING",
-      "utility_type": "other",
+      "utility_system": "shared_reference",
+      "network_group": "general",
       "layer_type": "cad",
       "severity": "medium",
       "description": "CAD layers should map to an approved utility target layer before staging.",

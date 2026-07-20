@@ -31,16 +31,30 @@ def test_classifies_sewer_manholes_as_wastewater() -> None:
     result = classify_layer("Sewer_Manholes", ["OBJECTID", "FACILITYID"], "Point")
 
     assert result == {
-        "utility_type": "wastewater",
-        "asset_category": "manhole",
+        "utility_system": "wastewater",
+        "network_group": "structures",
+        "asset_category": "access_structure",
+        "asset_subcategory": "manhole",
         "classification_confidence": "high",
+        "likely_classifications": "",
+        "recommended_classification": "",
+        "classification_notes": "",
     }
 
 
 def test_classification_does_not_force_unknown_layer() -> None:
     result = classify_layer("misc_layer", ["OBJECTID"], "Polygon")
 
-    assert result["utility_type"] == "unknown"
+    assert result["utility_system"] == "unknown"
+
+
+def test_subbasin_requires_review_with_candidates() -> None:
+    result = classify_layer("WSACC_Subbasins_Cabarrus_Only", ["Subbasin"], "Polygon")
+
+    assert result["utility_system"] == "review_required"
+    assert result["asset_subcategory"] == "subbasin"
+    assert "wastewater / operational_areas / sewer_basin / subbasin" in result["likely_classifications"]
+    assert "stormwater / drainage_areas / drainage_basin / subbasin" in result["likely_classifications"]
 
 
 def test_source_discovery_ignores_shapefile_sidecars(tmp_path) -> None:

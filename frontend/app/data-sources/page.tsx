@@ -18,8 +18,10 @@ type StorageStatus = {
 type Dataset = {
   dataset_id: string;
   dataset_name: string;
-  utility_type: string;
+  utility_system: string;
+  network_group: string;
   asset_category: string;
+  asset_subcategory: string;
   source_format: string;
   geometry_type: string;
   record_count: string;
@@ -119,8 +121,10 @@ export default function DataSourcesPage() {
               <thead>
                 <tr>
                   <th>Dataset</th>
-                  <th>Utility type</th>
+                  <th>System</th>
+                  <th>Network group</th>
                   <th>Asset category</th>
+                  <th>Asset subcategory</th>
                   <th>Format</th>
                   <th>Geometry</th>
                   <th>Stage</th>
@@ -135,8 +139,10 @@ export default function DataSourcesPage() {
                 {rows.map((row) => (
                   <tr key={row.dataset_id}>
                     <td>{row.dataset_name}</td>
-                    <td>{row.utility_type}</td>
+                    <td>{row.utility_system}</td>
+                    <td>{row.network_group}</td>
                     <td>{row.asset_category}</td>
+                    <td>{row.asset_subcategory}</td>
                     <td>{row.source_format}</td>
                     <td>{row.geometry_type}</td>
                     <td>{row.current_stage}</td>

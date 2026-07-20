@@ -29,6 +29,10 @@ class AssetSummaryResponse(BaseModel):
 class QaSummaryResponse(BaseModel):
     open_issues: int | None
     assets_requiring_review: int | None
+    by_utility_system: dict[str, int]
+    by_network_group: dict[str, int]
+    by_asset_category: dict[str, int]
+    review_required_layers: int
     values_connected: bool
     message: str
 
@@ -48,8 +52,10 @@ class StorageStatusResponse(BaseModel):
 class DatasetCatalogRow(BaseModel):
     dataset_id: str
     dataset_name: str
-    utility_type: str
+    utility_system: str
+    network_group: str
     asset_category: str
+    asset_subcategory: str
     source_format: str
     geometry_type: str
     coordinate_system: str
@@ -70,7 +76,9 @@ class DatasetCatalogResponse(BaseModel):
 
 class DatasetCatalogSummaryResponse(BaseModel):
     total_datasets: int
-    by_utility_type: dict[str, int]
+    by_utility_system: dict[str, int]
+    by_network_group: dict[str, int]
+    by_asset_category: dict[str, int]
     by_stage: dict[str, int]
     by_source_format: dict[str, int]
     by_sensitivity_level: dict[str, int]
@@ -81,9 +89,13 @@ class InventoryLayerRow(BaseModel):
     dataset_id: str
     source_name: str
     source_format: str
-    utility_type: str
-    classification_confidence: str
+    utility_system: str
+    network_group: str
     asset_category: str
+    asset_subcategory: str
+    classification_confidence: str
+    likely_classifications: str
+    recommended_classification: str
     layer_name: str
     geometry_type: str
     record_count: str
@@ -95,12 +107,15 @@ class InventoryLayerRow(BaseModel):
 class InventorySummaryResponse(BaseModel):
     sources_discovered: int
     layer_count: int
-    by_utility_type: dict[str, int]
+    by_utility_system: dict[str, int]
+    by_network_group: dict[str, int]
+    by_asset_category: dict[str, int]
     by_confidence: dict[str, int]
     record_totals_by_system: dict[str, int]
     spatial_references: dict[str, int]
     recommended_staging_layers: int
     unknown_layers: int
+    review_required_layers: int
     message: str
 
 

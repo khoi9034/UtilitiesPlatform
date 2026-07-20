@@ -14,8 +14,10 @@ def write_catalog(root: Path) -> None:
     fields = [
         "dataset_id",
         "dataset_name",
-        "utility_type",
+        "utility_system",
+        "network_group",
         "asset_category",
+        "asset_subcategory",
         "source_format",
         "source_path",
         "source_owner",
@@ -44,8 +46,10 @@ def write_catalog(root: Path) -> None:
             {
                 "dataset_id": "abc",
                 "dataset_name": "Restricted Water Mains",
-                "utility_type": "water",
-                "asset_category": "main",
+                "utility_system": "water",
+                "network_group": "distribution_network",
+                "asset_category": "pipe",
+                "asset_subcategory": "water_main",
                 "source_format": "file_geodatabase",
                 "source_path": str(root / "01_raw" / "geodatabases" / "Secret.gdb"),
                 "geometry_type": "polyline",
@@ -90,7 +94,7 @@ def test_storage_summary_empty_catalog(tmp_path: Path, monkeypatch) -> None:
 
     assert response.status_code == 200
     assert payload["total_datasets"] == 0
-    assert payload["by_utility_type"] == {}
+    assert payload["by_utility_system"] == {}
     assert payload["message"] == "No utility datasets have been registered yet."
 
 
@@ -100,8 +104,8 @@ def test_inventory_api_does_not_expose_source_paths(tmp_path: Path, monkeypatch)
     (report_root / "utility_data_inventory.csv").write_text(
         "\n".join(
             [
-                "dataset_id,source_name,source_path,source_format,utility_type,classification_confidence,asset_category,feature_dataset,layer_name,geometry_type,record_count,spatial_reference,unique_id_field,status_field,material_field,diameter_field,install_date_field,inspection_date_field,project_id_field,work_order_field,has_domains,has_subtypes,has_relationships,has_attachments,editor_tracking_enabled,sensitivity_level,recommended_action,notes",
-                f"abc,SecretSource,{tmp_path}\\01_raw\\Secret.gdb,shapefile,wastewater,high,manhole,,Manholes,Point,10,NAD83,OBJECTID,,,,,,,,false,false,false,false,false,restricted,candidate_for_staging_review,sensitive note",
+                "dataset_id,source_name,source_path,source_format,utility_system,network_group,asset_category,asset_subcategory,classification_confidence,likely_classifications,recommended_classification,feature_dataset,layer_name,geometry_type,record_count,spatial_reference,unique_id_field,status_field,material_field,diameter_field,install_date_field,inspection_date_field,project_id_field,work_order_field,has_domains,has_subtypes,has_relationships,has_attachments,editor_tracking_enabled,sensitivity_level,recommended_action,notes",
+                f"abc,SecretSource,{tmp_path}\\01_raw\\Secret.gdb,shapefile,wastewater,structures,access_structure,manhole,high,,,,Manholes,Point,10,NAD83,OBJECTID,,,,,,,,false,false,false,false,false,restricted,candidate_for_staging_review,sensitive note",
             ]
         ),
         encoding="utf-8",

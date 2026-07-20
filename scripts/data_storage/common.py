@@ -18,8 +18,10 @@ DEFAULT_ROOT = Path(os.getenv("UTILITY_DATA_ROOT", r"C:\UtilitiesPlatform_Data")
 DATA_CATALOG_COLUMNS = [
     "dataset_id",
     "dataset_name",
-    "utility_type",
+    "utility_system",
+    "network_group",
     "asset_category",
+    "asset_subcategory",
     "source_format",
     "source_path",
     "source_owner",
@@ -77,8 +79,10 @@ EXPORT_REGISTRY_COLUMNS = [
 SAFE_CATALOG_FIELDS = [
     "dataset_id",
     "dataset_name",
-    "utility_type",
+    "utility_system",
+    "network_group",
     "asset_category",
+    "asset_subcategory",
     "source_format",
     "geometry_type",
     "coordinate_system",
@@ -91,6 +95,25 @@ SAFE_CATALOG_FIELDS = [
     "date_inventoried",
     "last_processed",
 ]
+
+LEGACY_TAXONOMY = {
+    ("wastewater", "gravity_main"): {
+        "network_group": "gravity_network",
+        "asset_category": "pipe",
+        "asset_subcategory": "gravity_main",
+    },
+    ("wastewater", "manhole"): {
+        "network_group": "structures",
+        "asset_category": "access_structure",
+        "asset_subcategory": "manhole",
+    },
+    ("stormwater", "subbasin"): {
+        "utility_system": "review_required",
+        "network_group": "review_required",
+        "asset_category": "review_required",
+        "asset_subcategory": "subbasin",
+    },
+}
 
 ROOT_DIRS = [
     "00_admin",
@@ -249,6 +272,7 @@ def read_catalog(config: StorageConfig) -> list[dict[str, str]]:
 
 def append_catalog_row(config: StorageConfig, row: dict[str, Any], allow_duplicate: bool = False) -> str:
     ensure_under_root(Path(row["source_path"]), config.master_data_root)
+    row = normalize_catalog_row(row)
     existing = read_catalog(config)
     duplicate = any(
         item.get("dataset_name") == row["dataset_name"]
@@ -269,7 +293,19 @@ def append_catalog_row(config: StorageConfig, row: dict[str, Any], allow_duplica
 
 
 def safe_catalog_rows(config: StorageConfig) -> list[dict[str, str]]:
-    return [{field: row.get(field, "") for field in SAFE_CATALOG_FIELDS} for row in read_catalog(config)]
+    return [{field: normalize_catalog_row(row).get(field, "") for field in SAFE_CATALOG_FIELDS} for row in read_catalog(config)]
+
+
+def normalize_catalog_row(row: dict[str, Any]) -> dict[str, Any]:
+    output = dict(row)
+    if "utility_system" not in output and "utility_type" in output:
+        output["utility_system"] = output.get("utility_type", "")
+    output.setdefault("network_group", "")
+    output.setdefault("asset_subcategory", "")
+    legacy = LEGACY_TAXONOMY.get((str(output.get("utility_system", "")).lower(), str(output.get("asset_category", "")).lower()))
+    if legacy and (not output.get("network_group") or not output.get("asset_subcategory")):
+        output.update(legacy)
+    return output
 
 
 def append_export_row(config: StorageConfig, row: dict[str, Any]) -> str:

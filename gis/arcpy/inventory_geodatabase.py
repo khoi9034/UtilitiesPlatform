@@ -24,9 +24,13 @@ REPORT_COLUMNS = [
     "source_name",
     "source_path",
     "source_format",
-    "utility_type",
-    "classification_confidence",
+    "utility_system",
+    "network_group",
     "asset_category",
+    "asset_subcategory",
+    "classification_confidence",
+    "likely_classifications",
+    "recommended_classification",
     "feature_dataset",
     "layer_name",
     "geometry_type",
@@ -79,8 +83,10 @@ ALLOWLIST_COLUMNS = [
     "dataset_id",
     "source_layer_name",
     "target_layer_name",
-    "utility_type",
+    "utility_system",
+    "network_group",
     "asset_category",
+    "asset_subcategory",
     "approved_to_stage",
     "reason",
     "reviewed_by",
@@ -151,7 +157,8 @@ def describe_layer(arcpy: Any, source: dict[str, str], layer_path: Path, feature
     description = arcpy.Describe(str(layer_path))
     fields = list(arcpy.ListFields(str(layer_path)))
     field_names = [field.name for field in fields]
-    classification = classify_layer(layer_path.stem, field_names, getattr(description, "shapeType", ""))
+    field_context = [f"{field.name} {getattr(field, 'aliasName', '')}" for field in fields]
+    classification = classify_layer(layer_path.stem, field_context, getattr(description, "shapeType", ""), source["source_name"])
     row = {
         "source_name": source["source_name"],
         "source_path": source["source_path"],
@@ -164,6 +171,7 @@ def describe_layer(arcpy: Any, source: dict[str, str], layer_path: Path, feature
         "spatial_reference": getattr(getattr(description, "spatialReference", None), "name", ""),
         "fields": [field_info(field) for field in fields],
         "field_names": field_names,
+        "extent": extent_info(description),
         "has_domains": any(getattr(field, "domain", "") for field in fields),
         "has_subtypes": bool(arcpy.da.ListSubtypes(str(layer_path))),
         "has_relationships": bool(getattr(description, "relationshipClassNames", [])),
@@ -175,10 +183,22 @@ def describe_layer(arcpy: Any, source: dict[str, str], layer_path: Path, feature
     }
     row.update(classification)
     row.update(match_common_fields(row["fields"]))
-    row["notes"] = ""
+    row["notes"] = row.get("classification_notes", "")
     row["sensitivity_level"] = sensitivity_for(row)
     row["recommended_action"] = recommended_action(row)
     return row
+
+
+def extent_info(description: Any) -> dict[str, float] | None:
+    extent = getattr(description, "extent", None)
+    if not extent:
+        return None
+    return {
+        "xmin": float(extent.XMin),
+        "ymin": float(extent.YMin),
+        "xmax": float(extent.XMax),
+        "ymax": float(extent.YMax),
+    }
 
 
 def field_info(field: Any) -> dict[str, Any]:
@@ -212,19 +232,60 @@ def match_common_fields(fields: list[dict[str, Any]]) -> dict[str, str]:
 
 
 def sensitivity_for(layer: dict[str, Any]) -> str:
-    if layer["utility_type"] in {"water", "wastewater", "stormwater", "telecom", "electric", "gas"}:
+    if layer["utility_system"] in {"water", "wastewater", "stormwater", "telecom", "electric", "gas", "review_required"}:
         return "restricted"
-    if layer["utility_type"] == "reference":
+    if layer["utility_system"] in {"reference", "shared_reference"}:
         return "internal"
     return "restricted"
 
 
 def recommended_action(layer: dict[str, Any]) -> str:
+    if layer["utility_system"] == "review_required":
+        return "review_required"
     if layer["classification_confidence"] == "high" and layer["spatial_reference"] and not layer["notes"]:
         return "candidate_for_staging_review"
     if layer["classification_confidence"] in {"unknown", "low"}:
         return "manual_review"
     return "defer_until_reviewed"
+
+
+def extents_intersect(left: dict[str, float] | None, right: dict[str, float] | None) -> bool:
+    if not left or not right:
+        return False
+    return not (
+        left["xmax"] < right["xmin"]
+        or left["xmin"] > right["xmax"]
+        or left["ymax"] < right["ymin"]
+        or left["ymin"] > right["ymax"]
+    )
+
+
+def apply_contextual_review_recommendations(layers: list[dict[str, Any]]) -> None:
+    wastewater_layers = [layer for layer in layers if layer.get("utility_system") == "wastewater"]
+    for layer in layers:
+        if layer.get("utility_system") != "review_required" or layer.get("asset_subcategory") != "subbasin":
+            continue
+        evidence = []
+        context = " ".join([layer.get("source_name", ""), layer.get("layer_name", ""), *layer.get("field_names", [])]).lower()
+        if "wsacc" in context or "sewer" in context or "wastewater" in context:
+            evidence.append("source or attribute context references a water/sewer utility context")
+        if any(
+            other.get("spatial_reference") == layer.get("spatial_reference")
+            and extents_intersect(layer.get("extent"), other.get("extent"))
+            for other in wastewater_layers
+        ):
+            evidence.append("layer extent overlaps inventoried wastewater infrastructure")
+        if evidence:
+            layer["recommended_classification"] = "wastewater / operational_areas / sewer_basin / subbasin"
+            layer["notes"] = (
+                "Review required; most likely wastewater sewer basin based on "
+                + "; ".join(evidence)
+                + ". Stormwater drainage basin remains a candidate until confirmed."
+            )
+        else:
+            layer["notes"] = "Review required; subbasin could be wastewater sewer basin or stormwater drainage basin."
+        layer["sensitivity_level"] = sensitivity_for(layer)
+        layer["recommended_action"] = recommended_action(layer)
 
 
 def inventory_sources(sources: list[dict[str, str]]) -> list[dict[str, Any]]:
@@ -252,7 +313,7 @@ def inventory_file_geodatabase(arcpy: Any, source: dict[str, str]) -> list[dict[
 def profile_fields(arcpy: Any, layers: list[dict[str, Any]], limit: int = 10) -> list[dict[str, str]]:
     profiles: list[dict[str, str]] = []
     for layer in layers:
-        if layer["classification_confidence"] not in {"high", "medium"} or layer["utility_type"] in {"reference", "unknown"}:
+        if layer["classification_confidence"] not in {"high", "medium"} or layer["utility_system"] in {"reference", "shared_reference", "unknown", "review_required"}:
             continue
         fields = [field for field in layer["fields"] if field["type"] not in {"Geometry", "OID", "Blob", "Raster"}]
         cursor_fields = [field["name"] for field in fields]
@@ -327,8 +388,10 @@ def register_layers(layers: list[dict[str, Any]], dry_run: bool = False) -> None
 def catalog_values(layer: dict[str, Any]) -> dict[str, Any]:
     return {
         "dataset_name": layer["layer_name"],
-        "utility_type": layer["utility_type"],
+        "utility_system": layer["utility_system"],
+        "network_group": layer["network_group"],
         "asset_category": layer["asset_category"],
+        "asset_subcategory": layer["asset_subcategory"],
         "source_format": layer["source_format"],
         "source_path": layer["source_path"],
         "source_layer_name": layer["layer_name"],
@@ -342,7 +405,7 @@ def catalog_values(layer: dict[str, Any]) -> dict[str, Any]:
         "approved_for_analysis": "false",
         "approved_for_export": "false",
         "approved_for_public_use": "false",
-        "notes": "Registered by read-only inventory workflow.",
+        "notes": layer.get("notes") or "Registered by read-only inventory workflow.",
     }
 
 
@@ -366,20 +429,29 @@ def write_reports(report_root: Path, sources: list[dict[str, str]], layers: list
 
 
 def write_allowlist(path: Path, layers: list[dict[str, Any]]) -> None:
+    existing: dict[tuple[str, str], dict[str, str]] = {}
+    if path.exists():
+        with path.open(newline="", encoding="utf-8") as handle:
+            for row in csv.DictReader(handle):
+                existing[(row.get("dataset_id", ""), row.get("source_layer_name", ""))] = row
     rows = []
     for layer in layers:
         if layer["recommended_action"] == "candidate_for_staging_review":
+            previous = existing.get((layer["dataset_id"], layer["layer_name"]), {})
+            target_layer_name = f"{layer['utility_system']}_{safe_name(layer.get('asset_subcategory') or layer['asset_category'])}"
             rows.append(
                 {
                     "dataset_id": layer["dataset_id"],
                     "source_layer_name": layer["layer_name"],
-                    "target_layer_name": f"{layer['utility_type']}_{safe_name(layer['asset_category'])}",
-                    "utility_type": layer["utility_type"],
+                    "target_layer_name": target_layer_name,
+                    "utility_system": layer["utility_system"],
+                    "network_group": layer["network_group"],
                     "asset_category": layer["asset_category"],
-                    "approved_to_stage": "false",
-                    "reason": "High-confidence read-only inventory candidate; awaiting human approval.",
-                    "reviewed_by": "",
-                    "reviewed_at": "",
+                    "asset_subcategory": layer["asset_subcategory"],
+                    "approved_to_stage": previous.get("approved_to_stage", "false"),
+                    "reason": previous.get("reason") or "High-confidence read-only inventory candidate; awaiting human approval.",
+                    "reviewed_by": previous.get("reviewed_by", ""),
+                    "reviewed_at": previous.get("reviewed_at", ""),
                 }
             )
     write_csv(path, rows, ALLOWLIST_COLUMNS)
@@ -390,10 +462,15 @@ def write_markdown(path: Path, sources: list[dict[str, str]], layers: list[dict[
     records = Counter()
     spatial_refs = Counter(layer["spatial_reference"] or "Unknown" for layer in layers)
     for layer in layers:
-        by_system[layer["utility_type"]].append(layer)
-        records[layer["utility_type"]] += int(layer["record_count"] or 0)
+        by_system[layer["utility_system"]].append(layer)
+        records[layer["utility_system"]] += int(layer["record_count"] or 0)
     high = [layer for layer in layers if layer["classification_confidence"] == "high"]
-    unknown = [layer for layer in layers if layer["utility_type"] == "unknown" or layer["classification_confidence"] in {"unknown", "low"}]
+    ambiguous = [
+        layer
+        for layer in layers
+        if layer["utility_system"] in {"unknown", "review_required"} or layer["classification_confidence"] in {"unknown", "low"}
+    ]
+    candidates = [layer for layer in layers if layer["recommended_action"] == "candidate_for_staging_review"]
     lines = [
         "# Utility Data Inventory",
         "",
@@ -409,10 +486,16 @@ def write_markdown(path: Path, sources: list[dict[str, str]], layers: list[dict[
         *[f"- {name}: {count} layer(s)" for name, count in spatial_refs.items()],
         "",
         "## High-Confidence Utility Layers",
-        *[f"- {layer['layer_name']}: {layer['utility_type']} / {layer['asset_category']} ({layer['record_count']} records)" for layer in high],
+        *[f"- {layer['layer_name']}: {taxonomy_label(layer)} ({layer['record_count']} records)" for layer in high],
         "",
         "## Unknown Or Ambiguous Layers",
-        *([f"- {layer['layer_name']}: {layer['classification_confidence']}" for layer in unknown] or ["- None identified."]),
+        *(
+            [
+                f"- {layer['layer_name']}: {layer['recommended_action']}; likely {layer.get('likely_classifications', '') or 'not identified'}"
+                for layer in ambiguous
+            ]
+            or ["- None identified."]
+        ),
         "",
         "## Missing Expected Utility Components",
         "- Service lines, valves, pumps, and treatment or lift station layers were not identified in this raw dataset.",
@@ -424,15 +507,38 @@ def write_markdown(path: Path, sources: list[dict[str, str]], layers: list[dict[
         *quality_warning_lines(layers),
         "",
         "## Recommended Staging Candidates",
-        *[f"- {layer['layer_name']} -> {layer['utility_type']}_{safe_name(layer['asset_category'])}" for layer in high],
+        *[f"- {layer['layer_name']} -> {layer['utility_system']}_{safe_name(layer.get('asset_subcategory') or layer['asset_category'])}" for layer in candidates],
     ]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def taxonomy_label(layer: dict[str, Any]) -> str:
+    return " / ".join(
+        [
+            layer.get("utility_system", ""),
+            layer.get("network_group", ""),
+            layer.get("asset_category", ""),
+            layer.get("asset_subcategory", ""),
+        ]
+    )
+
+
 def potential_duplicate_lines(layers: list[dict[str, Any]]) -> list[str]:
-    counts = Counter((layer["utility_type"], layer["asset_category"], layer["geometry_type"]) for layer in layers)
-    duplicates = [key for key, count in counts.items() if count > 1 and key[0] != "unknown"]
-    return [f"- {utility_type} / {category} / {geometry}: {counts[(utility_type, category, geometry)]} layers" for utility_type, category, geometry in duplicates] or ["- None identified."]
+    counts = Counter(
+        (
+            layer["utility_system"],
+            layer["network_group"],
+            layer["asset_category"],
+            layer["asset_subcategory"],
+            layer["geometry_type"],
+        )
+        for layer in layers
+    )
+    duplicates = [key for key, count in counts.items() if count > 1 and key[0] not in {"unknown", "review_required"}]
+    return [
+        f"- {system} / {group} / {category} / {subcategory} / {geometry}: {counts[(system, group, category, subcategory, geometry)]} layers"
+        for system, group, category, subcategory, geometry in duplicates
+    ] or ["- None identified."]
 
 
 def quality_warning_lines(layers: list[dict[str, Any]]) -> list[str]:
@@ -442,7 +548,7 @@ def quality_warning_lines(layers: list[dict[str, Any]]) -> list[str]:
             warnings.append(f"- {layer['layer_name']}: missing spatial reference.")
         if not layer["unique_id_field"]:
             warnings.append(f"- {layer['layer_name']}: no likely unique ID field identified.")
-        if layer["classification_confidence"] in {"low", "unknown"}:
+        if layer["classification_confidence"] in {"low", "unknown", "review_required"}:
             warnings.append(f"- {layer['layer_name']}: classification needs review.")
     return warnings or ["- No blocking warnings from inventory metadata."]
 
@@ -450,18 +556,18 @@ def quality_warning_lines(layers: list[dict[str, Any]]) -> list[str]:
 def write_recommendation(path: Path, layers: list[dict[str, Any]]) -> None:
     system_scores = Counter()
     for layer in layers:
+        if layer["utility_system"] in {"review_required", "unknown", "reference", "shared_reference"}:
+            continue
         if layer["classification_confidence"] == "high":
-            system_scores[layer["utility_type"]] += 3
+            system_scores[layer["utility_system"]] += 3
         elif layer["classification_confidence"] == "medium":
-            system_scores[layer["utility_type"]] += 1
+            system_scores[layer["utility_system"]] += 1
         if layer.get("unique_id_field"):
-            system_scores[layer["utility_type"]] += 1
+            system_scores[layer["utility_system"]] += 1
         if layer.get("spatial_reference"):
-            system_scores[layer["utility_type"]] += 1
-    system_scores.pop("reference", None)
-    system_scores.pop("unknown", None)
+            system_scores[layer["utility_system"]] += 1
     primary = system_scores.most_common(1)[0][0] if system_scores else "unknown"
-    candidates = [layer for layer in layers if layer["utility_type"] == primary and layer["recommended_action"] == "candidate_for_staging_review"]
+    candidates = [layer for layer in layers if layer["utility_system"] == primary and layer["recommended_action"] == "candidate_for_staging_review"]
     defer = [layer for layer in layers if layer not in candidates]
     lines = [
         "# Staging Recommendation",
@@ -469,13 +575,25 @@ def write_recommendation(path: Path, layers: list[dict[str, Any]]) -> None:
         f"Primary system to start with: **{primary}**",
         "",
         "## Exact Layers To Stage After Approval",
-        *([f"- {layer['layer_name']} as `{primary}_{safe_name(layer['asset_category'])}`" for layer in candidates] or ["- None yet."]),
+        *(
+            [
+                f"- {layer['layer_name']} as `{primary}_{safe_name(layer.get('asset_subcategory') or layer['asset_category'])}`"
+                for layer in candidates
+            ]
+            or ["- None yet."]
+        ),
         "",
         "## Reference Layers Needed",
         "- Service boundaries or subbasins if needed for QA context.",
         "",
         "## Layers To Defer",
-        *([f"- {layer['layer_name']}: {layer['recommended_action']}" for layer in defer] or ["- None."]),
+        *(
+            [
+                f"- {layer['layer_name']}: {layer['recommended_action']}; {layer.get('recommended_classification') or layer.get('notes') or taxonomy_label(layer)}"
+                for layer in defer
+            ]
+            or ["- None."]
+        ),
         "",
         "## Known Risks",
         *quality_warning_lines(layers),
@@ -488,7 +606,7 @@ def write_recommendation(path: Path, layers: list[dict[str, Any]]) -> None:
         "- Connectivity review for line and point layers",
         "",
         "## Suggested Target Naming Convention",
-        "- `{utility_type}_{asset_category}`",
+        "- `{utility_system}_{asset_subcategory}`",
     ]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -505,6 +623,7 @@ def main() -> int:
     write_csv_header_if_missing(config.data_catalog, DATA_CATALOG_COLUMNS, config)
     sources = discover_sources(Path(args.raw_root))
     layers = inventory_sources(sources)
+    apply_contextual_review_recommendations(layers)
     register_layers(layers, dry_run=args.dry_run)
     profiles = profile_fields(load_arcpy(), layers)
     write_reports(Path(args.report_root), sources, layers, profiles)

@@ -143,6 +143,69 @@
   font-size: 22px;
 }
 
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.filters select {
+  min-width: 180px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--foreground);
+  font: inherit;
+}
+
+.taxonomyList {
+  display: grid;
+  gap: 18px;
+}
+
+.taxonomySystem {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+
+.taxonomySystem:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.taxonomySystem h3 {
+  margin-bottom: 12px;
+  color: var(--blue);
+  font-size: 18px;
+}
+
+.taxonomyGroup {
+  margin-left: 12px;
+  padding-left: 14px;
+  border-left: 3px solid var(--line);
+}
+
+.taxonomyGroup h4 {
+  margin: 12px 0 8px;
+  color: var(--green);
+  font-size: 15px;
+}
+
+.taxonomyCategory {
+  margin: 8px 0 10px;
+}
+
+.taxonomyCategory strong {
+  color: var(--foreground);
+}
+
+.taxonomyCategory p {
+  margin-top: 4px;
+  color: var(--muted);
+}
+
 @media (max-width: 980px) {
   .grid,
   .workflow {

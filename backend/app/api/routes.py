@@ -54,9 +54,14 @@ def assets_summary() -> AssetSummaryResponse:
 
 @router.get("/qa/summary", response_model=QaSummaryResponse)
 def qa_summary() -> QaSummaryResponse:
+    summary = inventory_summary()
     return QaSummaryResponse(
         open_issues=None,
-        assets_requiring_review=None,
+        assets_requiring_review=summary.get("review_required_layers", 0),
+        by_utility_system=summary.get("by_utility_system", {}),
+        by_network_group=summary.get("by_network_group", {}),
+        by_asset_category=summary.get("by_asset_category", {}),
+        review_required_layers=summary.get("review_required_layers", 0),
         values_connected=False,
         message=NO_DATABASE_MESSAGE,
     )

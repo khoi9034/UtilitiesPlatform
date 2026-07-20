@@ -54,8 +54,10 @@ def test_dataset_registration_and_duplicate_prevention(tmp_path: Path) -> None:
     initialize_storage(config)
     row = {
         "dataset_name": "Wastewater Gravity Mains",
-        "utility_type": "wastewater",
-        "asset_category": "gravity_main",
+        "utility_system": "wastewater",
+        "network_group": "gravity_network",
+        "asset_category": "pipe",
+        "asset_subcategory": "gravity_main",
         "source_format": "file_geodatabase",
         "source_path": str(config.raw_root / "geodatabases" / "Example.gdb"),
         "source_layer_name": "GravityMain",
@@ -88,8 +90,10 @@ def test_export_package_refuses_restricted_public_export_without_approval(tmp_pa
         config,
         {
             "dataset_name": "Restricted Main",
-            "utility_type": "water",
-            "asset_category": "main",
+            "utility_system": "water",
+            "network_group": "distribution_network",
+            "asset_category": "pipe",
+            "asset_subcategory": "water_main",
             "source_format": "file_geodatabase",
             "source_path": str(config.raw_root / "geodatabases" / "Restricted.gdb"),
             "sensitivity_level": "restricted",

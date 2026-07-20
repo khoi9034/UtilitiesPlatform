@@ -9,8 +9,11 @@ from common import append_catalog_row, configure_logging, load_config
 def main() -> int:
     parser = argparse.ArgumentParser(description="Register an approved dataset in the local catalog without copying it.")
     parser.add_argument("--name", required=True, help="Dataset display name.")
-    parser.add_argument("--utility-type", required=True, help="water, wastewater, stormwater, telecom, electric, gas, reference, or general.")
-    parser.add_argument("--asset-category", required=True, help="Asset category such as gravity_main or valve.")
+    parser.add_argument("--utility-system", help="water, wastewater, stormwater, telecom, electric, gas, reference, shared_reference, or review_required.")
+    parser.add_argument("--utility-type", help="Deprecated alias for --utility-system.")
+    parser.add_argument("--network-group", default="")
+    parser.add_argument("--asset-category", required=True, help="Asset category such as pipe, access_structure, or valve.")
+    parser.add_argument("--asset-subcategory", default="", help="Asset subcategory such as gravity_main or manhole.")
     parser.add_argument("--source-format", required=True, help="Source format such as file_geodatabase, shapefile, gpkg, cad, csv, or pdf.")
     parser.add_argument("--source-path", required=True, help="Approved source path under C:\\UtilitiesPlatform_Data.")
     parser.add_argument("--source-layer-name", default="", help="Layer/table name in the source when applicable.")
@@ -36,10 +39,16 @@ def main() -> int:
 
     configure_logging()
     config = load_config()
+    utility_system = args.utility_system or args.utility_type
+    if not utility_system:
+        logging.error("--utility-system is required.")
+        return 1
     row = {
         "dataset_name": args.name,
-        "utility_type": args.utility_type,
+        "utility_system": utility_system,
+        "network_group": args.network_group,
         "asset_category": args.asset_category,
+        "asset_subcategory": args.asset_subcategory,
         "source_format": args.source_format,
         "source_path": args.source_path,
         "source_owner": args.source_owner,
