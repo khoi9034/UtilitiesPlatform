@@ -5,6 +5,9 @@
     "command-center.json",
     "stage-summary.json",
     "stage-items.json",
+    "intake-capabilities.json",
+    "intake-submissions.json",
+    "intake-events.json",
     "lineage.json",
     "inventory.json",
     "processing-history.json",
@@ -30,6 +33,7 @@
     "cad-intake",
     "trust-pipeline",
     "data-sources",
+    "data-sources-upload",
     "projects",
     "maintenance",
     "methodology"

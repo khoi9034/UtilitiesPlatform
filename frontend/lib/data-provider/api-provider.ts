@@ -1,4 +1,4 @@
-import type { CatalogResponse, InventorySummary, PlatformDataProvider, RunsResponse, StorageStatus, TrustPipeline } from "./types";
+import type { CatalogResponse, DataSourceItem, DataSourceItemsResponse, IntakeCapabilities, IntakeSubmission, IntakeSubmissionResponse, IntakeSubmissionsResponse, InventorySummary, PlatformDataProvider, RunsResponse, StageManifest, StorageStatus, TrustPipeline } from "./types";
 import type { CalibrationRow, CommandCenterResponse, ComponentRow, IssuesResponse, MapData, MappingRow, NetworkResponse, Readiness, RuleRow } from "../api-types";
 
 export const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -8,6 +8,17 @@ export class ApiDataProvider implements PlatformDataProvider {
 
   async get<T>(path: string, signal?: AbortSignal): Promise<T> {
     const response = await fetch(`${apiUrl}${path}`, { signal });
+    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+    return response.json() as Promise<T>;
+  }
+
+  async post<T>(path: string, body?: BodyInit | Record<string, unknown>): Promise<T> {
+    const isForm = typeof FormData !== "undefined" && body instanceof FormData;
+    const response = await fetch(`${apiUrl}${path}`, {
+      method: "POST",
+      headers: isForm || body === undefined ? undefined : { "Content-Type": "application/json" },
+      body: isForm || body === undefined ? body as BodyInit | undefined : JSON.stringify(body),
+    });
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
     return response.json() as Promise<T>;
   }
@@ -40,4 +51,16 @@ export class ApiDataProvider implements PlatformDataProvider {
   standardizationMappings(signal?: AbortSignal) { return this.get<{ mappings: MappingRow[] }>("/api/standardization/wastewater/mappings", signal); }
   trustPipeline(signal?: AbortSignal) { return this.get<TrustPipeline>("/api/trust-pipeline/wastewater", signal); }
   map(signal?: AbortSignal) { return this.get<MapData>("/api/data-health/wastewater/map", signal); }
+  getIntakeCapabilities(signal?: AbortSignal) { return this.get<IntakeCapabilities>("/api/intake/capabilities", signal); }
+  createIntakeSubmission(formData: FormData) { return this.post<IntakeSubmissionResponse>("/api/intake/submissions", formData); }
+  getIntakeSubmissions(path = "/api/intake/submissions", signal?: AbortSignal) { return this.get<IntakeSubmissionsResponse>(path, signal); }
+  getIntakeSubmission(submissionId: string, signal?: AbortSignal) { return this.get<IntakeSubmission>(`/api/intake/submissions/${encodeURIComponent(submissionId)}`, signal); }
+  getIntakeEvents(submissionId: string, signal?: AbortSignal) { return this.get<{ events: [] }>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/events`, signal); }
+  startIntakeInventory(submissionId: string) { return this.post<Record<string, unknown>>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/inventory`); }
+  getIntakeInventoryStatus(submissionId: string, signal?: AbortSignal) { return this.get<Record<string, unknown>>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/inventory-status`, signal); }
+  getDataSourceStages(signal?: AbortSignal) { return this.get<StageManifest>("/api/data-sources/stages", signal); }
+  getDataSourceItems(path = "/api/data-sources/items", signal?: AbortSignal) { return this.get<DataSourceItemsResponse>(path, signal); }
+  getDataSourceItem(itemId: string, signal?: AbortSignal) { return this.get<DataSourceItem>(`/api/data-sources/items/${encodeURIComponent(itemId)}`, signal); }
+  getDataSourceLineage(itemId: string, signal?: AbortSignal) { return this.get<Record<string, unknown>>(`/api/data-sources/items/${encodeURIComponent(itemId)}/lineage`, signal); }
+  getDataSourceDiagnostics(signal?: AbortSignal) { return this.get<Record<string, unknown>>("/api/data-sources/diagnostics", signal); }
 }

@@ -71,6 +71,7 @@ Initialize it with:
 ```powershell
 python scripts\data_storage\initialize_data_storage.py
 python scripts\data_storage\validate_data_storage.py
+python scripts\data_storage\build_stage_manifest.py
 ```
 
 File geodatabases are created only when the script runs inside an ArcGIS Pro Python environment with ArcPy available.
@@ -85,8 +86,43 @@ File geodatabases are created only when the script runs inside an ArcGIS Pro Pyt
 - `GET /api/storage/status`
 - `GET /api/storage/catalog`
 - `GET /api/storage/catalog/summary`
+- `GET /api/intake/capabilities`
+- `POST /api/intake/submissions`
+- `GET /api/intake/submissions`
+- `GET /api/data-sources/stages`
+- `GET /api/data-sources/items`
 
-All initial responses are placeholders and state that no production utility database has been connected.
+Production database endpoints still state when no live production utility database has been connected. Storage, intake, inventory, QA, and stage-browser endpoints return safe local or demo metadata when available.
+
+## Utility Data Intake And Stage Browser
+
+Utility Data Intake V1 adds local website upload for approved source packages. Local mode streams files to FastAPI, validates them, calculates SHA-256, preserves the original under `C:\UtilitiesPlatform_Data\01_raw\submissions\<submission_id>\original`, creates `submission_manifest.json`, registers a pending-inventory catalog row, and rebuilds `C:\UtilitiesPlatform_Data\00_admin\data_stage_manifest.json`.
+
+Upload page:
+
+```text
+http://localhost:3001/data-sources/upload
+```
+
+Submission detail:
+
+```text
+http://localhost:3001/data-sources/submission?id=<submission_id>
+```
+
+Stage browser:
+
+```text
+http://localhost:3001/data-sources?stage=raw
+http://localhost:3001/data-sources?stage=staging
+http://localhost:3001/data-sources?stage=standardized
+http://localhost:3001/data-sources?stage=curated
+http://localhost:3001/data-sources?stage=export
+```
+
+Accepted V1 formats are shapefile ZIP, file-geodatabase ZIP, DWG, DXF, GeoPackage, CSV, XLSX, and PDF. The default upload limit is `1073741824` bytes and can be changed with `UTILITY_UPLOAD_MAX_BYTES`.
+
+Intake does not stage, standardize, curate, repair, publish, overwrite, or export data automatically. Demo mode provides the same visible workflow with sanitized fixtures and session-only simulated submissions; it does not upload files or call the backend.
 
 ## Wastewater Data Health V1
 
@@ -177,6 +213,8 @@ Routes:
 - `http://localhost:3001/trust-pipeline`
 - `http://localhost:3001/data-sources`
 - `http://localhost:3001/data-sources/inventory`
+- `http://localhost:3001/data-sources/upload`
+- `http://localhost:3001/data-sources/submission?id=<submission_id>`
 - `http://localhost:3001/projects`
 - `http://localhost:3001/maintenance`
 - `http://localhost:3001/methodology`

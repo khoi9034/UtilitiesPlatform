@@ -1,0 +1,34 @@
+{
+  "DEMO-UPL-20260720-A1B2C3D4": [
+    {
+      "actor": "demo",
+      "created_at": "2026-07-20T12:10:00-04:00",
+      "event_id": "DEMO-EVENT-001",
+      "event_type": "upload_started",
+      "message": "Demo upload simulation started; no backend request was made.",
+      "new_status": "uploading",
+      "previous_status": "",
+      "submission_id": "DEMO-UPL-20260720-A1B2C3D4"
+    },
+    {
+      "actor": "demo",
+      "created_at": "2026-07-20T12:10:30-04:00",
+      "event_id": "DEMO-EVENT-002",
+      "event_type": "raw_registered",
+      "message": "Synthetic Raw registration created from sanitized demo metadata.",
+      "new_status": "registered_raw",
+      "previous_status": "validating",
+      "submission_id": "DEMO-UPL-20260720-A1B2C3D4"
+    },
+    {
+      "actor": "demo",
+      "created_at": "2026-07-20T12:12:00-04:00",
+      "event_id": "DEMO-EVENT-003",
+      "event_type": "inventory_completed",
+      "message": "Synthetic inventory results loaded for portfolio review.",
+      "new_status": "inventory_complete",
+      "previous_status": "inventory_running",
+      "submission_id": "DEMO-UPL-20260720-A1B2C3D4"
+    }
+  ]
+}

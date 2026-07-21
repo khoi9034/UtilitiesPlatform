@@ -1,6 +1,8 @@
 import type { Issue } from "../api-types";
+import type { IntakeSubmission } from "./types";
 
 const key = "utilities-platform-demo-reviews";
+const intakeKey = "utilities-platform-demo-intake";
 
 type ReviewPatch = Partial<Issue>;
 type ReviewMap = Record<string, ReviewPatch>;
@@ -40,5 +42,95 @@ export function batchUpdateDemoIssues(issues: Issue[], issueIds: string[], updat
 }
 
 export function resetDemoSession() {
-  if (typeof sessionStorage !== "undefined") sessionStorage.removeItem(key);
+  if (typeof sessionStorage !== "undefined") {
+    sessionStorage.removeItem(key);
+    sessionStorage.removeItem(intakeKey);
+  }
+}
+
+export function readDemoIntake(): IntakeSubmission[] {
+  if (typeof sessionStorage === "undefined") return [];
+  try {
+    return JSON.parse(sessionStorage.getItem(intakeKey) ?? "[]") as IntakeSubmission[];
+  } catch {
+    return [];
+  }
+}
+
+export function writeDemoIntake(items: IntakeSubmission[]) {
+  if (typeof sessionStorage !== "undefined") sessionStorage.setItem(intakeKey, JSON.stringify(items));
+}
+
+export function resetDemoIntake() {
+  if (typeof sessionStorage !== "undefined") sessionStorage.removeItem(intakeKey);
+}
+
+export function createDemoIntakeSubmission(formData: FormData): IntakeSubmission {
+  const file = formData.getAll("files").find((value): value is File => typeof File !== "undefined" && value instanceof File);
+  const now = new Date().toISOString();
+  const sample = formData.get("demo_sample") === "true";
+  const filename = sample ? "Sample_Wastewater_Extension.zip" : file?.name ?? "Selected_Metadata_Only_Source.dat";
+  const size = sample ? 1843200 : file?.size ?? 0;
+  const submission: IntakeSubmission = {
+    submission_id: `DEMO-UPL-${Date.now().toString(36).toUpperCase()}`,
+    submission_name: String(formData.get("submission_name") || (sample ? "Synthetic Wastewater Extension" : "Metadata-Only Demo Source")),
+    original_filename: filename,
+    utility_system: String(formData.get("utility_system") || "wastewater"),
+    source_type: String(formData.get("source_type") || "demo_source"),
+    source_format: sample ? "shapefile" : detectDemoFormat(filename),
+    source_owner: String(formData.get("source_owner") || "Synthetic Data Owner"),
+    source_description: String(formData.get("source_description") || "Session-only portfolio demo intake simulation."),
+    sensitivity_level: String(formData.get("sensitivity_level") || "restricted"),
+    project_id: String(formData.get("project_id") || "DEMO"),
+    authorization_confirmed: true,
+    file_size_bytes: size,
+    sha256_prefix: sample ? "demoa7b91c42" : "metadataonly",
+    mime_type: sample ? "application/zip" : file?.type ?? "metadata-only",
+    extension: filename.includes(".") ? `.${filename.split(".").pop()}` : "",
+    current_status: "inventory_complete",
+    current_stage: "raw",
+    inventory_status: "complete",
+    classification_status: "review_required",
+    staging_status: "not_approved",
+    duplicate_of_submission_id: "",
+    created_at: now,
+    updated_at: now,
+    raw_registered_at: now,
+    inventory_started_at: now,
+    inventory_completed_at: now,
+    files: [{ safe_filename: filename, relative_role: sample ? "synthetic_package" : "metadata_only", extension: filename.includes(".") ? `.${filename.split(".").pop()}` : "", size_bytes: size, validation_status: "simulated", notes: "Demo mode did not upload or read file contents." }],
+    lineage: ["Selected package", "Demo validation", "Synthetic Raw registration", "Synthetic inventory", "Human staging approval required"],
+    blockers: ["Demo mode is non-persistent", "Human staging approval required"],
+    next_required_action: "Review synthetic classification before staging; demo mode cannot stage data.",
+  };
+  const items = [submission, ...readDemoIntake()];
+  writeDemoIntake(items);
+  return submission;
+}
+
+export function updateDemoIntakeInventory(submissionId: string): Record<string, unknown> {
+  const items = readDemoIntake();
+  const updated = items.map((item) => item.submission_id === submissionId ? { ...item, current_status: "inventory_complete", inventory_status: "complete", classification_status: "review_required" } : item);
+  writeDemoIntake(updated);
+  return { submission_id: submissionId, inventory_status: "complete", classification_status: "review_required", run_id: "DEMO-INVENTORY" };
+}
+
+export function demoIntakeEvents(submissionId: string) {
+  const item = readDemoIntake().find((submission) => submission.submission_id === submissionId);
+  if (!item) return [];
+  return [
+    { event_id: `${submissionId}-1`, submission_id: submissionId, event_type: "upload_started", message: "Demo upload simulation started; no backend request was made.", created_at: String(item.created_at), previous_status: "", new_status: "uploading", actor: "demo" },
+    { event_id: `${submissionId}-2`, submission_id: submissionId, event_type: "raw_registered", message: "Synthetic Raw registration created in sessionStorage.", created_at: String(item.created_at), previous_status: "validating", new_status: "registered_raw", actor: "demo" },
+    { event_id: `${submissionId}-3`, submission_id: submissionId, event_type: "inventory_completed", message: "Synthetic inventory results loaded for portfolio review.", created_at: String(item.created_at), previous_status: "inventory_running", new_status: "inventory_complete", actor: "demo" },
+  ];
+}
+
+function detectDemoFormat(filename: string) {
+  const extension = filename.toLowerCase().split(".").pop();
+  if (extension === "zip") return "shapefile";
+  if (extension === "gpkg") return "geopackage";
+  if (extension === "dwg" || extension === "dxf") return "cad";
+  if (extension === "pdf") return "pdf";
+  if (extension === "csv" || extension === "xlsx") return "spreadsheet";
+  return "metadata_only";
 }

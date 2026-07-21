@@ -21,6 +21,7 @@ Rules:
 - Demo mode mirrors the user experience with fake, synthetic, or sanitized data.
 - No real utility geometry or identifiers may enter demo fixtures.
 - Demo write actions use `sessionStorage` or React state only.
+- Demo intake actions must never upload, read file contents, or persist beyond `sessionStorage`.
 - No local-only user-visible route may be added without a demo equivalent.
 - Planned local modules may remain planned in demo mode, but must have an honest readiness page.
 - Business logic should be shared where practical.

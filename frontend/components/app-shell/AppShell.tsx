@@ -81,6 +81,7 @@ export function AppShell({ children }: PropsWithChildren) {
   const commands = useMemo(
     () => [
       ...navigationItems.map((item) => ({ label: `Open ${item.label}`, detail: item.description, action: () => router.push(item.href) })),
+      { label: "Upload Data", detail: "Register approved source packages into Raw storage.", action: () => router.push("/data-sources/upload") },
       ...utilitySystems.map((system) => ({ label: `Use ${system.label}`, detail: system.enabled ? system.status : "Not onboarded", action: () => undefined })),
       { label: "Toggle theme", detail: "Cycle dark, light, and system preference.", action: () => setThemeChoice(nextTheme(theme), setTheme) },
       ...(isDemoMode ? [{ label: "Reset demo session", detail: "Clear temporary review decisions.", action: resetAndReload }] : []),

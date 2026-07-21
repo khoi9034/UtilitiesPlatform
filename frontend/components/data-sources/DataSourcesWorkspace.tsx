@@ -1,75 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { fetchJson } from "../../lib/api-client";
-import { isDemoMode } from "../../lib/data-provider/provider";
+import { getDataProvider, isDemoMode } from "../../lib/data-provider/provider";
+import type { DataSourceItem, DataSourceStage, InventorySummary, RunsResponse, StorageStatus, StageManifest, PrimaryDataStage } from "../../lib/data-provider/types";
 import { compactNumber, label, safeText, shortDate } from "../../lib/formatters";
 import { EmptyState, LoadingSkeleton, MetricTile, OfflineState, Panel, StageBadge, StatusBadge, workspaceStyles as ws } from "../ui/Primitives";
 import styles from "./data-sources.module.css";
 
-type Tab = "Catalog" | "Inventory" | "Storage" | "Processing History";
-type StorageStatus = {
-  master_root_available: boolean;
-  raw_folder_available: boolean;
-  staging_folder_available: boolean;
-  standardized_folder_available: boolean;
-  curated_folder_available: boolean;
-  export_folder_available: boolean;
-  catalog_available: boolean;
-  geodatabases: Record<string, string>;
-};
-type Dataset = {
-  dataset_id: string;
-  dataset_name: string;
-  utility_system: string;
-  network_group: string;
-  asset_category: string;
-  asset_subcategory: string;
-  source_format: string;
-  geometry_type: string;
-  coordinate_system: string;
-  record_count: string;
-  sensitivity_level: string;
-  current_stage: string;
-  approved_for_analysis: string;
-  approved_for_export: string;
-  approved_for_public_use: string;
-  last_processed: string;
-};
-type StageItem = { name: string; format?: string; records?: number; state: string };
-type CatalogResponse = { datasets: Dataset[]; message: string; raw?: StageItem[]; staging?: StageItem[]; standardized?: StageItem[]; curated?: StageItem[] };
-type InventorySummary = {
-  sources_discovered: number;
-  layer_count: number;
-  by_utility_system: Record<string, number>;
-  by_network_group: Record<string, number>;
-  by_asset_category: Record<string, number>;
-  record_totals_by_system: Record<string, number>;
-  recommended_staging_layers: number;
-  review_required_layers: number;
-};
-type Layer = {
-  dataset_id: string;
-  source_name: string;
-  source_format: string;
-  utility_system: string;
-  network_group: string;
-  asset_category: string;
-  asset_subcategory: string;
-  classification_confidence: string;
-  likely_classifications: string;
-  recommended_classification: string;
-  layer_name: string;
-  geometry_type: string;
-  record_count: string;
-  spatial_reference: string;
-  sensitivity_level: string;
-  recommended_action: string;
-};
-type Recommendation = { allowlist: { source_layer_name: string; target_layer_name: string; utility_system: string; network_group: string; asset_category: string; asset_subcategory: string; approved_to_stage: string; reason: string }[]; message: string };
-type Runs = { runs: Record<string, string>[] };
-
-const tabs: Tab[] = ["Catalog", "Inventory", "Storage", "Processing History"];
+const stages: PrimaryDataStage[] = ["raw", "staging", "standardized", "curated", "export"];
 const workflow = [
   ["Raw", "Untouched source copy"],
   ["Staging", "Temporary imported or converted data"],
@@ -78,45 +17,63 @@ const workflow = [
   ["Export", "Controlled output packages"],
 ];
 
-export function DataSourcesWorkspace({ initialTab = "Catalog" }: { initialTab?: Tab }) {
-  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
+export function DataSourcesWorkspace({ initialTab: _initialTab }: { initialTab?: string } = {}) {
+  void _initialTab;
+  const provider = getDataProvider();
+  const [activeStage, setActiveStage] = useState<PrimaryDataStage>(() => initialStage());
+  const [manifest, setManifest] = useState<StageManifest | null>(null);
+  const [items, setItems] = useState<DataSourceItem[]>([]);
   const [status, setStatus] = useState<StorageStatus | null>(null);
-  const [catalog, setCatalog] = useState<CatalogResponse | null>(null);
   const [summary, setSummary] = useState<InventorySummary | null>(null);
-  const [layers, setLayers] = useState<Layer[]>([]);
-  const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
-  const [runs, setRuns] = useState<Record<string, string>[]>([]);
-  const [selectedSystem, setSelectedSystem] = useState("wastewater");
-  const [error, setError] = useState("");
+  const [runs, setRuns] = useState<RunsResponse["runs"]>([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [errors, setErrors] = useState<string[]>([]);
 
   useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeStage]);
+
+  async function load() {
+    setLoading(true);
     const controller = new AbortController();
-    Promise.all([
-      fetchJson<StorageStatus>("/api/storage/status", controller.signal),
-      fetchJson<CatalogResponse>("/api/storage/catalog", controller.signal),
-      fetchJson<InventorySummary>("/api/inventory/summary", controller.signal),
-      fetchJson<{ layers: Layer[] }>("/api/inventory/layers", controller.signal),
-      fetchJson<Recommendation>("/api/inventory/recommendation", controller.signal),
-      fetchJson<Runs>("/api/data-health/wastewater/runs", controller.signal),
-    ])
-      .then(([storageStatus, catalogRows, inventorySummary, inventoryLayers, stagingRecommendation, runRows]) => {
-        setStatus(storageStatus);
-        setCatalog(catalogRows);
-        setSummary(inventorySummary);
-        setLayers(inventoryLayers.layers ?? []);
-        setRecommendation(stagingRecommendation);
-        setRuns(runRows.runs ?? []);
-      })
-      .catch(() => setError("Storage or inventory API is unavailable. Start FastAPI to load safe catalog data."));
-    return () => controller.abort();
-  }, []);
+    const results = await Promise.allSettled([
+      provider.storageStatus(controller.signal),
+      provider.getDataSourceStages(controller.signal),
+      provider.getDataSourceItems(`/api/data-sources/items?stage=${activeStage}&limit=200`, controller.signal),
+      provider.inventory(controller.signal),
+      provider.processingHistory(controller.signal),
+    ]);
+    const nextErrors: string[] = [];
+    if (results[0].status === "fulfilled") setStatus(results[0].value); else nextErrors.push("Storage status");
+    if (results[1].status === "fulfilled") setManifest(results[1].value); else nextErrors.push("Stage manifest");
+    if (results[2].status === "fulfilled") {
+      const loadedItems = results[2].value.items;
+      setItems(loadedItems);
+      setSelectedId((current) => loadedItems.some((item) => item.item_id === current) ? current : loadedItems[0]?.item_id ?? "");
+    } else {
+      nextErrors.push("Stage items");
+    }
+    if (results[3].status === "fulfilled") setSummary(results[3].value); else nextErrors.push("Inventory summary");
+    if (results[4].status === "fulfilled") setRuns(results[4].value.runs ?? []); else nextErrors.push("Processing history");
+    setErrors(nextErrors);
+    setLoading(false);
+  }
 
-  const systems = useMemo(() => Array.from(new Set([...layers.map((row) => row.utility_system), ...(catalog?.datasets ?? []).map((row) => row.utility_system)].filter(Boolean))).sort(), [layers, catalog]);
-  const visibleLayers = layers.filter((row) => !selectedSystem || row.utility_system === selectedSystem);
-  const visibleCatalog = (catalog?.datasets ?? []).filter((row) => !selectedSystem || row.utility_system === selectedSystem);
-  const selectedLayer = visibleLayers[0];
+  function selectStage(stage: PrimaryDataStage) {
+    setActiveStage(stage);
+    const url = new URL(window.location.href);
+    url.searchParams.set("stage", stage);
+    window.history.replaceState(null, "", url);
+  }
 
-  if (error) {
+  const selectedItem = items.find((item) => item.item_id === selectedId) ?? items[0];
+  const systems = useMemo(() => Array.from(new Set(items.map((item) => item.utility_system).filter(Boolean))).sort(), [items]);
+  const stageRows = manifest?.stages ?? stages.map((stage) => ({ stage, label: label(stage), item_count: 0, description: "" }));
+  const allFailed = !loading && errors.length >= 5 && !manifest && !status && !summary;
+
+  if (allFailed) {
     return (
       <div className={ws.workspace}>
         <PageIntro />
@@ -125,218 +82,158 @@ export function DataSourcesWorkspace({ initialTab = "Catalog" }: { initialTab?: 
     );
   }
 
-  if (!status || !summary) {
-    return (
-      <div className={ws.workspace}>
-        <PageIntro />
-        <LoadingSkeleton />
-      </div>
-    );
-  }
-
   return (
     <div className={ws.workspace}>
       <PageIntro />
-      <section className={ws.grid12}>
-        <div className={ws.span3}><MetricTile labelText="Sources discovered" value={compactNumber(summary.sources_discovered)} detail="From safe inventory reports." /></div>
-        <div className={ws.span3}><MetricTile labelText="Layer count" value={compactNumber(summary.layer_count)} detail="Inventory layers only." /></div>
-        <div className={ws.span3}><MetricTile labelText="Recommended staging" value={compactNumber(summary.recommended_staging_layers)} detail="Allowlist-driven candidates." /></div>
-        <div className={ws.span3}><MetricTile labelText="Review required" value={compactNumber(summary.review_required_layers)} detail="Low-confidence or unknown taxonomy." /></div>
-      </section>
-      {isDemoMode && catalog ? <DemoStageSnapshot catalog={catalog} /> : null}
+      {errors.length ? <DegradedBanner errors={errors} onRetry={load} /> : null}
+      {loading && !manifest ? <LoadingSkeleton /> : null}
 
-      <div className={styles.tabBar} role="tablist" aria-label="Data source workspace">
-        {tabs.map((tab) => <button className={styles.tabButton} role="tab" aria-selected={activeTab === tab} key={tab} onClick={() => setActiveTab(tab)}>{tab}</button>)}
+      <section className={ws.grid12}>
+        <div className={ws.span3}><MetricTile labelText="Raw sources" value={compactNumber(stageCount(stageRows, "raw"))} detail="Registered source packages." /></div>
+        <div className={ws.span3}><MetricTile labelText="Staging items" value={compactNumber(stageCount(stageRows, "staging"))} detail="Working layers and candidates." /></div>
+        <div className={ws.span3}><MetricTile labelText="Inventory layers" value={compactNumber(summary?.layer_count as string | number | undefined)} detail="From safe inventory reports." /></div>
+        <div className={ws.span3}><MetricTile labelText="Review required" value={compactNumber(summary?.review_required_layers as string | number | undefined)} detail="Not replaced by zeros when offline." /></div>
+      </section>
+
+      <Panel
+        title="Storage Workflow"
+        description="Primary utility data stages. Derived QA, review, and inventory artifacts stay separate."
+        action={<Link className={`${ws.button} ${ws.buttonPrimary}`} href="/data-sources/upload">Upload Data</Link>}
+      >
+        <div className={styles.workflow}>
+          {workflow.map(([stage, description]) => <div className={styles.workflowStep} key={stage}><strong>{stage}</strong><span className={styles.muted}>{description}</span></div>)}
+        </div>
+      </Panel>
+
+      <div className={styles.tabBar} role="tablist" aria-label="Primary data stages">
+        {stages.map((stage) => (
+          <button className={styles.tabButton} role="tab" aria-selected={activeStage === stage} key={stage} onClick={() => selectStage(stage)}>
+            {label(stage)} <span className={styles.muted}>{compactNumber(stageCount(stageRows, stage))}</span>
+          </button>
+        ))}
       </div>
 
       <section className={styles.layout}>
         <Panel title="Utility Tree" description="System > network group > asset category.">
           <div className={styles.tree}>
-            <button className={styles.treeButton} aria-pressed={!selectedSystem} onClick={() => setSelectedSystem("")}>
-              <strong>All utilities</strong>
-              <span className={styles.muted}>{compactNumber(layers.length)} layer(s)</span>
-            </button>
+            <div className={styles.treeButton} data-selected="true">
+              <strong>{label(activeStage)}</strong>
+              <span className={styles.muted}>{compactNumber(items.length)} visible item(s)</span>
+            </div>
             {systems.map((system) => (
-              <button className={styles.treeButton} aria-pressed={selectedSystem === system} key={system} onClick={() => setSelectedSystem(system)}>
+              <div className={styles.treeButton} key={system}>
                 <strong>{label(system)}</strong>
-                <span className={styles.muted}>{compactNumber(summary.record_totals_by_system?.[system])} record(s)</span>
-              </button>
+                <span className={styles.muted}>{compactNumber(items.filter((item) => item.utility_system === system).length)} item(s)</span>
+              </div>
             ))}
           </div>
         </Panel>
 
-        <div className={ws.workspace}>
-          {activeTab === "Catalog" ? <CatalogTable rows={visibleCatalog} message={catalog?.message} /> : null}
-          {activeTab === "Inventory" ? <InventoryTable rows={visibleLayers} recommendation={recommendation} /> : null}
-          {activeTab === "Storage" ? <StorageStatus status={status} /> : null}
-          {activeTab === "Processing History" ? <ProcessingHistory runs={runs} /> : null}
-        </div>
+        <StagePanel stage={activeStage} items={items} selectedId={selectedItem?.item_id ?? ""} onSelect={setSelectedId} />
 
-        <Panel title="Inspector" description="Safe metadata only.">
-          {selectedLayer ? (
-            <dl className={styles.metadataList}>
-              <div><dt>Layer</dt><dd>{selectedLayer.layer_name}</dd></div>
-              <div><dt>Source identifier</dt><dd>{safeText(selectedLayer.source_name)}</dd></div>
-              <div><dt>Taxonomy</dt><dd>{label(selectedLayer.utility_system)} / {label(selectedLayer.network_group)} / {label(selectedLayer.asset_category)}</dd></div>
-              <div><dt>Geometry</dt><dd>{label(selectedLayer.geometry_type)}</dd></div>
-              <div><dt>Records</dt><dd>{compactNumber(selectedLayer.record_count)}</dd></div>
-              <div><dt>Spatial reference</dt><dd>{selectedLayer.spatial_reference}</dd></div>
-              <div><dt>Sensitivity</dt><dd><StatusBadge value={selectedLayer.sensitivity_level} /></dd></div>
-              <div><dt>Recommended next action</dt><dd>{selectedLayer.recommended_action}</dd></div>
-            </dl>
-          ) : (
-            <EmptyState title="No layer selected" message="No inventory layer is available for the selected system." />
-          )}
-        </Panel>
+        <Inspector item={selectedItem} status={status} runs={runs} />
       </section>
     </div>
-  );
-}
-
-function DemoStageSnapshot({ catalog }: { catalog: CatalogResponse }) {
-  const rows = [
-    ["Raw", catalog.raw ?? []],
-    ["Staging", catalog.staging ?? []],
-    ["Standardized", catalog.standardized ?? []],
-    ["Curated", catalog.curated ?? []],
-  ] as const;
-  return (
-    <Panel title="Demo Stage Snapshot" description="Sanitized demo sources only. Standardized and curated records have not been created.">
-      <div className={styles.workflow}>
-        {rows.map(([stage, items]) => (
-          <div className={styles.workflowStep} key={stage}>
-            <strong>{stage}</strong>
-            <span className={styles.muted}>{items.length ? items.map((item) => item.name).join(", ") : "Not started"}</span>
-          </div>
-        ))}
-      </div>
-    </Panel>
   );
 }
 
 function PageIntro() {
   return (
     <header className={ws.pageHeader}>
-      <span className={ws.eyebrow}>Utilities · Data Sources</span>
+      <span className={ws.eyebrow}>Utilities - Data Sources</span>
       <h1>Data Sources</h1>
-      <p>Professional catalog, inventory, storage, and lineage workspace. Local file paths stay behind the API boundary.</p>
+      <p>Stage-aware source intake, catalog, lineage, and storage workspace. Local file paths stay behind the provider and API boundary.</p>
     </header>
   );
 }
 
-function CatalogTable({ rows, message }: { rows: Dataset[]; message?: string }) {
+function DegradedBanner({ errors, onRetry }: { errors: string[]; onRetry: () => void }) {
   return (
-    <Panel title="Dataset Catalog" description="Registered datasets with safe catalog fields.">
-      {rows.length ? (
+    <div className={styles.degradedBanner} role="status">
+      <strong>Degraded service</strong>
+      <span>Unavailable: {errors.join(", ")}. Loaded resources remain visible.</span>
+      <button className={ws.button} onClick={onRetry}>Retry</button>
+    </div>
+  );
+}
+
+function StagePanel({ stage, items, selectedId, onSelect }: { stage: PrimaryDataStage; items: DataSourceItem[]; selectedId: string; onSelect: (id: string) => void }) {
+  const emptyMessages = {
+    raw: "No utility source packages have been registered in Raw yet.",
+    staging: "No staging layers are available for the selected filter.",
+    standardized: "Awaiting data-owner confirmation and approved standardization mappings.",
+    curated: "No approved curated utility layers exist.",
+    export: "No controlled export packages are registered.",
+  };
+  return (
+    <Panel
+      title={`${label(stage)} Stage`}
+      description={stage === "raw" ? "Immutable source packages and web-uploaded submissions." : "Safe stage metadata only."}
+      action={stage === "raw" ? <Link className={ws.button} href="/data-sources/upload">Upload Data</Link> : null}
+    >
+      {items.length ? (
         <div className={ws.tableWrap}>
           <table className={ws.table}>
-            <thead><tr><th>Dataset</th><th>System</th><th>Network</th><th>Category</th><th>Subcategory</th><th>Format</th><th>Geometry</th><th>Stage</th><th>Sensitivity</th><th>Records</th><th>Analysis</th><th>Export</th><th>Last processed</th></tr></thead>
+            <thead><tr><th>Name</th><th>System</th><th>Network</th><th>Category</th><th>Format</th><th>Sensitivity</th><th>Records</th><th>Status</th><th>Next Action</th></tr></thead>
             <tbody>
-              {rows.map((row) => (
-                <tr key={row.dataset_id}>
-                  <td>{row.dataset_name}</td>
-                  <td>{label(row.utility_system)}</td>
-                  <td>{label(row.network_group)}</td>
-                  <td>{label(row.asset_category)}</td>
-                  <td>{label(row.asset_subcategory)}</td>
-                  <td>{label(row.source_format)}</td>
-                  <td>{label(row.geometry_type)}</td>
-                  <td><StageBadge value={row.current_stage} /></td>
-                  <td><StatusBadge value={row.sensitivity_level} /></td>
-                  <td>{compactNumber(row.record_count)}</td>
-                  <td>{label(row.approved_for_analysis)}</td>
-                  <td>{label(row.approved_for_export)}</td>
-                  <td>{shortDate(row.last_processed)}</td>
+              {items.map((item) => (
+                <tr key={item.item_id} className={selectedId === item.item_id ? styles.selectedRow : ""} onClick={() => onSelect(item.item_id)}>
+                  <td><button className={styles.rowButton} onClick={() => onSelect(item.item_id)}>{item.name}</button></td>
+                  <td>{label(item.utility_system)}</td>
+                  <td>{label(item.network_group)}</td>
+                  <td>{label(item.asset_category)}</td>
+                  <td>{label(item.source_format)}</td>
+                  <td><StatusBadge value={item.sensitivity_level} /></td>
+                  <td>{compactNumber(String(item.record_count ?? ""))}</td>
+                  <td><StageBadge value={item.status} /></td>
+                  <td>{safeText(item.next_required_action)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      ) : <EmptyState title="No catalog records" message={message ?? "No utility datasets have been registered yet."} />}
+      ) : <EmptyState title={`No ${label(stage)} items`} message={emptyMessages[stage]} />}
     </Panel>
   );
 }
 
-function InventoryTable({ rows, recommendation }: { rows: Layer[]; recommendation: Recommendation | null }) {
-  return (
-    <>
-      <Panel title="Layer Inventory" description="Taxonomy and staging recommendations from the inventory system.">
-        {rows.length ? (
-          <div className={ws.tableWrap}>
-            <table className={ws.table}>
-              <thead><tr><th>Layer</th><th>System</th><th>Network</th><th>Category</th><th>Subcategory</th><th>Confidence</th><th>Geometry</th><th>Records</th><th>Spatial Reference</th><th>Sensitivity</th><th>Recommendation</th></tr></thead>
-              <tbody>
-                {rows.map((row) => (
-                  <tr key={row.dataset_id || row.layer_name}>
-                    <td>{row.layer_name}</td>
-                    <td>{label(row.utility_system)}</td>
-                    <td>{label(row.network_group)}</td>
-                    <td>{label(row.asset_category)}</td>
-                    <td>{label(row.asset_subcategory)}</td>
-                    <td>{label(row.classification_confidence)}</td>
-                    <td>{label(row.geometry_type)}</td>
-                    <td>{compactNumber(row.record_count)}</td>
-                    <td>{row.spatial_reference}</td>
-                    <td><StatusBadge value={row.sensitivity_level} /></td>
-                    <td>{row.recommended_action}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : <EmptyState title="No inventory rows" message="No inventory report has been generated for the selected utility system." />}
+function Inspector({ item, status, runs }: { item?: DataSourceItem; status: StorageStatus | null; runs: RunsResponse["runs"] }) {
+  if (!item) {
+    return (
+      <Panel title="Inspector" description="Safe metadata only.">
+        <EmptyState title="No item selected" message="Select a stage item to inspect identity, trust state, lineage, blockers, and next action." />
       </Panel>
-      <Panel title="Recommended Staging" description="Allowlist rows only; no source data is moved by the frontend.">
-        {recommendation?.allowlist.length ? (
-          <div className={ws.tableWrap}>
-            <table className={ws.table}>
-              <thead><tr><th>Source layer</th><th>Target layer</th><th>System</th><th>Network</th><th>Category</th><th>Subcategory</th><th>Approved</th><th>Reason</th></tr></thead>
-              <tbody>{recommendation.allowlist.map((row) => <tr key={row.source_layer_name}><td>{row.source_layer_name}</td><td>{row.target_layer_name}</td><td>{label(row.utility_system)}</td><td>{label(row.network_group)}</td><td>{label(row.asset_category)}</td><td>{label(row.asset_subcategory)}</td><td>{label(row.approved_to_stage)}</td><td>{row.reason}</td></tr>)}</tbody>
-            </table>
-          </div>
-        ) : <EmptyState title="No staging recommendation" message={recommendation?.message ?? "No staging recommendation has been generated yet."} />}
-      </Panel>
-    </>
-  );
-}
-
-function StorageStatus({ status }: { status: StorageStatus }) {
+    );
+  }
+  const trustState = (item.trust_state ?? {}) as Record<string, string>;
   return (
-    <Panel title="Storage Workflow" description="The master data root remains outside Git.">
-      <div className={styles.workflow}>
-        {workflow.map(([stage, description]) => <div className={styles.workflowStep} key={stage}><strong>{stage}</strong><span className={styles.muted}>{description}</span></div>)}
-      </div>
-      <section className={ws.grid12}>
-        {[
-          ["Master storage", status.master_root_available],
-          ["Raw storage", status.raw_folder_available],
-          ["Staging storage", status.staging_folder_available],
-          ["Standardized storage", status.standardized_folder_available],
-          ["Curated storage", status.curated_folder_available],
-          ["Export storage", status.export_folder_available],
-          ["Catalog", status.catalog_available],
-          ["Master geodatabase", status.geodatabases?.master === "exists"],
-        ].map(([name, available]) => (
-          <div className={ws.span3} key={String(name)}>
-            <MetricTile labelText={String(name)} value={available ? "Available" : "Pending"} detail="Verified by storage status API." />
-          </div>
-        ))}
-      </section>
+    <Panel title="Inspector" description="Full local paths, source records, and sensitive notes are not exposed.">
+      <dl className={styles.metadataList}>
+        <div><dt>Name</dt><dd>{item.name}</dd></div>
+        <div><dt>Utility hierarchy</dt><dd>{label(item.utility_system)} / {label(item.network_group)} / {label(item.asset_category)} / {label(item.asset_subcategory)}</dd></div>
+        <div><dt>Stage</dt><dd><StageBadge value={item.stage} /></dd></div>
+        <div><dt>Format</dt><dd>{label(item.source_format)}</dd></div>
+        <div><dt>Geometry</dt><dd>{label(String(item.geometry_type ?? ""))}</dd></div>
+        <div><dt>Records</dt><dd>{compactNumber(String(item.record_count ?? ""))}</dd></div>
+        <div><dt>Spatial reference</dt><dd>{safeText(item.coordinate_system)}</dd></div>
+        <div><dt>Sensitivity</dt><dd><StatusBadge value={item.sensitivity_level} /></dd></div>
+        <div><dt>Trust state</dt><dd>{Object.entries(trustState).map(([key, value]) => `${label(key)}: ${label(value)}`).join(" | ") || "Unavailable"}</dd></div>
+        <div><dt>Lineage</dt><dd>{Array.isArray(item.lineage) ? item.lineage.join(" -> ") : "Unavailable"}</dd></div>
+        <div><dt>Blockers</dt><dd>{Array.isArray(item.blockers) && item.blockers.length ? item.blockers.join("; ") : "None recorded"}</dd></div>
+        <div><dt>Next required action</dt><dd>{safeText(item.next_required_action)}</dd></div>
+        <div><dt>Storage</dt><dd>{isDemoMode ? "Portfolio demo snapshot" : status?.master_root_available ? "Local storage connected" : "Local storage unavailable"}</dd></div>
+        <div><dt>Recent processing</dt><dd>{runs[0] ? `${safeText(runs[0].process_name)} (${shortDate(runs[0].completed_at)})` : "No safe run history available"}</dd></div>
+      </dl>
     </Panel>
   );
 }
 
-function ProcessingHistory({ runs }: { runs: Record<string, string>[] }) {
-  return (
-    <Panel title="Processing History" description="Safe run metadata with internal paths stripped.">
-      {runs.length ? (
-        <div className={ws.tableWrap}>
-          <table className={ws.table}>
-            <thead><tr><th>Run</th><th>Process</th><th>Input layer</th><th>Output workspace</th><th>Status</th><th>Records read</th><th>Completed</th></tr></thead>
-            <tbody>{runs.map((run) => <tr key={run.run_id}><td className="technical">{run.run_id}</td><td>{run.process_name}</td><td>{run.input_layer}</td><td>{run.output_workspace}</td><td><StageBadge value={run.status} /></td><td>{compactNumber(run.records_read)}</td><td>{shortDate(run.completed_at)}</td></tr>)}</tbody>
-          </table>
-        </div>
-      ) : <EmptyState title="No run history" message="No processing history rows are available through the safe API." />}
-    </Panel>
-  );
+function stageCount(rows: DataSourceStage[], stage: PrimaryDataStage) {
+  return rows.find((row) => row.stage === stage)?.item_count ?? undefined;
+}
+
+function initialStage(): PrimaryDataStage {
+  if (typeof window === "undefined") return "raw";
+  const requested = new URLSearchParams(window.location.search).get("stage") as PrimaryDataStage | null;
+  return requested && stages.includes(requested) ? requested : "raw";
 }

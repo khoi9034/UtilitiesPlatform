@@ -1,0 +1,59 @@
+{
+  "items": [
+    {
+      "authorization_confirmed": true,
+      "blockers": [
+        "Human staging approval required"
+      ],
+      "classification_status": "review_required",
+      "created_at": "2026-07-20T12:10:00-04:00",
+      "current_stage": "raw",
+      "current_status": "inventory_complete",
+      "extension": ".zip",
+      "file_size_bytes": 1843200,
+      "files": [
+        {
+          "extension": ".zip",
+          "notes": "Synthetic fixture only.",
+          "relative_role": "synthetic_package",
+          "safe_filename": "Sample_Wastewater_Extension.zip",
+          "size_bytes": 1843200,
+          "validation_status": "simulated"
+        }
+      ],
+      "inventory_completed_at": "2026-07-20T12:12:00-04:00",
+      "inventory_started_at": "2026-07-20T12:11:00-04:00",
+      "inventory_status": "complete",
+      "lineage": [
+        "Selected package",
+        "Demo validation",
+        "Synthetic Raw registration",
+        "Synthetic inventory",
+        "Human staging approval required"
+      ],
+      "mime_type": "application/zip",
+      "next_required_action": "Review synthetic classification before staging; demo mode cannot stage data.",
+      "original_filename": "Sample_Wastewater_Extension.zip",
+      "project_id": "DEMO",
+      "raw_registered_at": "2026-07-20T12:10:00-04:00",
+      "sensitivity_level": "restricted",
+      "sha256_prefix": "demoa7b91c42",
+      "source_description": "Synthetic wastewater extension package for portfolio demonstration.",
+      "source_format": "shapefile",
+      "source_owner": "Synthetic Data Owner",
+      "source_type": "demo_source",
+      "staging_status": "not_approved",
+      "submission_id": "DEMO-UPL-20260720-A1B2C3D4",
+      "submission_name": "Synthetic Wastewater Extension",
+      "updated_at": "2026-07-20T12:12:00-04:00",
+      "utility_system": "wastewater"
+    }
+  ],
+  "message": "Sanitized demo intake submissions loaded.",
+  "pagination": {
+    "has_more": false,
+    "limit": 100,
+    "offset": 0,
+    "total": 1
+  }
+}

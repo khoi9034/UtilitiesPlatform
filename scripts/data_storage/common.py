@@ -139,6 +139,7 @@ RAW_DIRS = [
     "shapefiles",
     "geopackages",
     "rasters",
+    "submissions",
     "other",
 ]
 
@@ -179,6 +180,7 @@ def configure_logging() -> None:
 def storage_structure(year: int | None = None) -> list[Path]:
     year = year or datetime.now().year
     paths = [Path(item) for item in ROOT_DIRS]
+    paths += [Path("00_admin") / "intake", Path("temp") / "uploads", Path("logs") / "intake"]
     paths += [Path("01_raw") / item for item in RAW_DIRS]
     for stage in ["02_staging", "03_standardized", "04_curated"]:
         paths += [Path(stage) / item for item in UTILITY_DIRS]
@@ -342,17 +344,22 @@ def create_file_geodatabases(config: StorageConfig, dry_run: bool = False) -> di
         "Utility_Standardized.gdb": config.standardized_geodatabase,
         "Utility_Master.gdb": config.master_geodatabase,
     }
-    try:
-        import arcpy  # type: ignore
-    except ImportError:
-        return {name: "pending_arcpy_unavailable" for name in targets}
-
     statuses: dict[str, str] = {}
+    missing: dict[str, Path] = {}
     for name, path in targets.items():
         ensure_under_root(path, config.master_data_root)
         if path.exists():
             statuses[name] = "exists"
-            continue
+        else:
+            missing[name] = path
+    if not missing:
+        return statuses
+    try:
+        import arcpy  # type: ignore
+    except ImportError:
+        return {**statuses, **{name: "pending_arcpy_unavailable" for name in missing}}
+
+    for name, path in missing.items():
         if dry_run:
             statuses[name] = "would_create"
             continue

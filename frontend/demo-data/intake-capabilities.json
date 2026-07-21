@@ -1,0 +1,66 @@
+{
+  "accepted_formats": [
+    {
+      "source_format": "shapefile",
+      "extensions": [
+        ".zip"
+      ],
+      "packaging": "ZIP containing complete shapefile sidecars."
+    },
+    {
+      "source_format": "file_geodatabase",
+      "extensions": [
+        ".zip"
+      ],
+      "packaging": "ZIP containing exactly one file geodatabase folder."
+    },
+    {
+      "source_format": "cad",
+      "extensions": [
+        ".dwg",
+        ".dxf"
+      ],
+      "packaging": "Single CAD drawing file."
+    },
+    {
+      "source_format": "geopackage",
+      "extensions": [
+        ".gpkg"
+      ],
+      "packaging": "Single GeoPackage file."
+    },
+    {
+      "source_format": "spreadsheet",
+      "extensions": [
+        ".csv",
+        ".xlsx"
+      ],
+      "packaging": "Single spreadsheet file."
+    },
+    {
+      "source_format": "pdf",
+      "extensions": [
+        ".pdf"
+      ],
+      "packaging": "Metadata-only PDF intake."
+    }
+  ],
+  "arcpy_available": false,
+  "inventory_support": {
+    "cad": "synthetic demo inventory only",
+    "file_geodatabase": "synthetic demo inventory only",
+    "geopackage": "synthetic demo inventory only",
+    "pdf": "metadata-only demo",
+    "shapefile": "synthetic demo inventory only",
+    "spreadsheet": "synthetic demo inventory only"
+  },
+  "maximum_upload_bytes": 1073741824,
+  "mode": "portfolio_demo",
+  "packaging_requirements": {
+    "loose_shapefile": "not_supported",
+    "nested_archives": "rejected",
+    "password_protected_archives": "rejected",
+    "sde_connections": "rejected"
+  },
+  "upload_enabled": false
+}

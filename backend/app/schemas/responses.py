@@ -46,6 +46,8 @@ class StorageStatusResponse(BaseModel):
     curated_folder_available: bool
     export_folder_available: bool
     catalog_available: bool
+    intake_registry_available: bool | None = None
+    stage_manifest_available: bool | None = None
     geodatabases: dict[str, str]
 
 
