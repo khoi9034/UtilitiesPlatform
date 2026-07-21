@@ -53,13 +53,12 @@ export function AppShell({ children }: PropsWithChildren) {
 
   useEffect(() => {
     const controller = new AbortController();
-    Promise.allSettled([
-      fetchJson<StorageStatus>("/api/storage/status", controller.signal),
-      fetchJson<RunResponse>("/api/data-health/wastewater/runs", controller.signal),
-    ]).then(([storageResult, runResult]) => {
-      if (storageResult.status === "fulfilled") setStorage(storageResult.value);
-      if (runResult.status === "fulfilled") setLastRun(runResult.value.runs?.[0]?.completed_at ?? "");
-    });
+    fetchJson<StorageStatus>("/api/storage/status", controller.signal)
+      .then(setStorage)
+      .catch(() => undefined);
+    fetchJson<RunResponse>("/api/data-health/wastewater/runs", controller.signal)
+      .then((value) => setLastRun(value.runs?.[0]?.completed_at ?? ""))
+      .catch(() => undefined);
     return () => controller.abort();
   }, []);
 
