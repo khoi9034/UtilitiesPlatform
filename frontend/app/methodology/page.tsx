@@ -2,6 +2,12 @@ import { Panel, workspaceStyles as ws } from "../../components/ui/Primitives";
 import styles from "../../components/readiness/module-readiness.module.css";
 
 const docs = [
+  ["Source inspection", "docs/source-inspection-architecture.md", "Mixed-package child-layer inspection and review architecture."],
+  ["Layer classification rules", "docs/layer-classification-engine.md", "Deterministic taxonomy candidates, confidence, evidence, and limitations."],
+  ["Layer taxonomy", "docs/layer-taxonomy.md", "Utility system, network group, category, subcategory, role, and lifecycle vocabulary."],
+  ["Duplicate layer review", "docs/duplicate-layer-review.md", "Potential duplicate and alternate-layer review without automatic authority selection."],
+  ["Coordinate review", "docs/coordinate-review.md", "Spatial-reference statuses and source-preserving inspection limits."],
+  ["Staging approval", "docs/staging-approval-workflow.md", "Explicit child-layer approval gates before source-preserving staging."],
   ["QA methodology", "docs/qa-calibration.md", "Why QA findings are candidates until reviewed."],
   ["Network methodology", "docs/wastewater-network-methodology.md", "Proximity graph limits and component review."],
   ["Review workflow", "docs/human-review-workflow.md", "Disposition, workflow, history, and calibration."],

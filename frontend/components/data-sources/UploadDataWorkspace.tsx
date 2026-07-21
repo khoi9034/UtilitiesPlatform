@@ -9,7 +9,7 @@ import { resetDemoIntake } from "../../lib/data-provider/demo-review-store";
 import { EmptyState, Panel, StageBadge, StatusBadge, workspaceStyles as ws } from "../ui/Primitives";
 import styles from "./data-sources.module.css";
 
-const utilitySystems = ["water", "wastewater", "stormwater", "telecom", "electric", "gas", "shared_reference", "unknown", "review_required"];
+const utilitySystems = ["water", "wastewater", "stormwater", "telecom", "electric", "gas", "shared_reference", "mixed", "unknown", "review_required"];
 const sensitivities = ["public", "internal", "restricted", "highly_restricted"];
 
 export function UploadDataWorkspace() {
@@ -77,7 +77,7 @@ export function UploadDataWorkspace() {
     if (file) data.append("files", file, file.name);
     data.append("demo_sample", String(demoSample));
     for (const [key, value] of Object.entries(form)) data.append(key, String(value));
-    data.set("submission_name", form.submission_name || (demoSample ? "Synthetic Wastewater Extension" : "Metadata-Only Demo Source"));
+    data.set("submission_name", form.submission_name || (demoSample ? "Synthetic Mixed Utility Source" : "Metadata-Only Demo Source"));
     data.set("source_owner", form.source_owner || "Synthetic Data Owner");
     data.set("source_description", form.source_description || "Session-only portfolio demo intake simulation.");
     data.set("authorization_confirmed", String(form.authorization_confirmed || demoSample));

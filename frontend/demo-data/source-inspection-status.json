@@ -1,0 +1,28 @@
+{
+  "DEMO-UPL-20260720-A1B2C3D4": {
+    "submission_id": "DEMO-UPL-20260720-A1B2C3D4",
+    "container_id": "demo-container-mixed-source",
+    "container_name": "Sample_Mixed_Utility_Source.gdb",
+    "source_format": "file_geodatabase",
+    "source_type": "demo_source",
+    "package_utility_system": "mixed",
+    "source_owner": "Synthetic Data Owner",
+    "project_id": "DEMO",
+    "sensitivity_level": "restricted",
+    "inspection_status": "complete",
+    "spatial_reference_count": 2,
+    "child_layer_count": 15,
+    "table_count": 0,
+    "relationship_count": 0,
+    "domain_count": 3,
+    "subtype_count": 0,
+    "attachment_count": 0,
+    "inspection_run_id": "DEMO-SOURCE-INSPECTION-001",
+    "inspected_at": "2026-07-20T12:14:00-04:00",
+    "warnings": [
+      "Demo mode uses sanitized synthetic layer metadata.",
+      "One layer has a coordinate naming and metadata conflict for review."
+    ],
+    "blockers": []
+  }
+}

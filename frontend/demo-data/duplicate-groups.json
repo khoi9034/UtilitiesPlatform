@@ -1,0 +1,70 @@
+{
+  "DEMO-UPL-20260720-A1B2C3D4": [
+    {
+      "duplicate_group_id": "demo-dup-town-b-sewer",
+      "submission_id": "DEMO-UPL-20260720-A1B2C3D4",
+      "comparison_type": "normalized_name_record_count",
+      "confidence": "medium",
+      "status": "potential_duplicate",
+      "recommended_action": "Review whether Town_B_Sewer or TownBSewer is authoritative, legacy, or a simplified representation.",
+      "authoritative_layer_id": "",
+      "members": [
+        {
+          "duplicate_group_id": "demo-dup-town-b-sewer",
+          "layer_id": "demo-layer-town-b-sewer",
+          "source_layer_name": "Town_B_Sewer",
+          "geometry_type": "polyline",
+          "record_count": 211,
+          "member_role": "candidate",
+          "similarity_score": 0.86,
+          "notes": "Similar normalized name and record count."
+        },
+        {
+          "duplicate_group_id": "demo-dup-town-b-sewer",
+          "layer_id": "demo-layer-townbsewer",
+          "source_layer_name": "TownBSewer",
+          "geometry_type": "polyline",
+          "record_count": 210,
+          "member_role": "candidate",
+          "similarity_score": 0.86,
+          "notes": "Compact naming may indicate alternate copy or database view."
+        }
+      ],
+      "created_at": "2026-07-20T12:14:00-04:00",
+      "updated_at": "2026-07-20T12:14:00-04:00"
+    },
+    {
+      "duplicate_group_id": "demo-dup-regional-pipes",
+      "submission_id": "DEMO-UPL-20260720-A1B2C3D4",
+      "comparison_type": "normalized_name_record_count",
+      "confidence": "medium",
+      "status": "potential_duplicate",
+      "recommended_action": "Review whether Regional_Pipes and RegionalLine represent the same network at different schema detail.",
+      "authoritative_layer_id": "",
+      "members": [
+        {
+          "duplicate_group_id": "demo-dup-regional-pipes",
+          "layer_id": "demo-layer-regional-pipes",
+          "source_layer_name": "Regional_Pipes",
+          "geometry_type": "polyline",
+          "record_count": 512,
+          "member_role": "candidate",
+          "similarity_score": 0.8,
+          "notes": "Similar line count and regional pipe naming."
+        },
+        {
+          "duplicate_group_id": "demo-dup-regional-pipes",
+          "layer_id": "demo-layer-regional-line",
+          "source_layer_name": "RegionalLine",
+          "geometry_type": "polyline",
+          "record_count": 512,
+          "member_role": "candidate",
+          "similarity_score": 0.8,
+          "notes": "May be a simplified representation or database view."
+        }
+      ],
+      "created_at": "2026-07-20T12:14:00-04:00",
+      "updated_at": "2026-07-20T12:14:00-04:00"
+    }
+  ]
+}

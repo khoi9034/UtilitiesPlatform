@@ -27,3 +27,11 @@ Rules:
 - Business logic should be shared where practical.
 - Pages must consume `PlatformDataProvider` rather than calling FastAPI directly.
 - Any exception must be documented with a reason.
+
+## Source Inspection Rules
+
+- Mixed Raw packages remain one submission; child layers get independent taxonomy candidates.
+- Source inspection reads the inspection copy only.
+- Staging approval is explicit and layer-level.
+- Demo source-inspection reviews and staging simulation stay in `sessionStorage`.
+- File geodatabase schema inspection requires ArcPy for real `.gdb` contents.

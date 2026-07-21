@@ -16,7 +16,7 @@
           "extension": ".zip",
           "notes": "Synthetic fixture only.",
           "relative_role": "synthetic_package",
-          "safe_filename": "Sample_Wastewater_Extension.zip",
+          "safe_filename": "Sample_Mixed_Utility_Source.gdb",
           "size_bytes": 1843200,
           "validation_status": "simulated"
         }
@@ -32,21 +32,21 @@
         "Human staging approval required"
       ],
       "mime_type": "application/zip",
-      "next_required_action": "Review synthetic classification before staging; demo mode cannot stage data.",
-      "original_filename": "Sample_Wastewater_Extension.zip",
+      "next_required_action": "Review synthetic child-layer classifications before staging; demo mode simulates staging only.",
+      "original_filename": "Sample_Mixed_Utility_Source.gdb",
       "project_id": "DEMO",
       "raw_registered_at": "2026-07-20T12:10:00-04:00",
       "sensitivity_level": "restricted",
       "sha256_prefix": "demoa7b91c42",
-      "source_description": "Synthetic wastewater extension package for portfolio demonstration.",
-      "source_format": "shapefile",
+      "source_description": "Synthetic mixed utility package for portfolio demonstration.",
+      "source_format": "file_geodatabase",
       "source_owner": "Synthetic Data Owner",
       "source_type": "demo_source",
       "staging_status": "not_approved",
       "submission_id": "DEMO-UPL-20260720-A1B2C3D4",
-      "submission_name": "Synthetic Wastewater Extension",
+      "submission_name": "Synthetic Mixed Utility Source",
       "updated_at": "2026-07-20T12:12:00-04:00",
-      "utility_system": "wastewater"
+      "utility_system": "mixed"
     }
   ],
   "message": "Sanitized demo intake submissions loaded.",

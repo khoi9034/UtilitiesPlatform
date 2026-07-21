@@ -205,6 +205,17 @@
   border-left: 2px solid var(--color-border-strong);
 }
 
+.sectionTitle {
+  margin: 14px 0 8px;
+  color: var(--color-text-primary);
+  font-size: 14px;
+}
+
+.candidateList {
+  display: grid;
+  gap: 8px;
+}
+
 @media (max-width: 1180px) {
   .layout {
     grid-template-columns: 240px minmax(0, 1fr);

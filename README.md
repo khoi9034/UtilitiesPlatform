@@ -89,6 +89,11 @@ File geodatabases are created only when the script runs inside an ArcGIS Pro Pyt
 - `GET /api/intake/capabilities`
 - `POST /api/intake/submissions`
 - `GET /api/intake/submissions`
+- `POST /api/intake/submissions/{submission_id}/inspect`
+- `GET /api/intake/submissions/{submission_id}/inspection-status`
+- `GET /api/intake/submissions/{submission_id}/layers`
+- `GET /api/intake/submissions/{submission_id}/duplicate-groups`
+- `GET /api/intake/submissions/{submission_id}/staging-plan`
 - `GET /api/data-sources/stages`
 - `GET /api/data-sources/items`
 
@@ -123,6 +128,32 @@ http://localhost:3001/data-sources?stage=export
 Accepted V1 formats are shapefile ZIP, file-geodatabase ZIP, DWG, DXF, GeoPackage, CSV, XLSX, and PDF. The default upload limit is `1073741824` bytes and can be changed with `UTILITY_UPLOAD_MAX_BYTES`.
 
 Intake does not stage, standardize, curate, repair, publish, overwrite, or export data automatically. Demo mode provides the same visible workflow with sanitized fixtures and session-only simulated submissions; it does not upload files or call the backend.
+
+## Universal Source Inspection V1
+
+Universal Source Inspection V1 adds child-layer inspection, taxonomy candidate generation, duplicate-candidate routing, coordinate review, and staging-plan approval for uploaded source packages. Package-level `utility_system` now supports `mixed`; child layers are classified independently.
+
+Rule configuration:
+
+```text
+config\taxonomy\utility_layer_rules_v1.json
+```
+
+Inspect a local submission:
+
+```powershell
+Invoke-RestMethod -Method Post http://127.0.0.1:8001/api/intake/submissions/<submission_id>/inspect
+```
+
+Review workspace:
+
+```text
+http://localhost:3001/data-sources/submission?id=<submission_id>
+```
+
+File geodatabase ZIP inspection uses ArcPy for full schema inventory when FastAPI is run from ArcGIS Pro Python. Without ArcPy, real geodatabase schema inspection is reported as blocked rather than faked.
+
+See `docs/source-inspection-architecture.md`, `docs/layer-classification-engine.md`, and `docs/staging-approval-workflow.md`.
 
 ## Wastewater Data Health V1
 

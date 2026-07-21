@@ -17,6 +17,11 @@ import inventory from "../../demo-data/inventory.json";
 import intakeCapabilities from "../../demo-data/intake-capabilities.json";
 import intakeEvents from "../../demo-data/intake-events.json";
 import intakeSubmissions from "../../demo-data/intake-submissions.json";
+import sourceInspectionStatus from "../../demo-data/source-inspection-status.json";
+import submissionLayers from "../../demo-data/submission-layers.json";
+import layerClassificationCandidates from "../../demo-data/layer-classification-candidates.json";
+import duplicateGroupsFixture from "../../demo-data/duplicate-groups.json";
+import stagingPlanFixture from "../../demo-data/staging-plan.json";
 import issues from "../../demo-data/issues.json";
 import lineage from "../../demo-data/lineage.json";
 import map from "../../demo-data/map.json";
@@ -29,8 +34,8 @@ import standardization from "../../demo-data/standardization.json";
 import trustPipeline from "../../demo-data/trust-pipeline.json";
 import network from "../../demo-data/network.json";
 import calibration from "../../demo-data/calibration.json";
-import { applyDemoReview, batchUpdateDemoIssues, createDemoIntakeSubmission, demoIntakeEvents, readDemoIntake, updateDemoIntakeInventory, updateDemoIssue } from "./demo-review-store";
-import type { CatalogResponse, DataSourceItem, DataSourceItemsResponse, IntakeCapabilities, IntakeEvent, IntakeSubmission, IntakeSubmissionResponse, IntakeSubmissionsResponse, InventorySummary, PlatformDataProvider, RunsResponse, StageManifest, StorageStatus, TrustPipeline } from "./types";
+import { applyDemoDuplicateGroup, applyDemoLayerReview, applyDemoStagingPlanItem, applyDemoReview, batchUpdateDemoIssues, batchUpdateDemoLayers, createDemoIntakeSubmission, demoIntakeEvents, readDemoIntake, readDemoStagedOutputs, stageDemoApprovedLayers, updateDemoDuplicateGroup, updateDemoIntakeInventory, updateDemoIssue, updateDemoLayerReview, updateDemoStagingPlanItem } from "./demo-review-store";
+import type { CatalogResponse, ClassificationCandidate, ClassificationCandidatesResponse, DataSourceItem, DataSourceItemsResponse, DuplicateGroup, DuplicateGroupsResponse, IntakeCapabilities, IntakeEvent, IntakeSubmission, IntakeSubmissionResponse, IntakeSubmissionsResponse, InventorySummary, PlatformDataProvider, RunsResponse, SourceInspectionStatus, StageManifest, StagingPlanItem, StagingPlanResponse, StorageStatus, SubmissionLayer, SubmissionLayersResponse, TrustPipeline } from "./types";
 
 const demoIssues = issues.items as unknown as Issue[];
 
@@ -70,7 +75,7 @@ export class DemoDataProvider implements PlatformDataProvider {
     if (pathname === "/api/data-sources") return clone({ data_sources: [], message: "Demo snapshot loaded." }) as T;
     if (pathname === "/api/intake/capabilities") return clone(intakeCapabilities) as T;
     if (pathname === "/api/intake/submissions") return clone(pageDemoSubmissions(params)) as T;
-    if (pathname.startsWith("/api/intake/submissions/")) return clone(demoSubmissionPath(pathname)) as T;
+    if (pathname.startsWith("/api/intake/submissions/")) return clone(demoSubmissionPath(pathname, params)) as T;
     if (pathname === "/api/data-sources/stages") return clone(demoStageManifest()) as T;
     if (pathname === "/api/data-sources/items") return clone(demoStageItems(params)) as T;
     if (pathname.startsWith("/api/data-sources/items/")) return clone(demoStageItemPath(pathname)) as T;
@@ -91,6 +96,18 @@ export class DemoDataProvider implements PlatformDataProvider {
       const submissionId = decodeURIComponent(pathname.split("/").at(-2) ?? "");
       return clone(updateDemoIntakeInventory(submissionId)) as T;
     }
+    if (pathname.endsWith("/inspect")) {
+      const submissionId = decodeURIComponent(pathname.split("/").at(-2) ?? "");
+      return clone(demoInspectionStatus(submissionId)) as T;
+    }
+    if (pathname.endsWith("/staging-plan")) {
+      const submissionId = decodeURIComponent(pathname.split("/").at(-2) ?? "");
+      return clone(demoStagingPlan(submissionId)) as T;
+    }
+    if (pathname.endsWith("/stage-approved")) {
+      const submissionId = decodeURIComponent(pathname.split("/").at(-2) ?? "");
+      return clone(stageDemoApprovedLayers(demoStagingPlan(submissionId).items)) as T;
+    }
     return this.get<T>(path);
   }
 
@@ -105,6 +122,30 @@ export class DemoDataProvider implements PlatformDataProvider {
       const issue = demoIssues.find((item) => item.issue_id === issueId);
       if (!issue) throw new Error("Demo issue not found.");
       return updateDemoIssue(issue, body as Partial<Issue>) as T;
+    }
+    if (pathname.endsWith("/batch-review")) {
+      const submissionId = decodeURIComponent(pathname.split("/").at(-2) ?? "");
+      const update = body as Record<string, unknown> & { layer_ids?: string[] };
+      return batchUpdateDemoLayers(demoSubmissionLayers(submissionId), update.layer_ids ?? [], update) as T;
+    }
+    if (pathname.includes("/duplicate-groups/")) {
+      const groupId = decodeURIComponent(pathname.split("/").pop() ?? "");
+      const group = allDemoDuplicateGroups().find((item) => item.duplicate_group_id === groupId);
+      if (!group) throw new Error("Demo duplicate group not found.");
+      return updateDemoDuplicateGroup(group, body as Record<string, unknown>) as T;
+    }
+    if (pathname.includes("/staging-plan/")) {
+      const itemId = decodeURIComponent(pathname.split("/").pop() ?? "");
+      const item = allDemoStagingPlanItems().find((planItem) => planItem.staging_plan_item_id === itemId);
+      if (!item) throw new Error("Demo staging plan item not found.");
+      return updateDemoStagingPlanItem(item, body as Record<string, unknown>) as T;
+    }
+    if (pathname.includes("/layers/") && pathname.endsWith("/review")) {
+      const parts = pathname.split("/");
+      const layerId = decodeURIComponent(parts[6] ?? "");
+      const layer = allDemoLayers().find((item) => item.layer_id === layerId);
+      if (!layer) throw new Error("Demo layer not found.");
+      return updateDemoLayerReview(layer, body as Record<string, unknown>) as T;
     }
     return this.get<T>(path);
   }
@@ -134,6 +175,20 @@ export class DemoDataProvider implements PlatformDataProvider {
   getIntakeEvents(submissionId: string) { return this.get<{ events: IntakeEvent[] }>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/events`); }
   startIntakeInventory(submissionId: string) { return this.post<Record<string, unknown>>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/inventory`); }
   getIntakeInventoryStatus(submissionId: string) { return this.get<Record<string, unknown>>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/inventory-status`); }
+  startSourceInspection(submissionId: string) { return this.post<Record<string, unknown>>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/inspect`); }
+  getSourceInspectionStatus(submissionId: string) { return this.get<SourceInspectionStatus>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/inspection-status`); }
+  getSubmissionLayers(submissionId: string, path?: string) { return this.get<SubmissionLayersResponse>(path ?? `/api/intake/submissions/${encodeURIComponent(submissionId)}/layers`); }
+  getSubmissionLayer(submissionId: string, layerId: string) { return this.get<SubmissionLayer>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/layers/${encodeURIComponent(layerId)}`); }
+  getLayerClassificationCandidates(submissionId: string, layerId: string) { return this.get<ClassificationCandidatesResponse>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/layers/${encodeURIComponent(layerId)}/candidates`); }
+  reviewSubmissionLayer(submissionId: string, layerId: string, body: Record<string, unknown>) { return this.patch<SubmissionLayer>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/layers/${encodeURIComponent(layerId)}/review`, body); }
+  batchReviewSubmissionLayers(submissionId: string, body: Record<string, unknown>) { return this.patch<Record<string, unknown>>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/layers/batch-review`, body); }
+  getDuplicateGroups(submissionId: string) { return this.get<DuplicateGroupsResponse>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/duplicate-groups`); }
+  getDuplicateGroup(submissionId: string, groupId: string) { return this.get<DuplicateGroup>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/duplicate-groups/${encodeURIComponent(groupId)}`); }
+  reviewDuplicateGroup(submissionId: string, groupId: string, body: Record<string, unknown>) { return this.patch<DuplicateGroup>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/duplicate-groups/${encodeURIComponent(groupId)}`, body); }
+  createStagingPlan(submissionId: string) { return this.post<StagingPlanResponse>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/staging-plan`); }
+  getStagingPlan(submissionId: string) { return this.get<StagingPlanResponse>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/staging-plan`); }
+  reviewStagingPlanItem(submissionId: string, itemId: string, body: Record<string, unknown>) { return this.patch<StagingPlanItem>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/staging-plan/${encodeURIComponent(itemId)}`, body); }
+  stageApprovedLayers(submissionId: string) { return this.post<Record<string, unknown>>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/stage-approved`); }
   getDataSourceStages() { return this.get<StageManifest>("/api/data-sources/stages"); }
   getDataSourceItems(path = "/api/data-sources/items") { return this.get<DataSourceItemsResponse>(path); }
   getDataSourceItem(itemId: string) { return this.get<DataSourceItem>(`/api/data-sources/items/${encodeURIComponent(itemId)}`); }
@@ -189,9 +244,25 @@ function pageDemoSubmissions(params: URLSearchParams): IntakeSubmissionsResponse
   return { ...page, message: items.length ? "Sanitized demo intake submissions loaded." : "No demo intake submissions matched the filters." };
 }
 
-function demoSubmissionPath(pathname: string) {
+function demoSubmissionPath(pathname: string, params: URLSearchParams) {
   const parts = pathname.split("/");
   const submissionId = decodeURIComponent(parts[4] ?? "");
+  if (pathname.endsWith("/inspection-status")) return demoInspectionStatus(submissionId);
+  if (pathname.endsWith("/layers")) return pageDemoLayers(submissionId, params);
+  if (pathname.includes("/layers/") && pathname.endsWith("/candidates")) {
+    const layerId = decodeURIComponent(parts[6] ?? "");
+    return demoLayerCandidates(layerId);
+  }
+  if (pathname.includes("/layers/")) {
+    const layerId = decodeURIComponent(parts[6] ?? "");
+    return demoSubmissionLayers(submissionId).find((layer) => layer.layer_id === layerId) ?? {};
+  }
+  if (pathname.endsWith("/duplicate-groups")) return demoDuplicateGroups(submissionId);
+  if (pathname.includes("/duplicate-groups/")) {
+    const groupId = decodeURIComponent(parts[6] ?? "");
+    return demoDuplicateGroups(submissionId).items.find((group) => group.duplicate_group_id === groupId) ?? {};
+  }
+  if (pathname.endsWith("/staging-plan")) return demoStagingPlan(submissionId);
   if (pathname.endsWith("/events")) {
     const fixture = (intakeEvents as Record<string, IntakeEvent[]>)[submissionId] ?? [];
     return { events: [...demoIntakeEvents(submissionId), ...fixture] };
@@ -201,6 +272,82 @@ function demoSubmissionPath(pathname: string) {
     return item ? { submission_id: submissionId, inventory_status: item.inventory_status, classification_status: item.classification_status, staging_status: item.staging_status, current_status: item.current_status, next_required_action: item.next_required_action } : {};
   }
   return allDemoSubmissions().find((submission) => submission.submission_id === submissionId) ?? {};
+}
+
+function demoInspectionStatus(submissionId: string): SourceInspectionStatus {
+  return clone((sourceInspectionStatus as Record<string, SourceInspectionStatus>)[submissionId] ?? {
+    submission_id: submissionId,
+    inspection_status: "not_started",
+    child_layer_count: 0,
+    table_count: 0,
+    spatial_reference_count: 0,
+    warnings: [],
+    blockers: [],
+    message: "Demo source inspection has not been started.",
+  });
+}
+
+function allDemoLayers(): SubmissionLayer[] {
+  return Object.values(submissionLayers as Record<string, SubmissionLayer[]>).flat().map(applyDemoLayerReview);
+}
+
+function demoSubmissionLayers(submissionId: string): SubmissionLayer[] {
+  return ((submissionLayers as Record<string, SubmissionLayer[]>)[submissionId] ?? []).map(applyDemoLayerReview);
+}
+
+function pageDemoLayers(submissionId: string, params: URLSearchParams): SubmissionLayersResponse {
+  let items = demoSubmissionLayers(submissionId);
+  for (const field of ["utility_system", "network_group", "asset_category", "asset_subcategory", "operational_role", "lifecycle_representation", "classification_status", "duplicate_status", "coordinate_status", "staging_status", "confidence"] as const) {
+    const expected = params.get(field);
+    if (expected) items = items.filter((item) => matches(String(item[field] ?? ""), expected));
+  }
+  if (params.get("search")) items = items.filter((item) => matchesSearch([item.source_layer_name, item.source_layer_alias, item.owner_or_jurisdiction], params.get("search")));
+  const page = pageItems(items, params);
+  return { ...page, message: items.length ? "Synthetic inspected child layers loaded." : "No demo child layers matched the filters." };
+}
+
+function demoLayerCandidates(layerId: string): ClassificationCandidatesResponse {
+  const configured = (layerClassificationCandidates as Record<string, ClassificationCandidate[]>)[layerId];
+  const layer = allDemoLayers().find((item) => item.layer_id === layerId);
+  const items = configured ?? (layer ? [candidateFromLayer(layer)] : []);
+  return { items: clone(items), message: items.length ? "Synthetic classification candidates loaded." : "No synthetic candidates are available." };
+}
+
+function candidateFromLayer(layer: SubmissionLayer): ClassificationCandidate {
+  return {
+    candidate_id: `${layer.layer_id}-candidate-1`,
+    layer_id: layer.layer_id,
+    rank: 1,
+    utility_system: layer.utility_system,
+    network_group: layer.network_group,
+    asset_category: layer.asset_category,
+    asset_subcategory: layer.asset_subcategory,
+    operational_role: layer.operational_role,
+    lifecycle_representation: layer.lifecycle_representation,
+    owner_or_jurisdiction: String(layer.owner_or_jurisdiction ?? "unknown"),
+    confidence: layer.confidence,
+    score: layer.confidence === "high" ? 0.9 : layer.confidence === "medium" ? 0.7 : 0.4,
+    evidence: [`Synthetic rule matched ${layer.source_layer_name}.`],
+    warnings: layer.confidence === "high" ? [] : ["Human confirmation required before staging."],
+  };
+}
+
+function allDemoDuplicateGroups(): DuplicateGroup[] {
+  return Object.values(duplicateGroupsFixture as Record<string, DuplicateGroup[]>).flat().map((group) => applyDemoDuplicateGroup({ ...group }));
+}
+
+function demoDuplicateGroups(submissionId: string): DuplicateGroupsResponse {
+  const items = ((duplicateGroupsFixture as Record<string, DuplicateGroup[]>)[submissionId] ?? []).map((group) => applyDemoDuplicateGroup({ ...group }));
+  return { items, message: items.length ? "Synthetic duplicate candidates loaded." : "No duplicate candidates detected." };
+}
+
+function allDemoStagingPlanItems(): StagingPlanItem[] {
+  return Object.values(stagingPlanFixture as Record<string, StagingPlanItem[]>).flat().map(applyDemoStagingPlanItem);
+}
+
+function demoStagingPlan(submissionId: string): StagingPlanResponse {
+  const items = ((stagingPlanFixture as Record<string, StagingPlanItem[]>)[submissionId] ?? []).map(applyDemoStagingPlanItem);
+  return { items, message: items.length ? "Synthetic staging plan loaded." : "No staging plan has been created yet." };
 }
 
 function demoStageManifest(): StageManifest {
@@ -227,6 +374,7 @@ function demoStageManifest(): StageManifest {
       trust_state: {},
       blockers: [],
     })),
+    ...readDemoStagedOutputs(),
   ] as DataSourceItem[];
   const submissionItems = allDemoSubmissions().map((submission) => ({
     item_id: `submission:${submission.submission_id}`,

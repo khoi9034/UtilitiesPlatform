@@ -22,6 +22,7 @@ Demo fixtures must be sanitized or synthetic. Do not include real utility geomet
 - Implement `DemoDataProvider`.
 - Add fixture files to `frontend/demo-data/manifest.json`.
 - Keep pages routed through the provider instead of direct FastAPI calls.
+- For source-inspection workflows, mirror layer reviews, duplicate decisions, and staging simulation with `sessionStorage`.
 
 ## Testing Checklist
 

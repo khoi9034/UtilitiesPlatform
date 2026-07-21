@@ -1,11 +1,18 @@
 import type { Issue } from "../api-types";
-import type { IntakeSubmission } from "./types";
+import type { DataSourceItem, DuplicateGroup, IntakeSubmission, StagingPlanItem, SubmissionLayer } from "./types";
 
 const key = "utilities-platform-demo-reviews";
 const intakeKey = "utilities-platform-demo-intake";
+const inspectionKey = "utilities-platform-demo-source-inspection";
 
 type ReviewPatch = Partial<Issue>;
 type ReviewMap = Record<string, ReviewPatch>;
+type InspectionStore = {
+  layerReviews: Record<string, Partial<SubmissionLayer>>;
+  duplicateGroups: Record<string, Partial<DuplicateGroup>>;
+  stagingPlan: Record<string, Partial<StagingPlanItem>>;
+  stagedOutputs: DataSourceItem[];
+};
 
 function read(): ReviewMap {
   if (typeof sessionStorage === "undefined") return {};
@@ -45,6 +52,7 @@ export function resetDemoSession() {
   if (typeof sessionStorage !== "undefined") {
     sessionStorage.removeItem(key);
     sessionStorage.removeItem(intakeKey);
+    sessionStorage.removeItem(inspectionKey);
   }
 }
 
@@ -62,22 +70,25 @@ export function writeDemoIntake(items: IntakeSubmission[]) {
 }
 
 export function resetDemoIntake() {
-  if (typeof sessionStorage !== "undefined") sessionStorage.removeItem(intakeKey);
+  if (typeof sessionStorage !== "undefined") {
+    sessionStorage.removeItem(intakeKey);
+    sessionStorage.removeItem(inspectionKey);
+  }
 }
 
 export function createDemoIntakeSubmission(formData: FormData): IntakeSubmission {
   const file = formData.getAll("files").find((value): value is File => typeof File !== "undefined" && value instanceof File);
   const now = new Date().toISOString();
   const sample = formData.get("demo_sample") === "true";
-  const filename = sample ? "Sample_Wastewater_Extension.zip" : file?.name ?? "Selected_Metadata_Only_Source.dat";
+  const filename = sample ? "Sample_Mixed_Utility_Source.gdb" : file?.name ?? "Selected_Metadata_Only_Source.dat";
   const size = sample ? 1843200 : file?.size ?? 0;
   const submission: IntakeSubmission = {
     submission_id: `DEMO-UPL-${Date.now().toString(36).toUpperCase()}`,
-    submission_name: String(formData.get("submission_name") || (sample ? "Synthetic Wastewater Extension" : "Metadata-Only Demo Source")),
+    submission_name: String(formData.get("submission_name") || (sample ? "Synthetic Mixed Utility Source" : "Metadata-Only Demo Source")),
     original_filename: filename,
-    utility_system: String(formData.get("utility_system") || "wastewater"),
+    utility_system: sample ? "mixed" : String(formData.get("utility_system") || "wastewater"),
     source_type: String(formData.get("source_type") || "demo_source"),
-    source_format: sample ? "shapefile" : detectDemoFormat(filename),
+    source_format: sample ? "file_geodatabase" : detectDemoFormat(filename),
     source_owner: String(formData.get("source_owner") || "Synthetic Data Owner"),
     source_description: String(formData.get("source_description") || "Session-only portfolio demo intake simulation."),
     sensitivity_level: String(formData.get("sensitivity_level") || "restricted"),
@@ -86,7 +97,7 @@ export function createDemoIntakeSubmission(formData: FormData): IntakeSubmission
     file_size_bytes: size,
     sha256_prefix: sample ? "demoa7b91c42" : "metadataonly",
     mime_type: sample ? "application/zip" : file?.type ?? "metadata-only",
-    extension: filename.includes(".") ? `.${filename.split(".").pop()}` : "",
+    extension: sample ? ".zip" : filename.includes(".") ? `.${filename.split(".").pop()}` : "",
     current_status: "inventory_complete",
     current_stage: "raw",
     inventory_status: "complete",
@@ -98,10 +109,10 @@ export function createDemoIntakeSubmission(formData: FormData): IntakeSubmission
     raw_registered_at: now,
     inventory_started_at: now,
     inventory_completed_at: now,
-    files: [{ safe_filename: filename, relative_role: sample ? "synthetic_package" : "metadata_only", extension: filename.includes(".") ? `.${filename.split(".").pop()}` : "", size_bytes: size, validation_status: "simulated", notes: "Demo mode did not upload or read file contents." }],
-    lineage: ["Selected package", "Demo validation", "Synthetic Raw registration", "Synthetic inventory", "Human staging approval required"],
+    files: [{ safe_filename: filename, relative_role: sample ? "synthetic_package" : "metadata_only", extension: sample ? ".zip" : filename.includes(".") ? `.${filename.split(".").pop()}` : "", size_bytes: size, validation_status: "simulated", notes: "Demo mode did not upload or read file contents." }],
+    lineage: ["Selected package", "Demo validation", "Synthetic Raw registration", "Synthetic source inspection", "Human staging approval required"],
     blockers: ["Demo mode is non-persistent", "Human staging approval required"],
-    next_required_action: "Review synthetic classification before staging; demo mode cannot stage data.",
+    next_required_action: "Review synthetic child-layer classifications before simulated staging.",
   };
   const items = [submission, ...readDemoIntake()];
   writeDemoIntake(items);
@@ -121,8 +132,121 @@ export function demoIntakeEvents(submissionId: string) {
   return [
     { event_id: `${submissionId}-1`, submission_id: submissionId, event_type: "upload_started", message: "Demo upload simulation started; no backend request was made.", created_at: String(item.created_at), previous_status: "", new_status: "uploading", actor: "demo" },
     { event_id: `${submissionId}-2`, submission_id: submissionId, event_type: "raw_registered", message: "Synthetic Raw registration created in sessionStorage.", created_at: String(item.created_at), previous_status: "validating", new_status: "registered_raw", actor: "demo" },
-    { event_id: `${submissionId}-3`, submission_id: submissionId, event_type: "inventory_completed", message: "Synthetic inventory results loaded for portfolio review.", created_at: String(item.created_at), previous_status: "inventory_running", new_status: "inventory_complete", actor: "demo" },
+    { event_id: `${submissionId}-3`, submission_id: submissionId, event_type: "source_inspection_completed", message: "Synthetic child-layer inspection results loaded for portfolio review.", created_at: String(item.created_at), previous_status: "inspection_running", new_status: "inspection_complete", actor: "demo" },
   ];
+}
+
+export function applyDemoLayerReview(layer: SubmissionLayer): SubmissionLayer {
+  return { ...layer, ...readInspection().layerReviews[layer.layer_id] };
+}
+
+export function updateDemoLayerReview(layer: SubmissionLayer, update: Record<string, unknown>): SubmissionLayer {
+  const store = readInspection();
+  const review = {
+    latest_review_status: String(update.workflow_status || "classification_approved"),
+    latest_reviewer: String(update.reviewer || "demo_reviewer"),
+    classification_status: "classification_approved",
+    sensitivity_status: update.sensitivity_decision === "complete" ? "sensitivity_review_complete" : layer.sensitivity_status,
+  };
+  store.layerReviews[layer.layer_id] = { ...store.layerReviews[layer.layer_id], ...review };
+  writeInspection(store);
+  return applyDemoLayerReview(layer);
+}
+
+export function batchUpdateDemoLayers(layers: SubmissionLayer[], layerIds: string[], update: Record<string, unknown>) {
+  const byId = new Set(layerIds);
+  const store = readInspection();
+  const updated = layers.filter((layer) => byId.has(layer.layer_id)).map((layer) => layer.layer_id);
+  for (const layerId of updated) {
+    store.layerReviews[layerId] = {
+      ...store.layerReviews[layerId],
+      latest_review_status: String(update.workflow_status || "classification_approved"),
+      latest_reviewer: String(update.reviewer || "demo_reviewer"),
+      classification_status: "classification_approved",
+    };
+  }
+  writeInspection(store);
+  return { updated_count: updated.length, updated_layer_ids: updated, missing_layer_ids: layerIds.filter((layerId) => !updated.includes(layerId)) };
+}
+
+export function updateDemoDuplicateGroup(group: DuplicateGroup, update: Record<string, unknown>): DuplicateGroup {
+  const store = readInspection();
+  store.duplicateGroups[group.duplicate_group_id] = { ...store.duplicateGroups[group.duplicate_group_id], ...update, updated_at: new Date().toISOString() };
+  writeInspection(store);
+  return applyDemoDuplicateGroup(group);
+}
+
+export function applyDemoDuplicateGroup(group: DuplicateGroup): DuplicateGroup {
+  return { ...group, ...readInspection().duplicateGroups[group.duplicate_group_id] };
+}
+
+export function updateDemoStagingPlanItem(item: StagingPlanItem, update: Record<string, unknown>): StagingPlanItem {
+  const store = readInspection();
+  const approved = Boolean(update.approved_for_staging);
+  store.stagingPlan[item.staging_plan_item_id] = {
+    ...store.stagingPlan[item.staging_plan_item_id],
+    ...update,
+    approved_for_staging: approved,
+    approval_status: approved ? "approved" : String(update.approval_status || item.approval_status),
+    blocker: approved ? "" : String(update.blocker || item.blocker || ""),
+    reviewed_at: approved ? new Date().toISOString() : String(update.reviewed_at || item.reviewed_at || ""),
+  };
+  writeInspection(store);
+  return { ...item, ...store.stagingPlan[item.staging_plan_item_id] };
+}
+
+export function applyDemoStagingPlanItem(item: StagingPlanItem): StagingPlanItem {
+  return { ...item, ...readInspection().stagingPlan[item.staging_plan_item_id] };
+}
+
+export function stageDemoApprovedLayers(items: StagingPlanItem[]) {
+  const store = readInspection();
+  const approved = items.map(applyDemoStagingPlanItem).filter((item) => item.approved_for_staging);
+  const existing = new Set(store.stagedOutputs.map((item) => item.item_id));
+  const outputs = approved
+    .filter((item) => !existing.has(`demo-staged:${item.staging_plan_item_id}`))
+    .map((item) => ({
+      item_id: `demo-staged:${item.staging_plan_item_id}`,
+      name: item.proposed_target_name,
+      stage: "staging" as const,
+      utility_system: String(item.target_utility_system),
+      network_group: String(item.target_network_group),
+      asset_category: String(item.target_asset_category),
+      asset_subcategory: String(item.target_asset_subcategory),
+      source_format: "file_geodatabase",
+      sensitivity_level: "public_demo",
+      status: "simulated_staged",
+      inventory_status: "complete",
+      classification_status: "classification_approved",
+      staging_status: "approved",
+      next_required_action: "Run utility-specific QA in local mode; demo staging is temporary.",
+      lineage: ["Synthetic Raw source", "Child-layer review", "Simulated submission-specific staging"],
+      blockers: [],
+    }));
+  store.stagedOutputs = [...store.stagedOutputs, ...outputs];
+  writeInspection(store);
+  return { status: "simulated", staged_count: outputs.length, message: "Demo staging was simulated in sessionStorage." };
+}
+
+export function readDemoStagedOutputs(): DataSourceItem[] {
+  return readInspection().stagedOutputs;
+}
+
+function readInspection(): InspectionStore {
+  if (typeof sessionStorage === "undefined") return emptyInspectionStore();
+  try {
+    return { ...emptyInspectionStore(), ...JSON.parse(sessionStorage.getItem(inspectionKey) ?? "{}") as Partial<InspectionStore> };
+  } catch {
+    return emptyInspectionStore();
+  }
+}
+
+function writeInspection(store: InspectionStore) {
+  if (typeof sessionStorage !== "undefined") sessionStorage.setItem(inspectionKey, JSON.stringify(store));
+}
+
+function emptyInspectionStore(): InspectionStore {
+  return { layerReviews: {}, duplicateGroups: {}, stagingPlan: {}, stagedOutputs: [] };
 }
 
 function detectDemoFormat(filename: string) {

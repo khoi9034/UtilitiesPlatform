@@ -31,7 +31,7 @@ FORBIDDEN_EXTENSIONS = {
     ".vbs",
 }
 
-UTILITY_SYSTEMS = {"water", "wastewater", "stormwater", "telecom", "electric", "gas", "shared_reference", "unknown", "review_required"}
+UTILITY_SYSTEMS = {"water", "wastewater", "stormwater", "telecom", "electric", "gas", "shared_reference", "mixed", "unknown", "review_required"}
 SENSITIVITY_LEVELS = {"public", "internal", "restricted", "highly_restricted"}
 
 

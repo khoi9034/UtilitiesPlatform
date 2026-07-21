@@ -10,3 +10,4 @@
 - [ ] Static export passed
 - [ ] No backend requests occur in demo
 - [ ] No real utility data was committed
+- [ ] Source-inspection changes preserve child-layer review, safe fields, and explicit staging gates

@@ -27,6 +27,7 @@ from app.services.upload_validation_service import (
     validate_metadata,
     validate_uploaded_file,
 )
+from app.services.source_inspection.inspector_registry import capabilities as inspection_capabilities
 
 DEFAULT_UPLOAD_MAX_BYTES = 1024 * 1024 * 1024
 CHUNK_SIZE = 1024 * 1024
@@ -97,6 +98,7 @@ def capabilities() -> dict[str, object]:
             "spreadsheet": "safe row and column summary.",
             "pdf": "metadata-only.",
         },
+        "source_inspection_adapters": inspection_capabilities(),
         "upload_enabled": True,
         "mode": "local",
     }

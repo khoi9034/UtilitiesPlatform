@@ -62,5 +62,32 @@
     "password_protected_archives": "rejected",
     "sde_connections": "rejected"
   },
+  "source_inspection_adapters": [
+    {
+      "source_format": "file_geodatabase",
+      "arcpy_full_schema_supported": false,
+      "fallback": "synthetic demo inspection only"
+    },
+    {
+      "source_format": "shapefile",
+      "schema_support": "synthetic demo inspection only"
+    },
+    {
+      "source_format": "cad",
+      "schema_support": "metadata-only demo"
+    },
+    {
+      "source_format": "geopackage",
+      "schema_support": "metadata-only demo"
+    },
+    {
+      "source_format": "spreadsheet",
+      "schema_support": "synthetic demo inspection only"
+    },
+    {
+      "source_format": "pdf",
+      "schema_support": "metadata-only demo"
+    }
+  ],
   "upload_enabled": false
 }

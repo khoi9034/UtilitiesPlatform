@@ -1,0 +1,73 @@
+{
+  "demo-layer-town-a-force-mains": [
+    {
+      "candidate_id": "demo-cand-force-main-1",
+      "layer_id": "demo-layer-town-a-force-mains",
+      "rank": 1,
+      "utility_system": "wastewater",
+      "network_group": "pressurized_network",
+      "asset_category": "pipe",
+      "asset_subcategory": "force_main",
+      "operational_role": "network_asset",
+      "lifecycle_representation": "existing",
+      "owner_or_jurisdiction": "Town A",
+      "confidence": "high",
+      "score": 0.94,
+      "evidence": ["Layer name references force main.", "Owner or jurisdiction signal: Town A", "Geometry type: polyline"],
+      "warnings": [],
+      "rule_version": "utility_layer_rules_v1"
+    }
+  ],
+  "demo-layer-waterline": [
+    {
+      "candidate_id": "demo-cand-waterline-1",
+      "layer_id": "demo-layer-waterline",
+      "rank": 1,
+      "utility_system": "water",
+      "network_group": "distribution_network",
+      "asset_category": "pipe",
+      "asset_subcategory": "water_main",
+      "operational_role": "network_asset",
+      "lifecycle_representation": "existing",
+      "owner_or_jurisdiction": "unknown",
+      "confidence": "low",
+      "score": 0.55,
+      "evidence": ["WaterLine can indicate a water utility pipe.", "Geometry type: polyline"],
+      "warnings": ["Field names do not confirm utility-pipe semantics.", "Coordinate metadata conflicts with package majority."]
+    },
+    {
+      "candidate_id": "demo-cand-waterline-2",
+      "layer_id": "demo-layer-waterline",
+      "rank": 2,
+      "utility_system": "shared_reference",
+      "network_group": "hydrography",
+      "asset_category": "hydrography_line",
+      "asset_subcategory": "stream",
+      "operational_role": "environmental_reference",
+      "lifecycle_representation": "existing",
+      "owner_or_jurisdiction": "unknown",
+      "confidence": "low",
+      "score": 0.52,
+      "evidence": ["WaterLine can indicate a hydrography line in mixed planning packages."],
+      "warnings": ["Data-owner confirmation required before staging."]
+    }
+  ],
+  "demo-layer-churches": [
+    {
+      "candidate_id": "demo-cand-churches-1",
+      "layer_id": "demo-layer-churches",
+      "rank": 1,
+      "utility_system": "out_of_scope",
+      "network_group": "planning_overlays",
+      "asset_category": "reference_point",
+      "asset_subcategory": "unknown",
+      "operational_role": "out_of_scope",
+      "lifecycle_representation": "existing",
+      "owner_or_jurisdiction": "unknown",
+      "confidence": "medium",
+      "score": 0.68,
+      "evidence": ["Layer name suggests non-utility points unless project context proves otherwise."],
+      "warnings": ["Reviewer should confirm whether it is supporting evidence or out of scope."]
+    }
+  ]
+}

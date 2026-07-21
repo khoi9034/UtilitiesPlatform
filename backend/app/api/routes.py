@@ -18,6 +18,7 @@ from app.schemas.responses import (
 )
 from app.services import wastewater_data_health_service as wastewater_health
 from app.services import intake_service
+from app.services import source_inspection
 from app.services.upload_validation_service import UploadValidationError
 from app.services.data_storage_service import (
     catalog_summary,
@@ -213,6 +214,136 @@ def intake_submission_inventory_status(submission_id: str) -> dict[str, object]:
     if not status:
         raise HTTPException(status_code=404, detail="Submission not found.")
     return status
+
+
+@router.post("/intake/submissions/{submission_id}/inspect")
+def inspect_intake_submission(submission_id: str) -> dict[str, object]:
+    try:
+        return source_inspection.inspect_submission(submission_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Submission not found.") from exc
+    except UploadValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.get("/intake/submissions/{submission_id}/inspection-status")
+def intake_submission_inspection_status(submission_id: str) -> dict[str, object]:
+    status = source_inspection.inspection_status(submission_id)
+    if not status:
+        raise HTTPException(status_code=404, detail="Submission not found.")
+    return status
+
+
+@router.get("/intake/submissions/{submission_id}/layers")
+def intake_submission_layers(
+    submission_id: str,
+    utility_system: str | None = None,
+    network_group: str | None = None,
+    asset_category: str | None = None,
+    asset_subcategory: str | None = None,
+    operational_role: str | None = None,
+    lifecycle_representation: str | None = None,
+    classification_status: str | None = None,
+    duplicate_status: str | None = None,
+    coordinate_status: str | None = None,
+    staging_status: str | None = None,
+    confidence: str | None = None,
+    search: str | None = None,
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> dict[str, object]:
+    return source_inspection.list_layers(
+        submission_id,
+        utility_system=utility_system,
+        network_group=network_group,
+        asset_category=asset_category,
+        asset_subcategory=asset_subcategory,
+        operational_role=operational_role,
+        lifecycle_representation=lifecycle_representation,
+        classification_status=classification_status,
+        duplicate_status=duplicate_status,
+        coordinate_status=coordinate_status,
+        staging_status=staging_status,
+        confidence=confidence,
+        search=search,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get("/intake/submissions/{submission_id}/layers/{layer_id}")
+def intake_submission_layer(submission_id: str, layer_id: str) -> dict[str, object]:
+    layer = source_inspection.layer_detail(submission_id, layer_id)
+    if not layer:
+        raise HTTPException(status_code=404, detail="Layer not found.")
+    return layer
+
+
+@router.get("/intake/submissions/{submission_id}/layers/{layer_id}/candidates")
+def intake_submission_layer_candidates(submission_id: str, layer_id: str) -> dict[str, object]:
+    return source_inspection.layer_candidates(submission_id, layer_id)
+
+
+@router.patch("/intake/submissions/{submission_id}/layers/{layer_id}/review")
+def review_intake_submission_layer(submission_id: str, layer_id: str, payload: dict[str, object]) -> dict[str, object]:
+    try:
+        return source_inspection.review_submission_layer(submission_id, layer_id, payload)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Layer not found.") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.patch("/intake/submissions/{submission_id}/layers/batch-review")
+def batch_review_intake_submission_layers(submission_id: str, payload: dict[str, object]) -> dict[str, object]:
+    try:
+        return source_inspection.batch_review_submission_layers(submission_id, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.get("/intake/submissions/{submission_id}/duplicate-groups")
+def intake_submission_duplicate_groups(submission_id: str) -> dict[str, object]:
+    return source_inspection.duplicate_groups(submission_id)
+
+
+@router.get("/intake/submissions/{submission_id}/duplicate-groups/{group_id}")
+def intake_submission_duplicate_group(submission_id: str, group_id: str) -> dict[str, object]:
+    group = source_inspection.duplicate_group_detail(submission_id, group_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="Duplicate group not found.")
+    return group
+
+
+@router.patch("/intake/submissions/{submission_id}/duplicate-groups/{group_id}")
+def review_intake_submission_duplicate_group(submission_id: str, group_id: str, payload: dict[str, object]) -> dict[str, object]:
+    try:
+        return source_inspection.review_duplicate_group(submission_id, group_id, payload)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Duplicate group not found.") from exc
+
+
+@router.post("/intake/submissions/{submission_id}/staging-plan")
+def create_intake_submission_staging_plan(submission_id: str) -> dict[str, object]:
+    return source_inspection.create_staging_plan(submission_id)
+
+
+@router.get("/intake/submissions/{submission_id}/staging-plan")
+def intake_submission_staging_plan(submission_id: str) -> dict[str, object]:
+    return source_inspection.staging_plan(submission_id)
+
+
+@router.patch("/intake/submissions/{submission_id}/staging-plan/{item_id}")
+def review_intake_submission_staging_plan_item(submission_id: str, item_id: str, payload: dict[str, object]) -> dict[str, object]:
+    try:
+        return source_inspection.review_staging_plan_item(submission_id, item_id, payload)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Staging plan item not found.") from exc
+
+
+@router.post("/intake/submissions/{submission_id}/stage-approved")
+def stage_approved_intake_submission_layers(submission_id: str) -> dict[str, object]:
+    return source_inspection.stage_approved_layers(submission_id)
 
 
 @router.get("/data-sources/stages")

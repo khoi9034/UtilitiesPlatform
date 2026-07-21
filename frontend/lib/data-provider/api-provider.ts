@@ -1,4 +1,4 @@
-import type { CatalogResponse, DataSourceItem, DataSourceItemsResponse, IntakeCapabilities, IntakeSubmission, IntakeSubmissionResponse, IntakeSubmissionsResponse, InventorySummary, PlatformDataProvider, RunsResponse, StageManifest, StorageStatus, TrustPipeline } from "./types";
+import type { CatalogResponse, ClassificationCandidatesResponse, DataSourceItem, DataSourceItemsResponse, DuplicateGroup, DuplicateGroupsResponse, IntakeCapabilities, IntakeEvent, IntakeSubmission, IntakeSubmissionResponse, IntakeSubmissionsResponse, InventorySummary, PlatformDataProvider, RunsResponse, SourceInspectionStatus, StageManifest, StagingPlanItem, StagingPlanResponse, StorageStatus, SubmissionLayer, SubmissionLayersResponse, TrustPipeline } from "./types";
 import type { CalibrationRow, CommandCenterResponse, ComponentRow, IssuesResponse, MapData, MappingRow, NetworkResponse, Readiness, RuleRow } from "../api-types";
 
 export const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -55,9 +55,23 @@ export class ApiDataProvider implements PlatformDataProvider {
   createIntakeSubmission(formData: FormData) { return this.post<IntakeSubmissionResponse>("/api/intake/submissions", formData); }
   getIntakeSubmissions(path = "/api/intake/submissions", signal?: AbortSignal) { return this.get<IntakeSubmissionsResponse>(path, signal); }
   getIntakeSubmission(submissionId: string, signal?: AbortSignal) { return this.get<IntakeSubmission>(`/api/intake/submissions/${encodeURIComponent(submissionId)}`, signal); }
-  getIntakeEvents(submissionId: string, signal?: AbortSignal) { return this.get<{ events: [] }>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/events`, signal); }
+  getIntakeEvents(submissionId: string, signal?: AbortSignal) { return this.get<{ events: IntakeEvent[] }>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/events`, signal); }
   startIntakeInventory(submissionId: string) { return this.post<Record<string, unknown>>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/inventory`); }
   getIntakeInventoryStatus(submissionId: string, signal?: AbortSignal) { return this.get<Record<string, unknown>>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/inventory-status`, signal); }
+  startSourceInspection(submissionId: string) { return this.post<Record<string, unknown>>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/inspect`); }
+  getSourceInspectionStatus(submissionId: string, signal?: AbortSignal) { return this.get<SourceInspectionStatus>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/inspection-status`, signal); }
+  getSubmissionLayers(submissionId: string, path?: string, signal?: AbortSignal) { return this.get<SubmissionLayersResponse>(path ?? `/api/intake/submissions/${encodeURIComponent(submissionId)}/layers`, signal); }
+  getSubmissionLayer(submissionId: string, layerId: string, signal?: AbortSignal) { return this.get<SubmissionLayer>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/layers/${encodeURIComponent(layerId)}`, signal); }
+  getLayerClassificationCandidates(submissionId: string, layerId: string, signal?: AbortSignal) { return this.get<ClassificationCandidatesResponse>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/layers/${encodeURIComponent(layerId)}/candidates`, signal); }
+  reviewSubmissionLayer(submissionId: string, layerId: string, body: Record<string, unknown>) { return this.patch<SubmissionLayer>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/layers/${encodeURIComponent(layerId)}/review`, body); }
+  batchReviewSubmissionLayers(submissionId: string, body: Record<string, unknown>) { return this.patch<Record<string, unknown>>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/layers/batch-review`, body); }
+  getDuplicateGroups(submissionId: string, signal?: AbortSignal) { return this.get<DuplicateGroupsResponse>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/duplicate-groups`, signal); }
+  getDuplicateGroup(submissionId: string, groupId: string, signal?: AbortSignal) { return this.get<DuplicateGroup>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/duplicate-groups/${encodeURIComponent(groupId)}`, signal); }
+  reviewDuplicateGroup(submissionId: string, groupId: string, body: Record<string, unknown>) { return this.patch<DuplicateGroup>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/duplicate-groups/${encodeURIComponent(groupId)}`, body); }
+  createStagingPlan(submissionId: string) { return this.post<StagingPlanResponse>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/staging-plan`); }
+  getStagingPlan(submissionId: string, signal?: AbortSignal) { return this.get<StagingPlanResponse>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/staging-plan`, signal); }
+  reviewStagingPlanItem(submissionId: string, itemId: string, body: Record<string, unknown>) { return this.patch<StagingPlanItem>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/staging-plan/${encodeURIComponent(itemId)}`, body); }
+  stageApprovedLayers(submissionId: string) { return this.post<Record<string, unknown>>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/stage-approved`); }
   getDataSourceStages(signal?: AbortSignal) { return this.get<StageManifest>("/api/data-sources/stages", signal); }
   getDataSourceItems(path = "/api/data-sources/items", signal?: AbortSignal) { return this.get<DataSourceItemsResponse>(path, signal); }
   getDataSourceItem(itemId: string, signal?: AbortSignal) { return this.get<DataSourceItem>(`/api/data-sources/items/${encodeURIComponent(itemId)}`, signal); }

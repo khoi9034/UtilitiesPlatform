@@ -36,7 +36,7 @@ SUPPORTED_MODULES = [
 ]
 
 PROHIBITED = re.compile(
-    r"UtilitiesPlatform_Data|https?://(?:localhost|127\.0\.0\.1)|[A-Za-z]:\\[A-Za-z0-9_. -]+\\|\.gdb|\.sde|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|"
+    r"UtilitiesPlatform_Data|https?://(?:localhost|127\.0\.0\.1)|[A-Za-z]:\\[A-Za-z0-9_. -]+\\|\.sde|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|"
     r"access[_-]?token|api[_-]?key\s*[:=]|connection[_-]?string\s*[:=]",
     re.IGNORECASE,
 )

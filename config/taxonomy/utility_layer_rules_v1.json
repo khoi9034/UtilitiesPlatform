@@ -1,0 +1,355 @@
+{
+  "rule_version": "utility_layer_rules_v1",
+  "supported_evidence_types": [
+    "source_layer_name",
+    "source_layer_alias",
+    "feature_dataset",
+    "field_names",
+    "field_aliases",
+    "geometry_type",
+    "spatial_reference",
+    "source_owner",
+    "package_metadata"
+  ],
+  "utility_systems": [
+    "water",
+    "wastewater",
+    "stormwater",
+    "telecom",
+    "electric",
+    "gas",
+    "shared_reference",
+    "environmental_regulatory",
+    "planning_reference",
+    "unknown",
+    "review_required",
+    "out_of_scope"
+  ],
+  "operational_roles": [
+    "network_asset",
+    "facility",
+    "structure",
+    "service_location",
+    "environmental_reference",
+    "regulatory_reference",
+    "planning_reference",
+    "administrative_reference",
+    "proposed_design",
+    "supporting_evidence",
+    "out_of_scope"
+  ],
+  "lifecycle_representations": [
+    "existing",
+    "proposed",
+    "final_as_built",
+    "planned",
+    "abandoned",
+    "retired",
+    "unknown"
+  ],
+  "owner_or_jurisdiction_patterns": [
+    { "pattern": "harrisburg", "value": "Harrisburg", "confidence": "medium" },
+    { "pattern": "kannapolis", "value": "Kannapolis", "confidence": "medium" },
+    { "pattern": "mt[_ -]?pleasant", "value": "Mt Pleasant", "confidence": "medium" },
+    { "pattern": "wsacc", "value": "WSACC", "confidence": "medium" },
+    { "pattern": "\\bcha\\b", "value": "Cabarrus Health Alliance", "confidence": "medium" },
+    { "pattern": "concord", "value": "Concord", "confidence": "medium" },
+    { "pattern": "cabarrus", "value": "Cabarrus", "confidence": "medium" }
+  ],
+  "classification_rules": [
+    {
+      "rule_code": "ULR_WW_FORCE_MAIN",
+      "name_patterns": ["force[_ -]?mains?"],
+      "candidate": {
+        "utility_system": "wastewater",
+        "network_group": "pressurized_network",
+        "asset_category": "pipe",
+        "asset_subcategory": "force_main",
+        "operational_role": "network_asset"
+      },
+      "confidence": "high",
+      "score": 0.94,
+      "evidence": "Layer name references force main."
+    },
+    {
+      "rule_code": "ULR_WW_GRAVITY_MAIN",
+      "name_patterns": ["gravity[_ -]?mains?", "gravitymain"],
+      "candidate": {
+        "utility_system": "wastewater",
+        "network_group": "gravity_network",
+        "asset_category": "pipe",
+        "asset_subcategory": "gravity_main",
+        "operational_role": "network_asset"
+      },
+      "confidence": "high",
+      "score": 0.94,
+      "evidence": "Layer name references gravity main."
+    },
+    {
+      "rule_code": "ULR_WATER_MAIN",
+      "name_patterns": ["water[_ -]?mains?", "water[_ -]?lines?", "waterlines"],
+      "candidate": {
+        "utility_system": "water",
+        "network_group": "distribution_network",
+        "asset_category": "pipe",
+        "asset_subcategory": "water_main",
+        "operational_role": "network_asset"
+      },
+      "confidence": "medium",
+      "score": 0.72,
+      "evidence": "Layer name references water line or main; review whether this is a utility pipe or hydrography."
+    },
+    {
+      "rule_code": "ULR_WATER_FINISHED_MAIN",
+      "name_patterns": ["finished[_ -]?water[_ -]?mains?"],
+      "candidate": {
+        "utility_system": "water",
+        "network_group": "distribution_network",
+        "asset_category": "pipe",
+        "asset_subcategory": "potable_water_main",
+        "operational_role": "network_asset"
+      },
+      "confidence": "high",
+      "score": 0.9,
+      "evidence": "Layer name references finished water main."
+    },
+    {
+      "rule_code": "ULR_WATER_STORAGE_TANK",
+      "name_patterns": ["storage[_ -]?tank", "water[_ -]?storage[_ -]?tank"],
+      "candidate": {
+        "utility_system": "water",
+        "network_group": "storage",
+        "asset_category": "tank",
+        "asset_subcategory": "storage_tank",
+        "operational_role": "facility"
+      },
+      "confidence": "high",
+      "score": 0.9,
+      "evidence": "Layer name references water storage tank."
+    },
+    {
+      "rule_code": "ULR_WW_MANHOLE",
+      "name_patterns": ["manholes?", "\\bmh\\b"],
+      "candidate": {
+        "utility_system": "wastewater",
+        "network_group": "structures",
+        "asset_category": "access_structure",
+        "asset_subcategory": "manhole",
+        "operational_role": "structure"
+      },
+      "confidence": "high",
+      "score": 0.92,
+      "evidence": "Layer name references manhole."
+    },
+    {
+      "rule_code": "ULR_WW_SEPTIC_TANK",
+      "name_patterns": ["septic[_ -]?tank"],
+      "candidate": {
+        "utility_system": "wastewater",
+        "network_group": "onsite_systems",
+        "asset_category": "treatment_component",
+        "asset_subcategory": "septic_tank",
+        "operational_role": "facility"
+      },
+      "confidence": "high",
+      "score": 0.9,
+      "evidence": "Layer name references septic tank."
+    },
+    {
+      "rule_code": "ULR_WW_PUMP_TANK",
+      "name_patterns": ["pump[_ -]?tank"],
+      "candidate": {
+        "utility_system": "wastewater",
+        "network_group": "onsite_systems",
+        "asset_category": "treatment_component",
+        "asset_subcategory": "pump_tank",
+        "operational_role": "facility"
+      },
+      "confidence": "high",
+      "score": 0.88,
+      "evidence": "Layer name references pump tank."
+    },
+    {
+      "rule_code": "ULR_WW_PRETREATMENT",
+      "name_patterns": ["pretreatment[_ -]?unit"],
+      "candidate": {
+        "utility_system": "wastewater",
+        "network_group": "onsite_systems",
+        "asset_category": "treatment_component",
+        "asset_subcategory": "pretreatment_unit",
+        "operational_role": "facility"
+      },
+      "confidence": "high",
+      "score": 0.86,
+      "evidence": "Layer name references pretreatment unit."
+    },
+    {
+      "rule_code": "ULR_WW_DISTRIBUTION_BOX",
+      "name_patterns": ["septic[_ -]?system[_ -]?box", "distribution[_ -]?box"],
+      "candidate": {
+        "utility_system": "wastewater",
+        "network_group": "onsite_systems",
+        "asset_category": "treatment_component",
+        "asset_subcategory": "distribution_box",
+        "operational_role": "facility"
+      },
+      "confidence": "high",
+      "score": 0.86,
+      "evidence": "Layer name references septic system distribution box."
+    },
+    {
+      "rule_code": "ULR_WW_SEPTIC_DRAIN_LINE",
+      "name_patterns": ["septic[_ -]?system[_ -]?drain[_ -]?line"],
+      "candidate": {
+        "utility_system": "wastewater",
+        "network_group": "onsite_systems",
+        "asset_category": "disposal_line",
+        "asset_subcategory": "septic_drain_line",
+        "operational_role": "network_asset"
+      },
+      "confidence": "high",
+      "score": 0.9,
+      "evidence": "Layer name references septic drain line."
+    },
+    {
+      "rule_code": "ULR_WW_PROPOSED_DRAIN_FIELD",
+      "name_patterns": ["proposed[_ -]?drain[_ -]?field"],
+      "candidate": {
+        "utility_system": "wastewater",
+        "network_group": "onsite_systems",
+        "asset_category": "disposal_area",
+        "asset_subcategory": "proposed_drain_field",
+        "operational_role": "proposed_design"
+      },
+      "confidence": "high",
+      "score": 0.88,
+      "evidence": "Layer name references proposed drain field."
+    },
+    {
+      "rule_code": "ULR_WW_PROPOSED_REPAIR_AREA",
+      "name_patterns": ["proposed[_ -]?repair[_ -]?area"],
+      "candidate": {
+        "utility_system": "wastewater",
+        "network_group": "onsite_systems",
+        "asset_category": "disposal_area",
+        "asset_subcategory": "proposed_repair_area",
+        "operational_role": "proposed_design"
+      },
+      "confidence": "high",
+      "score": 0.86,
+      "evidence": "Layer name references proposed repair area."
+    },
+    {
+      "rule_code": "ULR_WATER_PRIVATE_WELL_POINT",
+      "name_patterns": ["well[_ -]?point"],
+      "candidate": {
+        "utility_system": "water",
+        "network_group": "private_wells",
+        "asset_category": "well",
+        "asset_subcategory": "private_well_point",
+        "operational_role": "service_location"
+      },
+      "confidence": "high",
+      "score": 0.88,
+      "evidence": "Layer name references well point."
+    },
+    {
+      "rule_code": "ULR_WATER_FINAL_WELL_HEAD",
+      "name_patterns": ["well[_ -]?head[_ -]?final"],
+      "candidate": {
+        "utility_system": "water",
+        "network_group": "private_wells",
+        "asset_category": "well",
+        "asset_subcategory": "final_well_head",
+        "operational_role": "service_location"
+      },
+      "confidence": "high",
+      "score": 0.88,
+      "evidence": "Layer name references final well head."
+    },
+    {
+      "rule_code": "ULR_ENV_WATER_SUPPLY_WATERSHED",
+      "name_patterns": ["water[_ -]?supply[_ -]?watershed"],
+      "candidate": {
+        "utility_system": "environmental_regulatory",
+        "network_group": "watershed_protection",
+        "asset_category": "environmental_area",
+        "asset_subcategory": "water_supply_watershed",
+        "operational_role": "regulatory_reference"
+      },
+      "confidence": "high",
+      "score": 0.9,
+      "evidence": "Layer name references water supply watershed."
+    },
+    {
+      "rule_code": "ULR_REF_WATERBODY_POLYGON",
+      "name_patterns": ["waterpoly", "water[_ -]?poly"],
+      "candidate": {
+        "utility_system": "shared_reference",
+        "network_group": "hydrography",
+        "asset_category": "waterbody",
+        "asset_subcategory": "waterbody_polygon",
+        "operational_role": "environmental_reference"
+      },
+      "confidence": "medium",
+      "score": 0.76,
+      "evidence": "Layer name suggests waterbody polygon reference."
+    },
+    {
+      "rule_code": "ULR_REF_WATERLINE_AMBIGUOUS",
+      "name_patterns": ["\\bwaterline\\b", "\\bwater[_ -]?line\\b"],
+      "candidates": [
+        {
+          "utility_system": "water",
+          "network_group": "distribution_network",
+          "asset_category": "pipe",
+          "asset_subcategory": "water_main",
+          "operational_role": "network_asset"
+        },
+        {
+          "utility_system": "shared_reference",
+          "network_group": "hydrography",
+          "asset_category": "hydrography_line",
+          "asset_subcategory": "stream",
+          "operational_role": "environmental_reference"
+        }
+      ],
+      "confidence": "low",
+      "score": 0.55,
+      "evidence": "WaterLine can mean water utility pipe or hydrography line; inspect fields and source context."
+    },
+    {
+      "rule_code": "ULR_PLAN_DISTRICTS",
+      "name_patterns": ["district", "council", "airport"],
+      "candidate": {
+        "utility_system": "planning_reference",
+        "network_group": "planning_overlays",
+        "asset_category": "boundary",
+        "asset_subcategory": "water_sewer_district",
+        "operational_role": "planning_reference"
+      },
+      "confidence": "medium",
+      "score": 0.7,
+      "evidence": "Layer name suggests a planning or administrative overlay."
+    },
+    {
+      "rule_code": "ULR_OUT_CHURCHES",
+      "name_patterns": ["churches?"],
+      "candidate": {
+        "utility_system": "out_of_scope",
+        "network_group": "planning_overlays",
+        "asset_category": "reference_point",
+        "asset_subcategory": "unknown",
+        "operational_role": "out_of_scope"
+      },
+      "confidence": "medium",
+      "score": 0.68,
+      "evidence": "Layer name suggests non-utility points unless project context proves otherwise."
+    }
+  ],
+  "limitations": [
+    "Layer classification is deterministic candidate generation, not authoritative source-owner confirmation.",
+    "WGS84 in a layer name is treated as a naming signal only.",
+    "Duplicate detection is a review trigger and does not select the authoritative layer."
+  ]
+}
