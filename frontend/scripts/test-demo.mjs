@@ -6,6 +6,8 @@ import { dirname, join } from "node:path";
 const here = dirname(fileURLToPath(import.meta.url));
 const frontendRoot = join(here, "..");
 const repoRoot = join(frontendRoot, "..");
+const demoDeployTarget = process.env.DEMO_DEPLOY_TARGET ?? "github-pages";
+const demoBasePath = demoDeployTarget === "vercel" ? "" : "/UtilitiesPlatform";
 const routes = ["index.html", "asset-inventory/index.html", "data-health/index.html", "network-intelligence/index.html", "cad-intake/index.html", "trust-pipeline/index.html", "data-sources/index.html", "data-sources/inventory/index.html", "projects/index.html", "maintenance/index.html", "methodology/index.html"];
 
 run(process.execPath, [join(here, "build-demo.mjs")], frontendRoot);
@@ -17,7 +19,7 @@ if (missing.length) {
   process.exit(1);
 }
 console.log("Demo static export routes validated.");
-run(process.execPath, [join(frontendRoot, "node_modules", "@playwright", "test", "cli.js"), "test", "--config", "playwright.demo.config.ts"], frontendRoot, { PORT: "3004", PLAYWRIGHT_BASE_URL: "http://127.0.0.1:3004", DEMO_BASE_PATH: "/UtilitiesPlatform" });
+run(process.execPath, [join(frontendRoot, "node_modules", "@playwright", "test", "cli.js"), "test", "--config", "playwright.demo.config.ts"], frontendRoot, { PORT: "3004", PLAYWRIGHT_BASE_URL: "http://127.0.0.1:3004", DEMO_BASE_PATH: demoBasePath });
 
 function run(command, args, cwd, env = {}) {
   const result = spawnSync(command, args, { cwd, env: { ...process.env, ...env }, stdio: "inherit" });

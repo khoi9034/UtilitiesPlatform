@@ -19,6 +19,8 @@ backend/.venv/
 # Node / Next.js
 node_modules/
 .next/
+.vercel/
+frontend/.vercel/
 out/
 dist/
 coverage/
