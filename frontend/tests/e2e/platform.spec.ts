@@ -36,6 +36,15 @@ test.describe("enterprise shell", () => {
     await expect(page.getByText(/results/i).first()).toBeVisible();
   });
 
+  test("upload workflow keeps metadata before local package selection", async ({ page }) => {
+    await page.goto("/data-sources/upload");
+    const body = await page.locator("main").innerText();
+    expect(body.indexOf("Source Information")).toBeLessThan(body.indexOf("Select Source Package"));
+    expect(body.indexOf("Select Source Package")).toBeLessThan(body.indexOf("Review Submission"));
+    await expect(page.getByText("NOT UPLOADED").first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Complete required information" })).toBeDisabled();
+  });
+
   for (const viewport of viewports) {
     test(`no body horizontal overflow at ${viewport.width}`, async ({ page }) => {
       await page.setViewportSize(viewport);

@@ -154,8 +154,18 @@ def test_directory_upload_registers_one_file_gdb_package(tmp_path: Path, monkeyp
     assert submission["source_format"] == "file_geodatabase"
     assert raw_gdb.is_dir()
     assert json.loads(manifest.read_text(encoding="utf-8"))["package_mode"] == "directory"
+    detail = client.get(f"/api/intake/submissions/{submission['submission_id']}")
+    stages = client.get("/api/data-sources/stages")
+    items = client.get("/api/data-sources/items?stage=raw")
+    assert detail.status_code == 200
+    assert stages.status_code == 200
+    assert items.status_code == 200
+    assert any(item["item_id"] == f"submission:{submission['submission_id']}" for item in items.json()["items"])
     assert "source_path" not in response.text
     assert "C:\\" not in response.text
+    assert "source_path" not in detail.text
+    assert "C:\\" not in detail.text
+    assert "C:\\" not in items.text
 
 
 def test_directory_upload_rejects_path_count_mismatch(tmp_path: Path, monkeypatch) -> None:

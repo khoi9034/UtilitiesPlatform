@@ -34,11 +34,25 @@ test.describe("portfolio demo mode", () => {
   test("simulates intake without backend requests", async ({ page }) => {
     await page.goto(`${basePath}/data-sources/upload`, { waitUntil: "domcontentloaded" });
     await expect(page.getByText("PORTFOLIO DEMO INTAKE", { exact: true }).first()).toBeVisible();
-    await expect(page.getByText("Choose Package File").first()).toBeVisible();
-    await expect(page.getByText("Choose FileGDB Folder").first()).toBeVisible();
+    const formText = await page.locator("main").innerText();
+    expect(formText.indexOf("Source Information")).toBeLessThan(formText.indexOf("Select Source Package"));
+    expect(formText.indexOf("Select Source Package")).toBeLessThan(formText.indexOf("Review Submission"));
+    await expect(page.getByRole("button", { name: "Simulate Raw Registration" })).toBeDisabled();
     await page.getByRole("button", { name: "Load Synthetic Mixed FileGDB" }).click();
     await expect(page.getByText("Sample_Mixed_Utility_Source.gdb").first()).toBeVisible();
+    await expect(page.getByText("NOT UPLOADED").first()).toBeVisible();
+    await expect(page.getByText("Raw Registration Complete")).toHaveCount(0);
+    await page.getByLabel("Submission name").fill("Synthetic Mixed Utility Source");
+    await page.getByLabel("Source owner").fill("Synthetic Data Owner");
+    await page.getByLabel("Submitted by").fill("Demo Reviewer");
+    await page.getByLabel("Description").fill("Synthetic package for upload workflow testing.");
+    await page.getByLabel(/authorized to store and analyze/i).check();
+    await expect(page.getByRole("button", { name: "Simulate Raw Registration" })).toBeEnabled();
+    await page.getByRole("button", { name: "Simulate Raw Registration" }).click();
+    await expect(page.getByText("Raw Registration Complete").first()).toBeVisible();
+    await expect(page.getByText("RAW REGISTERED").first()).toBeVisible();
     await expect(page.getByText("Demo mode does not upload or inspect your folder").first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Run Source Inspection" }).first()).toBeVisible();
     await page.getByRole("link", { name: "View in Raw Stage" }).first().click();
     await expect(page.getByText("Synthetic Mixed Utility Source").first()).toBeVisible();
     await page.goto(`${basePath}/data-sources/upload`, { waitUntil: "domcontentloaded" });
