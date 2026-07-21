@@ -1,0 +1,2205 @@
+{
+  "data_classification": "sanitized_and_synthetic",
+  "disclaimer": "Sanitized portfolio snapshot. Geometry and identifiers are synthetic.",
+  "generated_at": "2026-07-20T12:00:00-04:00",
+  "issues": [
+    {
+      "category": "connectivity",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623220,
+        "y": 4541200
+      },
+      "issue_id": "DEMO-ISSUE-001",
+      "rule_code": "WW_NET_001",
+      "severity": "high",
+      "source_layer": "demo_gravity_main",
+      "source_objectid": "1000"
+    },
+    {
+      "category": "connectivity",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622662,
+        "y": 4541244
+      },
+      "issue_id": "DEMO-ISSUE-002",
+      "rule_code": "WW_NET_006",
+      "severity": "high",
+      "source_layer": "demo_gravity_main",
+      "source_objectid": "1001"
+    },
+    {
+      "category": "geometry",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622104,
+        "y": 4541200
+      },
+      "issue_id": "DEMO-ISSUE-003",
+      "rule_code": "WW_GEOM_003",
+      "severity": "medium",
+      "source_layer": "demo_gravity_main",
+      "source_objectid": "1002"
+    },
+    {
+      "category": "identity",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623978,
+        "y": 4541434
+      },
+      "issue_id": "DEMO-ISSUE-004",
+      "rule_code": "WW_ID_003",
+      "severity": "high",
+      "source_layer": "demo_gravity_main",
+      "source_objectid": "1003"
+    },
+    {
+      "category": "identity",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623420,
+        "y": 4541390
+      },
+      "issue_id": "DEMO-ISSUE-005",
+      "rule_code": "WW_ID_002",
+      "severity": "medium",
+      "source_layer": "demo_manhole",
+      "source_objectid": "1004"
+    },
+    {
+      "category": "attributes",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622862,
+        "y": 4541434
+      },
+      "issue_id": "DEMO-ISSUE-006",
+      "rule_code": "WW_ATTR_006",
+      "severity": "low",
+      "source_layer": "demo_gravity_main",
+      "source_objectid": "1005"
+    },
+    {
+      "category": "attributes",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622418,
+        "y": 4541390
+      },
+      "issue_id": "DEMO-ISSUE-007",
+      "rule_code": "WW_ATTR_002",
+      "severity": "low",
+      "source_layer": "demo_gravity_main",
+      "source_objectid": "1006"
+    },
+    {
+      "category": "connectivity",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13621860,
+        "y": 4541434
+      },
+      "issue_id": "DEMO-ISSUE-008",
+      "rule_code": "WW_NET_007",
+      "severity": "medium",
+      "source_layer": "demo_manhole",
+      "source_objectid": "1007"
+    },
+    {
+      "category": "connectivity",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623664,
+        "y": 4541580
+      },
+      "issue_id": "DEMO-ISSUE-009",
+      "rule_code": "WW_NET_001",
+      "severity": "high",
+      "source_layer": "demo_gravity_main",
+      "source_objectid": "1008"
+    },
+    {
+      "category": "connectivity",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623220,
+        "y": 4541624
+      },
+      "issue_id": "DEMO-ISSUE-010",
+      "rule_code": "WW_NET_006",
+      "severity": "high",
+      "source_layer": "demo_gravity_main",
+      "source_objectid": "1009"
+    },
+    {
+      "category": "geometry",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622662,
+        "y": 4541580
+      },
+      "issue_id": "DEMO-ISSUE-011",
+      "rule_code": "WW_GEOM_003",
+      "severity": "medium",
+      "source_layer": "demo_gravity_main",
+      "source_objectid": "1010"
+    },
+    {
+      "category": "identity",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622104,
+        "y": 4541624
+      },
+      "issue_id": "DEMO-ISSUE-012",
+      "rule_code": "WW_ID_003",
+      "severity": "high",
+      "source_layer": "demo_gravity_main",
+      "source_objectid": "1011"
+    },
+    {
+      "category": "identity",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623978,
+        "y": 4541770
+      },
+      "issue_id": "DEMO-ISSUE-013",
+      "rule_code": "WW_ID_002",
+      "severity": "medium",
+      "source_layer": "demo_manhole",
+      "source_objectid": "1012"
+    },
+    {
+      "category": "attributes",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623420,
+        "y": 4541814
+      },
+      "issue_id": "DEMO-ISSUE-014",
+      "rule_code": "WW_ATTR_006",
+      "severity": "low",
+      "source_layer": "demo_gravity_main",
+      "source_objectid": "1013"
+    },
+    {
+      "category": "attributes",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622862,
+        "y": 4541770
+      },
+      "issue_id": "DEMO-ISSUE-015",
+      "rule_code": "WW_ATTR_002",
+      "severity": "low",
+      "source_layer": "demo_gravity_main",
+      "source_objectid": "1014"
+    },
+    {
+      "category": "connectivity",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622418,
+        "y": 4541814
+      },
+      "issue_id": "DEMO-ISSUE-016",
+      "rule_code": "WW_NET_007",
+      "severity": "medium",
+      "source_layer": "demo_manhole",
+      "source_objectid": "1015"
+    },
+    {
+      "category": "connectivity",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13621860,
+        "y": 4541770
+      },
+      "issue_id": "DEMO-ISSUE-017",
+      "rule_code": "WW_NET_001",
+      "severity": "high",
+      "source_layer": "demo_gravity_main",
+      "source_objectid": "1016"
+    },
+    {
+      "category": "connectivity",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623664,
+        "y": 4542004
+      },
+      "issue_id": "DEMO-ISSUE-018",
+      "rule_code": "WW_NET_006",
+      "severity": "high",
+      "source_layer": "demo_gravity_main",
+      "source_objectid": "1017"
+    },
+    {
+      "category": "geometry",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623220,
+        "y": 4541960
+      },
+      "issue_id": "DEMO-ISSUE-019",
+      "rule_code": "WW_GEOM_003",
+      "severity": "medium",
+      "source_layer": "demo_gravity_main",
+      "source_objectid": "1018"
+    },
+    {
+      "category": "identity",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622662,
+        "y": 4542004
+      },
+      "issue_id": "DEMO-ISSUE-020",
+      "rule_code": "WW_ID_003",
+      "severity": "high",
+      "source_layer": "demo_gravity_main",
+      "source_objectid": "1019"
+    },
+    {
+      "category": "identity",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622104,
+        "y": 4541960
+      },
+      "issue_id": "DEMO-ISSUE-021",
+      "rule_code": "WW_ID_002",
+      "severity": "medium",
+      "source_layer": "demo_manhole",
+      "source_objectid": "1020"
+    },
+    {
+      "category": "attributes",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623978,
+        "y": 4542194
+      },
+      "issue_id": "DEMO-ISSUE-022",
+      "rule_code": "WW_ATTR_006",
+      "severity": "low",
+      "source_layer": "demo_gravity_main",
+      "source_objectid": "1021"
+    },
+    {
+      "category": "attributes",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623420,
+        "y": 4542150
+      },
+      "issue_id": "DEMO-ISSUE-023",
+      "rule_code": "WW_ATTR_002",
+      "severity": "low",
+      "source_layer": "demo_gravity_main",
+      "source_objectid": "1022"
+    },
+    {
+      "category": "connectivity",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622862,
+        "y": 4542194
+      },
+      "issue_id": "DEMO-ISSUE-024",
+      "rule_code": "WW_NET_007",
+      "severity": "medium",
+      "source_layer": "demo_manhole",
+      "source_objectid": "1023"
+    }
+  ],
+  "label": "Representative sanitized network sample",
+  "live_system_connected": false,
+  "manholes": [
+    {
+      "asset_id": "MH-DEMO-001",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13624000,
+        "y": 4541200
+      },
+      "objectid": 1,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-002",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623740,
+        "y": 4541200
+      },
+      "objectid": 2,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-003",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623480,
+        "y": 4541200
+      },
+      "objectid": 3,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-004",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623220,
+        "y": 4541200
+      },
+      "objectid": 4,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-005",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622960,
+        "y": 4541200
+      },
+      "objectid": 5,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-006",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622700,
+        "y": 4541200
+      },
+      "objectid": 6,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-007",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622440,
+        "y": 4541200
+      },
+      "objectid": 7,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-008",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622180,
+        "y": 4541200
+      },
+      "objectid": 8,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-009",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13621920,
+        "y": 4541200
+      },
+      "objectid": 9,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-010",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623978,
+        "y": 4541390
+      },
+      "objectid": 10,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-011",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623718,
+        "y": 4541390
+      },
+      "objectid": 11,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-012",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623458,
+        "y": 4541390
+      },
+      "objectid": 12,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-013",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623198,
+        "y": 4541390
+      },
+      "objectid": 13,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-014",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622938,
+        "y": 4541390
+      },
+      "objectid": 14,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-015",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622678,
+        "y": 4541390
+      },
+      "objectid": 15,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-016",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622418,
+        "y": 4541390
+      },
+      "objectid": 16,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-017",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622158,
+        "y": 4541390
+      },
+      "objectid": 17,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-018",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13621898,
+        "y": 4541390
+      },
+      "objectid": 18,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-019",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13624000,
+        "y": 4541580
+      },
+      "objectid": 19,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-020",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623740,
+        "y": 4541580
+      },
+      "objectid": 20,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-021",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623480,
+        "y": 4541580
+      },
+      "objectid": 21,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-022",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623220,
+        "y": 4541580
+      },
+      "objectid": 22,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-023",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622960,
+        "y": 4541580
+      },
+      "objectid": 23,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-024",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622700,
+        "y": 4541580
+      },
+      "objectid": 24,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-025",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622440,
+        "y": 4541580
+      },
+      "objectid": 25,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-026",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622180,
+        "y": 4541580
+      },
+      "objectid": 26,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-027",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13621920,
+        "y": 4541580
+      },
+      "objectid": 27,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-028",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623978,
+        "y": 4541770
+      },
+      "objectid": 28,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-029",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623718,
+        "y": 4541770
+      },
+      "objectid": 29,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-030",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623458,
+        "y": 4541770
+      },
+      "objectid": 30,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-031",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623198,
+        "y": 4541770
+      },
+      "objectid": 31,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-032",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622938,
+        "y": 4541770
+      },
+      "objectid": 32,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-033",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622678,
+        "y": 4541770
+      },
+      "objectid": 33,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-034",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622418,
+        "y": 4541770
+      },
+      "objectid": 34,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-035",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622158,
+        "y": 4541770
+      },
+      "objectid": 35,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-036",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13621898,
+        "y": 4541770
+      },
+      "objectid": 36,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-037",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13624000,
+        "y": 4541960
+      },
+      "objectid": 37,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-038",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623740,
+        "y": 4541960
+      },
+      "objectid": 38,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-039",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623480,
+        "y": 4541960
+      },
+      "objectid": 39,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-040",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623220,
+        "y": 4541960
+      },
+      "objectid": 40,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-041",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622960,
+        "y": 4541960
+      },
+      "objectid": 41,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-042",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622700,
+        "y": 4541960
+      },
+      "objectid": 42,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-043",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622440,
+        "y": 4541960
+      },
+      "objectid": 43,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-044",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622180,
+        "y": 4541960
+      },
+      "objectid": 44,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-045",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13621920,
+        "y": 4541960
+      },
+      "objectid": 45,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-046",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623978,
+        "y": 4542150
+      },
+      "objectid": 46,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-047",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623718,
+        "y": 4542150
+      },
+      "objectid": 47,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-048",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623458,
+        "y": 4542150
+      },
+      "objectid": 48,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-049",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13623198,
+        "y": 4542150
+      },
+      "objectid": 49,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-050",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622938,
+        "y": 4542150
+      },
+      "objectid": 50,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-051",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622678,
+        "y": 4542150
+      },
+      "objectid": 51,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-052",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622418,
+        "y": 4542150
+      },
+      "objectid": 52,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-053",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13622158,
+        "y": 4542150
+      },
+      "objectid": 53,
+      "source_layer": "demo_manhole"
+    },
+    {
+      "asset_id": "MH-DEMO-054",
+      "geometry": {
+        "spatial_reference_wkid": 3857,
+        "type": "point",
+        "x": -13621898,
+        "y": 4542150
+      },
+      "objectid": 54,
+      "source_layer": "demo_manhole"
+    }
+  ],
+  "mode": "portfolio_demo",
+  "pipes": [
+    {
+      "asset_id": "GM-DEMO-001",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13624000,
+              4541200
+            ],
+            [
+              -13623740,
+              4541200
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 1,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-002",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623740,
+              4541200
+            ],
+            [
+              -13623480,
+              4541200
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 2,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-003",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623480,
+              4541200
+            ],
+            [
+              -13623220,
+              4541200
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 3,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-004",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623220,
+              4541200
+            ],
+            [
+              -13622960,
+              4541200
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 4,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-005",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622960,
+              4541200
+            ],
+            [
+              -13622700,
+              4541200
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 5,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-006",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622700,
+              4541200
+            ],
+            [
+              -13622440,
+              4541200
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 6,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-007",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622440,
+              4541200
+            ],
+            [
+              -13622180,
+              4541200
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 7,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-008",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622180,
+              4541200
+            ],
+            [
+              -13621920,
+              4541200
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 8,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-009",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623978,
+              4541390
+            ],
+            [
+              -13623718,
+              4541390
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 9,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-010",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623718,
+              4541390
+            ],
+            [
+              -13623458,
+              4541390
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 10,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-011",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623458,
+              4541390
+            ],
+            [
+              -13623198,
+              4541390
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 11,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-012",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623198,
+              4541390
+            ],
+            [
+              -13622938,
+              4541390
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 12,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-013",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622938,
+              4541390
+            ],
+            [
+              -13622678,
+              4541390
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 13,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-014",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622678,
+              4541390
+            ],
+            [
+              -13622418,
+              4541390
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 14,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-015",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622418,
+              4541390
+            ],
+            [
+              -13622158,
+              4541390
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 15,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-016",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622158,
+              4541390
+            ],
+            [
+              -13621898,
+              4541390
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 16,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-017",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13624000,
+              4541580
+            ],
+            [
+              -13623740,
+              4541580
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 17,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-018",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623740,
+              4541580
+            ],
+            [
+              -13623480,
+              4541580
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 18,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-019",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623480,
+              4541580
+            ],
+            [
+              -13623220,
+              4541580
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 19,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-020",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623220,
+              4541580
+            ],
+            [
+              -13622960,
+              4541580
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 20,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-021",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622960,
+              4541580
+            ],
+            [
+              -13622700,
+              4541580
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 21,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-022",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622700,
+              4541580
+            ],
+            [
+              -13622440,
+              4541580
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 22,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-023",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622440,
+              4541580
+            ],
+            [
+              -13622180,
+              4541580
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 23,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-024",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622180,
+              4541580
+            ],
+            [
+              -13621920,
+              4541580
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 24,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-025",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623978,
+              4541770
+            ],
+            [
+              -13623718,
+              4541770
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 25,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-026",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623718,
+              4541770
+            ],
+            [
+              -13623458,
+              4541770
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 26,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-027",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623458,
+              4541770
+            ],
+            [
+              -13623198,
+              4541770
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 27,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-028",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623198,
+              4541770
+            ],
+            [
+              -13622938,
+              4541770
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 28,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-029",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622938,
+              4541770
+            ],
+            [
+              -13622678,
+              4541770
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 29,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-030",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622678,
+              4541770
+            ],
+            [
+              -13622418,
+              4541770
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 30,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-031",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622418,
+              4541770
+            ],
+            [
+              -13622158,
+              4541770
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 31,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-032",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622158,
+              4541770
+            ],
+            [
+              -13621898,
+              4541770
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 32,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-033",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13624000,
+              4541200
+            ],
+            [
+              -13623978,
+              4541390
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 33,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-034",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623978,
+              4541390
+            ],
+            [
+              -13624000,
+              4541580
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 34,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-035",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13624000,
+              4541580
+            ],
+            [
+              -13623978,
+              4541770
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 35,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-036",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623740,
+              4541200
+            ],
+            [
+              -13623718,
+              4541390
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 36,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-037",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623718,
+              4541390
+            ],
+            [
+              -13623740,
+              4541580
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 37,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-038",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623740,
+              4541580
+            ],
+            [
+              -13623718,
+              4541770
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 38,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-039",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623480,
+              4541200
+            ],
+            [
+              -13623458,
+              4541390
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 39,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-040",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623458,
+              4541390
+            ],
+            [
+              -13623480,
+              4541580
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 40,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-041",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623480,
+              4541580
+            ],
+            [
+              -13623458,
+              4541770
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 41,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-042",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623220,
+              4541200
+            ],
+            [
+              -13623198,
+              4541390
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 42,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-043",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623198,
+              4541390
+            ],
+            [
+              -13623220,
+              4541580
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 43,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-044",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623220,
+              4541580
+            ],
+            [
+              -13623198,
+              4541770
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 44,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-045",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622960,
+              4541200
+            ],
+            [
+              -13622938,
+              4541390
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 45,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-046",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622938,
+              4541390
+            ],
+            [
+              -13622960,
+              4541580
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 46,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-047",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622960,
+              4541580
+            ],
+            [
+              -13622938,
+              4541770
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 47,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-048",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622700,
+              4541200
+            ],
+            [
+              -13622678,
+              4541390
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 48,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-049",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622678,
+              4541390
+            ],
+            [
+              -13622700,
+              4541580
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 49,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-050",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622700,
+              4541580
+            ],
+            [
+              -13622678,
+              4541770
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 50,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-051",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622440,
+              4541200
+            ],
+            [
+              -13622418,
+              4541390
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 51,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-052",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622418,
+              4541390
+            ],
+            [
+              -13622440,
+              4541580
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 52,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-053",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622440,
+              4541580
+            ],
+            [
+              -13622418,
+              4541770
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 53,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-054",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623740,
+              4541960
+            ],
+            [
+              -13623480,
+              4541960
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 54,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-055",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623480,
+              4541960
+            ],
+            [
+              -13623220,
+              4541960
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 55,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-056",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623220,
+              4541960
+            ],
+            [
+              -13622960,
+              4541960
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 56,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-057",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623718,
+              4542150
+            ],
+            [
+              -13623458,
+              4542150
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 57,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-058",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13623458,
+              4542150
+            ],
+            [
+              -13623198,
+              4542150
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 58,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-059",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622418,
+              4542150
+            ],
+            [
+              -13622158,
+              4542150
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 59,
+      "source_layer": "demo_gravity_main"
+    },
+    {
+      "asset_id": "GM-DEMO-060",
+      "geometry": {
+        "paths": [
+          [
+            [
+              -13622158,
+              4542150
+            ],
+            [
+              -13621898,
+              4542150
+            ]
+          ]
+        ],
+        "spatial_reference_wkid": 3857,
+        "type": "polyline"
+      },
+      "objectid": 60,
+      "source_layer": "demo_gravity_main"
+    }
+  ],
+  "writes_persisted": false
+}

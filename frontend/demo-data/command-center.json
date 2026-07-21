@@ -1,0 +1,131 @@
+{
+  "assets": {
+    "by_asset_category": {
+      "access_structure": 2083,
+      "pipe": 2075
+    },
+    "by_network_group": {
+      "gravity_network": 2075,
+      "structures": 2083
+    },
+    "total": 4158
+  },
+  "data_classification": "sanitized_and_synthetic",
+  "dependencies": {
+    "available": 2,
+    "missing": [
+      "force_main",
+      "lift_station",
+      "service_lateral",
+      "treatment_facility",
+      "inspection_records",
+      "work_orders"
+    ],
+    "total": 12
+  },
+  "disclaimer": "Sanitized portfolio snapshot. Geometry and identifiers are synthetic.",
+  "generated_at": "2026-07-20T12:00:00-04:00",
+  "live_system_connected": false,
+  "mode": "portfolio_demo",
+  "module_status": [
+    {
+      "href": "/data-health",
+      "label": "Data Health",
+      "status": "Active demo"
+    },
+    {
+      "href": "/trust-pipeline",
+      "label": "Trust Pipeline",
+      "status": "Active demo"
+    },
+    {
+      "href": "/data-sources",
+      "label": "Data Sources",
+      "status": "Active demo"
+    },
+    {
+      "href": "/cad-intake",
+      "label": "CAD Intake",
+      "status": "Planned"
+    }
+  ],
+  "network": {
+    "connected_components": 77,
+    "endpoint_match_rate": 0.9851,
+    "isolated_manholes": 46,
+    "isolated_pipes": 18,
+    "unmatched_endpoints": 62
+  },
+  "pipeline": {
+    "current_stage": "Human Review",
+    "stages": [
+      {
+        "stage": "Raw",
+        "state": "complete"
+      },
+      {
+        "stage": "Inventoried",
+        "state": "complete"
+      },
+      {
+        "stage": "Staged",
+        "state": "complete"
+      },
+      {
+        "stage": "QA Evaluated",
+        "state": "complete"
+      },
+      {
+        "stage": "Human Review",
+        "state": "in_progress"
+      },
+      {
+        "stage": "Standardization Ready",
+        "state": "pending"
+      },
+      {
+        "stage": "Standardized",
+        "state": "not_started"
+      },
+      {
+        "stage": "Curated",
+        "state": "not_started"
+      },
+      {
+        "stage": "Exported",
+        "state": "not_started"
+      }
+    ]
+  },
+  "platform_status": "portfolio_demo",
+  "qa": {
+    "by_severity": {
+      "high": 159,
+      "low": 2586,
+      "medium": 648
+    },
+    "high_priority": 159,
+    "open_reviews": 3393,
+    "review_sample": 72,
+    "reviewed_findings": 0,
+    "total_findings": 3393
+  },
+  "recent_runs": [
+    {
+      "completed_at": "2026-07-20T12:00:00-04:00",
+      "input_layer": "sanitized wastewater demo",
+      "output_workspace": "demo QA review workspace",
+      "process_name": "Wastewater Data Health Demo",
+      "records_read": "4158",
+      "records_written": "3393",
+      "run_id": "demo-run-2026-07-20",
+      "status": "demo_snapshot"
+    }
+  ],
+  "storage": {
+    "demo_snapshot_loaded": true,
+    "live_system_connected": false
+  },
+  "utility_system": "wastewater",
+  "writes_persisted": false
+}

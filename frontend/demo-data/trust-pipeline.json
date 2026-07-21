@@ -1,0 +1,48 @@
+{
+  "data_classification": "sanitized_and_synthetic",
+  "disclaimer": "Sanitized portfolio snapshot. Geometry and identifiers are synthetic.",
+  "generated_at": "2026-07-20T12:00:00-04:00",
+  "live_system_connected": false,
+  "message": "Demo lifecycle snapshot. Human review is temporary and local to the browser session.",
+  "mode": "portfolio_demo",
+  "stages": [
+    {
+      "stage": "Raw",
+      "state": "complete"
+    },
+    {
+      "stage": "Inventoried",
+      "state": "complete"
+    },
+    {
+      "stage": "Staged",
+      "state": "complete"
+    },
+    {
+      "stage": "QA Evaluated",
+      "state": "complete"
+    },
+    {
+      "stage": "Human Review",
+      "state": "in_progress"
+    },
+    {
+      "stage": "Standardization Ready",
+      "state": "pending"
+    },
+    {
+      "stage": "Standardized",
+      "state": "not_started"
+    },
+    {
+      "stage": "Curated",
+      "state": "not_started"
+    },
+    {
+      "stage": "Exported",
+      "state": "not_started"
+    }
+  ],
+  "utility_system": "wastewater",
+  "writes_persisted": false
+}

@@ -1,0 +1,48 @@
+{
+  "catalog_available": true,
+  "configured": true,
+  "curated_folder_available": false,
+  "data_classification": "sanitized_and_synthetic",
+  "demo_snapshot_loaded": true,
+  "disclaimer": "Sanitized portfolio snapshot. Geometry and identifiers are synthetic.",
+  "export_folder_available": false,
+  "generated_at": "2026-07-20T12:00:00-04:00",
+  "geodatabases": {
+    "master": "not_started",
+    "staging": "demo_snapshot",
+    "standardized": "not_started"
+  },
+  "live_system_connected": false,
+  "master_root_available": true,
+  "mode": "portfolio_demo",
+  "raw_folder_available": true,
+  "stages": [
+    {
+      "item_count": 2,
+      "label": "Raw",
+      "stage": "raw",
+      "state": "complete"
+    },
+    {
+      "item_count": 2,
+      "label": "Staging",
+      "stage": "staging",
+      "state": "complete"
+    },
+    {
+      "item_count": 0,
+      "label": "Standardized",
+      "stage": "standardized",
+      "state": "not_started"
+    },
+    {
+      "item_count": 0,
+      "label": "Curated",
+      "stage": "curated",
+      "state": "not_started"
+    }
+  ],
+  "staging_folder_available": true,
+  "standardized_folder_available": false,
+  "writes_persisted": false
+}

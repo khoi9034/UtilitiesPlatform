@@ -1,0 +1,26 @@
+{
+  "data_classification": "sanitized_and_synthetic",
+  "disclaimer": "Sanitized portfolio snapshot. Geometry and identifiers are synthetic.",
+  "files": [
+    "command-center.json",
+    "stage-summary.json",
+    "stage-items.json",
+    "lineage.json",
+    "inventory.json",
+    "processing-history.json",
+    "data-health-summary.json",
+    "issues.json",
+    "rules.json",
+    "review-queue.json",
+    "calibration.json",
+    "network.json",
+    "components.json",
+    "standardization.json",
+    "trust-pipeline.json",
+    "map.json"
+  ],
+  "generated_at": "2026-07-20T12:00:00-04:00",
+  "live_system_connected": false,
+  "mode": "portfolio_demo",
+  "writes_persisted": false
+}

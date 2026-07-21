@@ -1,0 +1,100 @@
+{
+  "data_classification": "sanitized_and_synthetic",
+  "disclaimer": "Sanitized portfolio snapshot. Geometry and identifiers are synthetic.",
+  "generated_at": "2026-07-20T12:00:00-04:00",
+  "live_system_connected": false,
+  "mappings": [
+    {
+      "approved_to_standardize": "false",
+      "blocked_reason": "",
+      "code_translation": "none",
+      "confidence": "high",
+      "data_owner_confirmation_required": "false",
+      "mapping_type": "direct",
+      "notes": "Demo mapping only.",
+      "reviewed_at": "",
+      "reviewer": "",
+      "source_alias": "Pipe ID",
+      "source_field": "DEMO_PIPE_ID",
+      "source_layer": "demo_gravity_main",
+      "target_field": "source_asset_id",
+      "transformation": "none",
+      "unit_conversion": "none"
+    },
+    {
+      "approved_to_standardize": "false",
+      "blocked_reason": "unit not confirmed",
+      "code_translation": "none",
+      "confidence": "medium",
+      "data_owner_confirmation_required": "true",
+      "mapping_type": "direct",
+      "notes": "Do not standardize until confirmed.",
+      "reviewed_at": "",
+      "reviewer": "",
+      "source_alias": "Diameter",
+      "source_field": "DEMO_DIAMETER",
+      "source_layer": "demo_gravity_main",
+      "target_field": "diameter_value",
+      "transformation": "requires unit confirmation",
+      "unit_conversion": "awaiting confirmation"
+    },
+    {
+      "approved_to_standardize": "false",
+      "blocked_reason": "",
+      "code_translation": "none",
+      "confidence": "high",
+      "data_owner_confirmation_required": "false",
+      "mapping_type": "direct",
+      "notes": "Demo mapping only.",
+      "reviewed_at": "",
+      "reviewer": "",
+      "source_alias": "Manhole ID",
+      "source_field": "DEMO_MH_ID",
+      "source_layer": "demo_manhole",
+      "target_field": "source_asset_id",
+      "transformation": "none",
+      "unit_conversion": "none"
+    }
+  ],
+  "mode": "portfolio_demo",
+  "readiness": {
+    "dependencies_still_missing": [
+      "force_main",
+      "lift_station",
+      "service_lateral",
+      "inspection_records"
+    ],
+    "fields_blocked": [
+      "standard_asset_id",
+      "standardization_status"
+    ],
+    "fields_ready_to_map_directly": [
+      "source_asset_id",
+      "utility_system",
+      "network_group",
+      "asset_category",
+      "asset_subcategory"
+    ],
+    "fields_requiring_code_translation": [
+      "material_code",
+      "lifecycle_status",
+      "operational_status"
+    ],
+    "fields_requiring_unit_confirmation": [
+      "diameter_value",
+      "rim_elevation",
+      "upstream_invert",
+      "downstream_invert"
+    ],
+    "fields_unavailable": [
+      "source_document_id",
+      "elevation_datum"
+    ],
+    "records_eligible_for_preview": 0,
+    "records_requiring_review": 4158,
+    "standardization_status": "pending_human_review",
+    "writes_to_curated_gdb": false,
+    "writes_to_standardized_gdb": false
+  },
+  "writes_persisted": false
+}

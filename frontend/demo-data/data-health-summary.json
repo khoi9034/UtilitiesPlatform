@@ -1,0 +1,76 @@
+{
+  "category_metrics": {
+    "Attributes": {
+      "denominator": 4158,
+      "numerator": 1753,
+      "skipped_checks": 2,
+      "summary": "Completeness gaps are separated from confirmed defects."
+    },
+    "Connectivity": {
+      "denominator": 4158,
+      "numerator": 4096,
+      "skipped_checks": 0,
+      "summary": "Endpoint matching is proximity-based, not authoritative topology."
+    },
+    "Geometry": {
+      "denominator": 4158,
+      "numerator": 4152,
+      "skipped_checks": 0,
+      "summary": "Geometry findings are candidate defects only."
+    },
+    "Identity": {
+      "denominator": 4158,
+      "numerator": 4058,
+      "skipped_checks": 0,
+      "summary": "Most staged assets have a usable safe identifier."
+    },
+    "Lineage": {
+      "denominator": 2,
+      "numerator": 2,
+      "skipped_checks": 0,
+      "summary": "Demo source lineage is sanitized."
+    }
+  },
+  "completed_at": "2026-07-20T12:00:00-04:00",
+  "connected_component_count": 77,
+  "data_classification": "sanitized_and_synthetic",
+  "disclaimer": "Sanitized portfolio snapshot. Geometry and identifiers are synthetic.",
+  "endpoint_match_rate": 0.9851,
+  "generated_at": "2026-07-20T12:00:00-04:00",
+  "input_feature_counts": {
+    "wastewater_gravity_main": 2075,
+    "wastewater_manhole": 2083
+  },
+  "isolated_manholes": 46,
+  "isolated_pipes": 18,
+  "issues_by_category": {
+    "attributes": 2409,
+    "connectivity": 881,
+    "geometry": 6,
+    "identity": 97
+  },
+  "issues_by_severity": {
+    "high": 159,
+    "low": 2586,
+    "medium": 648
+  },
+  "largest_component_size": 2396,
+  "limitations": [
+    "Sanitized portfolio snapshot.",
+    "Geometry and identifiers are synthetic.",
+    "No live utility infrastructure is connected."
+  ],
+  "live_system_connected": false,
+  "mode": "portfolio_demo",
+  "run_id": "demo-run-2026-07-20",
+  "run_status": "demo_snapshot",
+  "spatial_reference": "Synthetic Web Mercator sample; production coordinates removed",
+  "staged_input_layers": [
+    "demo_gravity_main",
+    "demo_manhole"
+  ],
+  "started_at": "2026-07-20T12:00:00-04:00",
+  "total_issues": 3393,
+  "unmatched_endpoints": 62,
+  "writes_persisted": false
+}

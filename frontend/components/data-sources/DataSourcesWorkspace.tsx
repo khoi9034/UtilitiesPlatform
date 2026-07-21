@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { fetchJson } from "../../lib/api-client";
+import { isDemoMode } from "../../lib/data-provider/provider";
 import { compactNumber, label, safeText, shortDate } from "../../lib/formatters";
 import { EmptyState, LoadingSkeleton, MetricTile, OfflineState, Panel, StageBadge, StatusBadge, workspaceStyles as ws } from "../ui/Primitives";
 import styles from "./data-sources.module.css";
@@ -35,7 +36,8 @@ type Dataset = {
   approved_for_public_use: string;
   last_processed: string;
 };
-type CatalogResponse = { datasets: Dataset[]; message: string };
+type StageItem = { name: string; format?: string; records?: number; state: string };
+type CatalogResponse = { datasets: Dataset[]; message: string; raw?: StageItem[]; staging?: StageItem[]; standardized?: StageItem[]; curated?: StageItem[] };
 type InventorySummary = {
   sources_discovered: number;
   layer_count: number;
@@ -141,6 +143,7 @@ export function DataSourcesWorkspace({ initialTab = "Catalog" }: { initialTab?: 
         <div className={ws.span3}><MetricTile labelText="Recommended staging" value={compactNumber(summary.recommended_staging_layers)} detail="Allowlist-driven candidates." /></div>
         <div className={ws.span3}><MetricTile labelText="Review required" value={compactNumber(summary.review_required_layers)} detail="Low-confidence or unknown taxonomy." /></div>
       </section>
+      {isDemoMode && catalog ? <DemoStageSnapshot catalog={catalog} /> : null}
 
       <div className={styles.tabBar} role="tablist" aria-label="Data source workspace">
         {tabs.map((tab) => <button className={styles.tabButton} role="tab" aria-selected={activeTab === tab} key={tab} onClick={() => setActiveTab(tab)}>{tab}</button>)}
@@ -187,6 +190,27 @@ export function DataSourcesWorkspace({ initialTab = "Catalog" }: { initialTab?: 
         </Panel>
       </section>
     </div>
+  );
+}
+
+function DemoStageSnapshot({ catalog }: { catalog: CatalogResponse }) {
+  const rows = [
+    ["Raw", catalog.raw ?? []],
+    ["Staging", catalog.staging ?? []],
+    ["Standardized", catalog.standardized ?? []],
+    ["Curated", catalog.curated ?? []],
+  ] as const;
+  return (
+    <Panel title="Demo Stage Snapshot" description="Sanitized demo sources only. Standardized and curated records have not been created.">
+      <div className={styles.workflow}>
+        {rows.map(([stage, items]) => (
+          <div className={styles.workflowStep} key={stage}>
+            <strong>{stage}</strong>
+            <span className={styles.muted}>{items.length ? items.map((item) => item.name).join(", ") : "Not started"}</span>
+          </div>
+        ))}
+      </div>
+    </Panel>
   );
 }
 

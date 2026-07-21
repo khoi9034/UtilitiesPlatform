@@ -202,6 +202,31 @@ npm audit --audit-level=moderate
 
 The interface uses Calcite components/assets selectively, CSS Modules, semantic design tokens, and the existing ArcGIS Maps SDK workflow. Screenshot review artifacts belong outside Git under `C:\UtilitiesPlatform_Data\logs\ui-review`.
 
+## Portfolio Demo
+
+The frontend supports a static recruiter demo:
+
+```powershell
+cd C:\Projects\UtilitiesPlatform\frontend
+npm run build:demo
+npm run serve:demo
+npm run test:demo
+```
+
+The demo runs with `NEXT_PUBLIC_APP_MODE=demo` and loads only committed sanitized JSON from `frontend/demo-data`. No live utility system is connected, no exact utility geometry is published, no backend is required, and review decisions are temporary browser-session changes.
+
+The local full-system processing architecture is intentionally not deployed to the public demo. FastAPI, ArcPy, file geodatabases, SQLite review persistence, and `C:\UtilitiesPlatform_Data` remain local research/runtime infrastructure.
+
+GitHub Pages deployment is defined in `.github/workflows/deploy-utilities-demo.yml` and uses the `/UtilitiesPlatform` base path.
+
+Demo governance:
+
+```powershell
+python scripts\demo\validate_demo_data.py --demo-root frontend\demo-data
+```
+
+See `docs/demo-deployment.md` and `docs/demo-data-governance.md`.
+
 ## Repository Structure
 
 ```text

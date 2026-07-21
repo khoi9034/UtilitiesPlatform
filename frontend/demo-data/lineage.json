@@ -1,0 +1,22 @@
+{
+  "data_classification": "sanitized_and_synthetic",
+  "disclaimer": "Sanitized portfolio snapshot. Geometry and identifiers are synthetic.",
+  "generated_at": "2026-07-20T12:00:00-04:00",
+  "items": [
+    {
+      "output": "demo inventory",
+      "source": "Sanitized source package",
+      "stage": "raw",
+      "status": "complete"
+    },
+    {
+      "output": "demo QA findings",
+      "source": "demo staged layers",
+      "stage": "qa",
+      "status": "complete"
+    }
+  ],
+  "live_system_connected": false,
+  "mode": "portfolio_demo",
+  "writes_persisted": false
+}

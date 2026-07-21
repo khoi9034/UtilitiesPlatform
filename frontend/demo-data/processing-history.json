@@ -1,0 +1,20 @@
+{
+  "data_classification": "sanitized_and_synthetic",
+  "disclaimer": "Sanitized portfolio snapshot. Geometry and identifiers are synthetic.",
+  "generated_at": "2026-07-20T12:00:00-04:00",
+  "live_system_connected": false,
+  "mode": "portfolio_demo",
+  "runs": [
+    {
+      "completed_at": "2026-07-20T12:00:00-04:00",
+      "input_layer": "sanitized wastewater demo",
+      "output_workspace": "demo QA review workspace",
+      "process_name": "Wastewater Data Health Demo",
+      "records_read": "4158",
+      "records_written": "3393",
+      "run_id": "demo-run-2026-07-20",
+      "status": "demo_snapshot"
+    }
+  ],
+  "writes_persisted": false
+}

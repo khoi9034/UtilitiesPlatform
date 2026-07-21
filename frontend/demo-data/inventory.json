@@ -1,0 +1,113 @@
+{
+  "data_classification": "sanitized_and_synthetic",
+  "disclaimer": "Sanitized portfolio snapshot. Geometry and identifiers are synthetic.",
+  "generated_at": "2026-07-20T12:00:00-04:00",
+  "layers": [
+    {
+      "asset_category": "pipe",
+      "asset_subcategory": "gravity_main",
+      "classification_confidence": "high",
+      "dataset_id": "DEMO-DATASET-GM",
+      "geometry_type": "polyline",
+      "layer_name": "demo_gravity_main",
+      "likely_classifications": "wastewater gravity main",
+      "network_group": "gravity_network",
+      "recommended_action": "Review QA findings before standardization.",
+      "recommended_classification": "wastewater/gravity_network/pipe/gravity_main",
+      "record_count": "2075",
+      "sensitivity_level": "public_demo",
+      "source_format": "geodatabase export",
+      "source_name": "Sanitized source package A",
+      "spatial_reference": "synthetic web mercator",
+      "utility_system": "wastewater"
+    },
+    {
+      "asset_category": "access_structure",
+      "asset_subcategory": "manhole",
+      "classification_confidence": "high",
+      "dataset_id": "DEMO-DATASET-MH",
+      "geometry_type": "point",
+      "layer_name": "demo_manhole",
+      "likely_classifications": "wastewater manhole",
+      "network_group": "structures",
+      "recommended_action": "Review QA findings before standardization.",
+      "recommended_classification": "wastewater/structures/access_structure/manhole",
+      "record_count": "2083",
+      "sensitivity_level": "public_demo",
+      "source_format": "geodatabase export",
+      "source_name": "Sanitized source package B",
+      "spatial_reference": "synthetic web mercator",
+      "utility_system": "wastewater"
+    },
+    {
+      "asset_category": "review_required",
+      "asset_subcategory": "subbasin_candidate",
+      "classification_confidence": "low",
+      "dataset_id": "DEMO-DATASET-REVIEW",
+      "geometry_type": "polygon",
+      "layer_name": "demo_review_required_subbasin",
+      "likely_classifications": "wastewater operational area or stormwater drainage basin",
+      "network_group": "review_required",
+      "recommended_action": "Confirm with data owner before classification.",
+      "recommended_classification": "review_required",
+      "record_count": "1",
+      "sensitivity_level": "public_demo",
+      "source_format": "polygon layer",
+      "source_name": "Sanitized review-required boundary",
+      "spatial_reference": "synthetic web mercator",
+      "utility_system": "review_required"
+    }
+  ],
+  "live_system_connected": false,
+  "mode": "portfolio_demo",
+  "recommendation": {
+    "allowlist": [
+      {
+        "approved_to_stage": "true",
+        "asset_category": "pipe",
+        "asset_subcategory": "gravity_main",
+        "network_group": "gravity_network",
+        "reason": "Sanitized demo layer approved for portfolio display.",
+        "source_layer_name": "demo_gravity_main",
+        "target_layer_name": "demo_gravity_main",
+        "utility_system": "wastewater"
+      },
+      {
+        "approved_to_stage": "true",
+        "asset_category": "access_structure",
+        "asset_subcategory": "manhole",
+        "network_group": "structures",
+        "reason": "Sanitized demo layer approved for portfolio display.",
+        "source_layer_name": "demo_manhole",
+        "target_layer_name": "demo_manhole",
+        "utility_system": "wastewater"
+      }
+    ],
+    "message": "Demo staging recommendation loaded."
+  },
+  "summary": {
+    "by_asset_category": {
+      "access_structure": 1,
+      "pipe": 1,
+      "review_required": 1
+    },
+    "by_network_group": {
+      "gravity_network": 1,
+      "review_required": 1,
+      "structures": 1
+    },
+    "by_utility_system": {
+      "review_required": 1,
+      "wastewater": 2
+    },
+    "layer_count": 3,
+    "recommended_staging_layers": 2,
+    "record_totals_by_system": {
+      "review_required": 1,
+      "wastewater": 4158
+    },
+    "review_required_layers": 1,
+    "sources_discovered": 2
+  },
+  "writes_persisted": false
+}

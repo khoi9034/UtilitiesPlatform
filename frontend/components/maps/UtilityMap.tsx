@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Issue, MapData, MapFeature } from "../../lib/api-types";
+import { isDemoMode } from "../../lib/data-provider/provider";
 import { label } from "../../lib/formatters";
 import styles from "./utility-map.module.css";
 
@@ -99,7 +100,7 @@ export function UtilityMap({
       <div className={styles.overlay}>
         <div className={styles.overlayHeader}>
           <div>
-            <strong>Wastewater map</strong>
+            <strong>{isDemoMode ? "Representative sanitized network sample" : "Wastewater map"}</strong>
             <span> {issueCount} visible issue(s)</span>
           </div>
           {showOpenLink ? <Link className={styles.mapLink} href="/data-health">Open review</Link> : null}
@@ -125,7 +126,7 @@ export function UtilityMap({
           <span className={styles.legendItem}><i className={styles.swatch} style={{ "--swatch": "#ff6f7f" } as React.CSSProperties} /> High</span>
           <span className={styles.legendItem}><i className={styles.swatch} style={{ "--swatch": "#ffc15e" } as React.CSSProperties} /> Medium</span>
         </div>
-        {mapData.pipes.length + mapData.manholes.length + mapData.issues.length === 0 ? <p className={styles.empty}>No safe map geometry is available from the backend.</p> : null}
+        {mapData.pipes.length + mapData.manholes.length + mapData.issues.length === 0 ? <p className={styles.empty}>No safe map geometry is available.</p> : null}
       </div>
       <div className={styles.mapCanvas} ref={mapNode} />
       <FallbackNetwork mapData={mapData} visibleIssues={visibleIssues} showPipes={showPipes} showManholes={showManholes} showIssues={showIssues} selectedIssue={selectedIssue} />

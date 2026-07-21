@@ -1,0 +1,73 @@
+{
+  "curated": [],
+  "data_classification": "sanitized_and_synthetic",
+  "datasets": [
+    {
+      "approved_for_analysis": "true",
+      "approved_for_export": "false",
+      "approved_for_public_use": "true",
+      "asset_category": "pipe",
+      "asset_subcategory": "gravity_main",
+      "coordinate_system": "synthetic web mercator",
+      "current_stage": "qa_evaluated",
+      "dataset_id": "DEMO-DATASET-GM",
+      "dataset_name": "Sanitized Demo Gravity Mains",
+      "geometry_type": "polyline",
+      "last_processed": "2026-07-20T12:00:00-04:00",
+      "network_group": "gravity_network",
+      "record_count": "2075",
+      "sensitivity_level": "public_demo",
+      "source_format": "sanitized_demo_json",
+      "utility_system": "wastewater"
+    },
+    {
+      "approved_for_analysis": "true",
+      "approved_for_export": "false",
+      "approved_for_public_use": "true",
+      "asset_category": "access_structure",
+      "asset_subcategory": "manhole",
+      "coordinate_system": "synthetic web mercator",
+      "current_stage": "qa_evaluated",
+      "dataset_id": "DEMO-DATASET-MH",
+      "dataset_name": "Sanitized Demo Manholes",
+      "geometry_type": "point",
+      "last_processed": "2026-07-20T12:00:00-04:00",
+      "network_group": "structures",
+      "record_count": "2083",
+      "sensitivity_level": "public_demo",
+      "source_format": "sanitized_demo_json",
+      "utility_system": "wastewater"
+    }
+  ],
+  "disclaimer": "Sanitized portfolio snapshot. Geometry and identifiers are synthetic.",
+  "generated_at": "2026-07-20T12:00:00-04:00",
+  "live_system_connected": false,
+  "message": "Sanitized demo catalog loaded.",
+  "mode": "portfolio_demo",
+  "raw": [
+    {
+      "format": "geodatabase export",
+      "name": "Sanitized source package A",
+      "state": "complete"
+    },
+    {
+      "format": "field inventory extract",
+      "name": "Sanitized source package B",
+      "state": "complete"
+    }
+  ],
+  "staging": [
+    {
+      "name": "demo_gravity_main",
+      "records": 2075,
+      "state": "complete"
+    },
+    {
+      "name": "demo_manhole",
+      "records": 2083,
+      "state": "complete"
+    }
+  ],
+  "standardized": [],
+  "writes_persisted": false
+}

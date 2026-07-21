@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CalibrationRow, ComponentRow, Issue, IssuesResponse, MapData, MappingRow, NetworkResponse, Readiness, RuleRow } from "../../lib/api-types";
 import { fetchJson, patchJson } from "../../lib/api-client";
+import { isDemoMode } from "../../lib/data-provider/provider";
 import { compactNumber, label, percent, safeText, shortDate } from "../../lib/formatters";
 import { dispositions, workflowStatuses } from "../../lib/statuses";
 import { EmptyState, LoadingSkeleton, MetricTile, OfflineState, Panel, SeverityBadge, StageBadge, StatusBadge, workspaceStyles as ws } from "../ui/Primitives";
@@ -124,6 +125,7 @@ export function DataHealthWorkspace() {
   const categories = useMemo(() => Object.keys(summary.issues_by_category ?? {}).sort(), [summary.issues_by_category]);
   const severities = useMemo(() => Object.keys(summary.issues_by_severity ?? {}).sort(), [summary.issues_by_severity]);
   const ruleCodes = useMemo(() => rules.map((rule) => rule.rule_code).sort(), [rules]);
+  const sourceLayers = useMemo(() => Array.from(new Set([...issues.items.map((issue) => issue.source_layer), "wastewater_gravity_main", "wastewater_manhole"].filter(Boolean))).sort(), [issues.items]);
 
   function updateFilter(key: keyof Filters, value: string) {
     setFilters((current) => ({ ...current, [key]: value }));
@@ -164,7 +166,8 @@ export function DataHealthWorkspace() {
 
   return (
     <div className={ws.workspace}>
-      <PageIntro summary={summary} onRefresh={() => window.location.reload()} />
+      <PageIntro summary={summary} onRefresh={isDemoMode ? undefined : () => window.location.reload()} />
+      {isDemoMode ? <Panel title="Portfolio Demo Mode" description="Demo decisions are temporary and are not sent to a server. Upload, standardization, curation, export, and production-write actions are unavailable in this static snapshot."><p className={styles.muted}>Representative sanitized network sample; no live utility infrastructure is connected.</p></Panel> : null}
       {error ? <OfflineState service={error} /> : null}
       <HeaderMetrics summary={summary} />
       <FilterToolbar
@@ -172,6 +175,7 @@ export function DataHealthWorkspace() {
         categories={categories}
         severities={severities}
         ruleCodes={ruleCodes}
+        sourceLayers={sourceLayers}
         resultCount={issues.pagination.total}
         layoutMode={layoutMode}
         onFilter={updateFilter}
@@ -242,6 +246,7 @@ function FilterToolbar({
   severities,
   categories,
   ruleCodes,
+  sourceLayers,
   resultCount,
   layoutMode,
   onFilter,
@@ -252,6 +257,7 @@ function FilterToolbar({
   severities: string[];
   categories: string[];
   ruleCodes: string[];
+  sourceLayers: string[];
   resultCount: number;
   layoutMode: "split" | "table" | "map";
   onFilter: (key: keyof Filters, value: string) => void;
@@ -267,7 +273,7 @@ function FilterToolbar({
         <Select labelText="Rule" value={filters.rule_code} options={ruleCodes} onChange={(value) => onFilter("rule_code", value)} />
         <Select labelText="Workflow" value={filters.review_status} options={workflowStatuses} onChange={(value) => onFilter("review_status", value)} />
         <Select labelText="Disposition" value={filters.disposition} options={dispositions} onChange={(value) => onFilter("disposition", value)} />
-        <Select labelText="Layer" value={filters.source_layer} options={["wastewater_gravity_main", "wastewater_manhole", "network"]} onChange={(value) => onFilter("source_layer", value)} />
+        <Select labelText="Layer" value={filters.source_layer} options={sourceLayers} onChange={(value) => onFilter("source_layer", value)} />
         <input className={ws.input} value={filters.asset} placeholder="Asset search" onChange={(event) => onFilter("asset", event.target.value)} />
       </div>
       <div className={styles.chipRow}>
@@ -448,7 +454,7 @@ function IssueDrawer({ issue, onClose, onSave }: { issue: Issue; onClose: () => 
             <label>Notes<textarea className={ws.input} value={notes} onChange={(event) => setNotes(event.target.value)} /></label>
             <label><span><input type="checkbox" checked={fieldVerification} onChange={(event) => setFieldVerification(event.target.checked)} /> Needs field verification</span></label>
             <label><span><input type="checkbox" checked={engineeringReview} onChange={(event) => setEngineeringReview(event.target.checked)} /> Needs engineering review</span></label>
-            <button className={`${ws.button} ${ws.buttonPrimary}`} onClick={() => onSave({ workflow_status: workflowStatus, disposition, reviewer, review_notes: notes, field_verification_required: fieldVerification, engineering_review_required: engineeringReview })}>Save review</button>
+            <button className={`${ws.button} ${ws.buttonPrimary}`} onClick={() => onSave({ workflow_status: workflowStatus, disposition, reviewer, review_notes: notes, field_verification_required: fieldVerification, engineering_review_required: engineeringReview })}>{isDemoMode ? "Save temporary review" : "Save review"}</button>
           </div>
         </div>
       </div>

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { PropsWithChildren, useEffect, useMemo, useState } from "react";
 import { fetchJson } from "../../lib/api-client";
+import { isDemoMode } from "../../lib/data-provider/provider";
+import { resetDemoSession } from "../../lib/data-provider/demo-review-store";
 import { activeNavigationItem, navigationItems } from "../../lib/navigation";
 import { utilitySystems } from "../../lib/utility-systems";
 import { label, shortDate } from "../../lib/formatters";
@@ -81,6 +83,7 @@ export function AppShell({ children }: PropsWithChildren) {
       ...navigationItems.map((item) => ({ label: `Open ${item.label}`, detail: item.description, action: () => router.push(item.href) })),
       ...utilitySystems.map((system) => ({ label: `Use ${system.label}`, detail: system.enabled ? system.status : "Not onboarded", action: () => undefined })),
       { label: "Toggle theme", detail: "Cycle dark, light, and system preference.", action: () => setThemeChoice(nextTheme(theme), setTheme) },
+      ...(isDemoMode ? [{ label: "Reset demo session", detail: "Clear temporary review decisions.", action: resetAndReload }] : []),
       { label: collapsed ? "Expand navigation" : "Collapse navigation", detail: "Persist sidebar width.", action: () => setCollapsed((value) => !value) },
     ],
     [collapsed, router, theme],
@@ -91,6 +94,11 @@ export function AppShell({ children }: PropsWithChildren) {
     setter(choice);
     localStorage.setItem("up-theme", choice);
     applyTheme(choice);
+  }
+
+  function resetAndReload() {
+    resetDemoSession();
+    window.location.reload();
   }
 
   return (
@@ -125,8 +133,8 @@ export function AppShell({ children }: PropsWithChildren) {
           ))}
         </nav>
         <div className={styles.sidebarStatus}>
-          <span className={storage?.master_root_available ? styles.onlineDot : styles.warnDot} aria-hidden="true" />
-          <span>{storage?.master_root_available ? "Local storage online" : "Storage unavailable"}</span>
+          <span className={isDemoMode || storage?.master_root_available ? styles.onlineDot : styles.warnDot} aria-hidden="true" />
+          <span>{isDemoMode ? "Demo snapshot loaded" : storage?.master_root_available ? "Local storage online" : "Storage unavailable"}</span>
         </div>
       </aside>
 
@@ -157,10 +165,16 @@ export function AppShell({ children }: PropsWithChildren) {
             <span>Command</span>
             <kbd>Ctrl K</kbd>
           </button>
-          <span className={styles.researchBadge}>LOCAL RESEARCH</span>
+          <span className={styles.researchBadge}>{isDemoMode ? "PORTFOLIO DEMO" : "LOCAL RESEARCH"}</span>
           <span className={styles.runStamp}>Last run {shortDate(lastRun)}</span>
+          {isDemoMode ? <button className={styles.demoReset} onClick={resetAndReload}>Reset Demo Session</button> : null}
           <ThemeToggle theme={theme} setTheme={setThemeChoice} />
         </header>
+        {isDemoMode ? (
+          <div className={styles.demoBanner} role="status">
+            Sanitized static snapshot. No live utility infrastructure or production system is connected. Demo decisions are temporary and are not sent to a server.
+          </div>
+        ) : null}
         <main id="main-content" className={styles.main}>
           {children}
         </main>

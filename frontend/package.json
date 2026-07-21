@@ -5,6 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:demo": "node scripts/build-demo.mjs",
+    "serve:demo": "node scripts/serve-demo.mjs",
+    "test:demo": "node scripts/test-demo.mjs",
     "start": "next start",
     "lint": "eslint",
     "test:e2e": "playwright test tests/e2e/platform.spec.ts --project=chromium",
