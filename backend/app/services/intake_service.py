@@ -20,6 +20,7 @@ from app.services import data_storage_service as storage
 from app.services import intake_registry_service as registry
 from app.services.upload_validation_service import (
     ALLOWED_SINGLE_EXTENSIONS,
+    FORBIDDEN_EXTENSIONS,
     SENSITIVITY_LEVELS,
     UTILITY_SYSTEMS,
     UploadValidationError,
@@ -30,6 +31,7 @@ from app.services.upload_validation_service import (
 from app.services.source_inspection.inspector_registry import capabilities as inspection_capabilities
 
 DEFAULT_UPLOAD_MAX_BYTES = 1024 * 1024 * 1024
+DEFAULT_UPLOAD_MAX_FILES = 50000
 CHUNK_SIZE = 1024 * 1024
 
 
@@ -66,6 +68,13 @@ def max_upload_bytes() -> int:
         return DEFAULT_UPLOAD_MAX_BYTES
 
 
+def max_upload_files() -> int:
+    try:
+        return int(os.getenv("UTILITY_UPLOAD_MAX_FILES", str(DEFAULT_UPLOAD_MAX_FILES)))
+    except ValueError:
+        return DEFAULT_UPLOAD_MAX_FILES
+
+
 def capabilities() -> dict[str, object]:
     try:
         import arcpy  # type: ignore  # noqa: F401
@@ -77,12 +86,14 @@ def capabilities() -> dict[str, object]:
         "accepted_formats": [
             {"source_format": "shapefile", "extensions": [".zip"], "packaging": "ZIP containing .shp, .shx, .dbf, and preferably .prj."},
             {"source_format": "file_geodatabase", "extensions": [".zip"], "packaging": "ZIP containing exactly one .gdb directory."},
+            {"source_format": "file_geodatabase", "extensions": [".gdb folder"], "packaging": "Directory upload containing one complete .gdb folder."},
             {"source_format": "cad", "extensions": [".dwg", ".dxf"], "packaging": "Single CAD drawing file."},
             {"source_format": "geopackage", "extensions": [".gpkg"], "packaging": "Single GeoPackage file."},
             {"source_format": "spreadsheet", "extensions": [".csv", ".xlsx"], "packaging": "Single spreadsheet file."},
             {"source_format": "pdf", "extensions": [".pdf"], "packaging": "Single PDF; V1 inventory is metadata-only."},
         ],
         "maximum_upload_bytes": max_upload_bytes(),
+        "maximum_upload_files": max_upload_files(),
         "packaging_requirements": {
             "loose_shapefile": "not_supported",
             "nested_archives": "rejected",
@@ -111,6 +122,139 @@ async def create_submissions(files: list[UploadFile], metadata: IntakeMetadata) 
     submissions = [await _create_single_submission(file, metadata) for file in files]
     storage.build_stage_manifest()
     return {"submissions": submissions, "message": f"{len(submissions)} package(s) processed."}
+
+
+async def create_directory_submission(files: list[UploadFile], relative_paths: list[str], metadata: IntakeMetadata) -> dict[str, object]:
+    if not files:
+        raise UploadValidationError("Select one complete .gdb folder.")
+    if len(files) != len(relative_paths):
+        raise UploadValidationError("Directory file list and relative path list must match.")
+    if len(files) > max_upload_files():
+        raise UploadValidationError("Directory upload exceeds configured file count limit.")
+    validate_metadata(metadata.as_validation_dict())
+
+    paths = storage.get_storage_paths()
+    intake_paths = registry.ensure_intake_storage(paths.root)
+    submission_id = new_submission_id()
+    actor = _safe_actor(metadata.submitted_by)
+    started_at = utc_now()
+    normalized_paths = validate_directory_relative_paths(relative_paths)
+    root_name = normalized_paths[0].split("/", 1)[0]
+    temp_root = intake_paths["temp_uploads"] / submission_id
+    temp_gdb = temp_root / root_name
+    package_records: list[dict[str, object]] = []
+    seen_paths: set[str] = set()
+    total_size = 0
+
+    try:
+        temp_gdb.mkdir(parents=True, exist_ok=False)
+        registry.add_event(paths.root, event_id=str(uuid.uuid4()), submission_id=submission_id, event_type="upload_started", new_status="uploading", message="Directory upload stream received by local FastAPI intake.", actor=actor)
+        for file, relative_path in zip(files, normalized_paths):
+            if relative_path in seen_paths:
+                raise UploadValidationError("Duplicate relative path in directory upload.")
+            seen_paths.add(relative_path)
+            target = temp_root / Path(*relative_path.split("/"))
+            if not is_relative_to(target, temp_root):
+                raise UploadValidationError("Unsafe directory upload path.")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            file_hash = hashlib.sha256()
+            file_size = 0
+            with target.open("xb") as handle:
+                while chunk := await file.read(CHUNK_SIZE):
+                    file_size += len(chunk)
+                    total_size += len(chunk)
+                    if total_size > max_upload_bytes():
+                        raise UploadValidationError("Directory upload exceeds configured size limit.")
+                    file_hash.update(chunk)
+                    handle.write(chunk)
+            package_records.append({"relative_path": relative_path, "size_bytes": file_size, "sha256": file_hash.hexdigest()})
+        if not package_records:
+            raise UploadValidationError("Directory upload is empty.")
+        validate_reconstructed_gdb(temp_gdb)
+        digest = directory_package_hash(package_records)
+        duplicate_of = registry.find_duplicate(paths.root, digest)
+        safe_name = sanitize_filename(root_name)
+        stored_filename = safe_name
+        if duplicate_of and not metadata.register_duplicate_as_version:
+            row = submission_row(submission_id, metadata, safe_name, stored_filename, "file_geodatabase", total_size, digest, "application/vnd.esri.filegdb", ".gdb", "duplicate_detected", duplicate_of)
+            registry.insert_submission(paths.root, row)
+            add_standard_events(paths.root, submission_id, actor, duplicate=True, duplicate_of=duplicate_of)
+            shutil.rmtree(temp_root, ignore_errors=True)
+            storage.build_stage_manifest()
+            return {"submissions": [safe_submission(submission_id)], "message": "Duplicate directory package detected."}
+
+        submission_root = intake_paths["raw_submissions"] / submission_id
+        original_dir = submission_root / "original"
+        inspection_dir = submission_root / "inspection"
+        reports_dir = submission_root / "reports"
+        original_dir.mkdir(parents=True, exist_ok=False)
+        inspection_dir.mkdir()
+        reports_dir.mkdir()
+        raw_gdb = original_dir / safe_name
+        os.replace(temp_gdb, raw_gdb)
+        shutil.rmtree(temp_root, ignore_errors=True)
+        shutil.copytree(raw_gdb, inspection_dir / safe_name)
+        row = submission_row(submission_id, metadata, safe_name, stored_filename, "file_geodatabase", total_size, digest, "application/vnd.esri.filegdb", ".gdb", "registered_raw", duplicate_of)
+        registry.insert_submission(paths.root, row)
+        add_standard_events(paths.root, submission_id, actor)
+        registry.add_file(paths.root, file_row(submission_id, safe_name, "original_directory", ".gdb", total_size, digest, "passed", f"{len(package_records)} internal files; package manifest stored with submission."))
+        _write_manifest(submission_root / "submission_manifest.json", submission_id, metadata, safe_name, stored_filename, "file_geodatabase", total_size, digest, package_records, [], package_mode="directory")
+        dataset_id = storage.append_catalog_row(
+            {
+                "dataset_id": submission_id,
+                "dataset_name": metadata.submission_name,
+                "utility_system": metadata.utility_system,
+                "network_group": "pending_inventory",
+                "asset_category": "pending_inventory",
+                "asset_subcategory": "pending_inventory",
+                "source_format": "file_geodatabase",
+                "source_path": str(raw_gdb),
+                "source_owner": metadata.source_owner,
+                "source_system": "web_directory_intake",
+                "source_layer_name": "",
+                "geometry_type": "pending_inventory",
+                "coordinate_system": "pending_inventory",
+                "record_count": "pending_inventory",
+                "sensitivity_level": metadata.sensitivity_level,
+                "access_level": metadata.sensitivity_level,
+                "date_received": started_at,
+                "current_stage": "raw",
+                "approved_for_analysis": "false",
+                "approved_for_export": "false",
+                "approved_for_public_use": "false",
+                "notes": f"submission_id={submission_id}; directory package; inventory pending",
+            }
+        )
+        storage.append_processing_history(
+            {
+                "run_id": str(uuid.uuid4()),
+                "dataset_id": dataset_id,
+                "process_name": "intake_raw_directory_registration",
+                "input_path": "browser_directory_upload",
+                "output_path": f"raw_submission:{submission_id}",
+                "started_at": started_at,
+                "completed_at": utc_now(),
+                "status": "registered_raw",
+                "records_read": len(package_records),
+                "records_written": 1,
+                "operator": actor,
+                "script_version": "intake_directory_v1",
+                "notes": "Raw FileGDB directory registered; no staging, standardization, or curation performed.",
+            }
+        )
+        if metadata.run_inventory_after_upload:
+            run_inventory(submission_id, actor=actor)
+        storage.build_stage_manifest()
+        return {"submissions": [safe_submission(submission_id)], "message": "FileGDB folder registered in local Raw storage."}
+    except Exception as exc:
+        shutil.rmtree(temp_root, ignore_errors=True)
+        registry.add_event(paths.root, event_id=str(uuid.uuid4()), submission_id=submission_id, event_type="upload_failed", new_status="failed", message=f"Directory upload failed safely: {type(exc).__name__}.", actor=actor)
+        if "submission_root" in locals() and submission_root.exists():
+            shutil.rmtree(submission_root, ignore_errors=True)
+        raise
+    finally:
+        for file in files:
+            await file.close()
 
 
 async def _create_single_submission(file: UploadFile, metadata: IntakeMetadata) -> dict[str, object]:
@@ -342,6 +486,85 @@ def file_row(submission_id: str, safe_filename: str, role: str, extension: str, 
     }
 
 
+def validate_directory_relative_paths(relative_paths: list[str]) -> list[str]:
+    normalized: list[str] = []
+    roots: set[str] = set()
+    seen: set[str] = set()
+    for raw in relative_paths:
+        path = str(raw or "").replace("\\", "/").strip()
+        if not path:
+            raise UploadValidationError("Directory upload contains an empty relative path.")
+        if path.startswith("/") or path.startswith("//") or re_drive_letter(path):
+            raise UploadValidationError("Directory upload contains an absolute path.")
+        parts = path.split("/")
+        if any(part in {"", ".", ".."} for part in parts):
+            raise UploadValidationError("Directory upload contains an unsafe relative path.")
+        if len(parts) < 2:
+            raise UploadValidationError("Directory upload files must be inside one .gdb root folder.")
+        if any(part != sanitize_path_component(part) for part in parts):
+            raise UploadValidationError("Directory upload contains an unsupported path component.")
+        if Path(parts[-1]).suffix.lower() in FORBIDDEN_EXTENSIONS:
+            raise UploadValidationError("Directory upload contains a forbidden internal file type.")
+        normalized_path = "/".join(parts)
+        if normalized_path in seen:
+            raise UploadValidationError("Duplicate relative path in directory upload.")
+        seen.add(normalized_path)
+        roots.add(parts[0])
+        normalized.append(normalized_path)
+    if len(roots) != 1:
+        raise UploadValidationError("Select exactly one top-level .gdb folder.")
+    root = next(iter(roots))
+    if not root.lower().endswith(".gdb"):
+        raise UploadValidationError("Selected folder must end in .gdb.")
+    return normalized
+
+
+def sanitize_path_component(value: str) -> str:
+    return re_sub_unsafe_component(value)
+
+
+def re_drive_letter(path: str) -> bool:
+    return len(path) >= 3 and path[1] == ":" and path[0].isalpha() and path[2] == "/"
+
+
+def re_sub_unsafe_component(value: str) -> str:
+    import re
+
+    return re.sub(r"[^A-Za-z0-9._ -]+", "_", value).strip()
+
+
+def validate_reconstructed_gdb(gdb: Path) -> None:
+    if not gdb.is_dir() or not gdb.name.lower().endswith(".gdb"):
+        raise UploadValidationError("Reconstructed package is not one .gdb folder.")
+    files = [path.name.lower() for path in gdb.iterdir() if path.is_file()]
+    if "gdb" not in files and not any(name.endswith(".gdbtable") for name in files):
+        raise UploadValidationError("Selected folder does not look like a file geodatabase.")
+    try:
+        import arcpy  # type: ignore
+    except ImportError:
+        return
+    try:
+        arcpy.Describe(str(gdb))
+    except Exception as exc:
+        raise UploadValidationError("ArcPy could not open the reconstructed file geodatabase.") from exc
+
+
+def directory_package_hash(records: list[dict[str, object]]) -> str:
+    canonical = "\n".join(
+        f"{record['relative_path']}\t{record['size_bytes']}\t{record['sha256']}"
+        for record in sorted(records, key=lambda item: str(item["relative_path"]).lower())
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def is_relative_to(path: Path, root: Path) -> bool:
+    try:
+        path.resolve().relative_to(root.resolve())
+        return True
+    except ValueError:
+        return False
+
+
 def add_standard_events(root: Path, submission_id: str, actor: str, *, duplicate: bool = False, duplicate_of: str = "") -> None:
     registry.add_event(root, event_id=str(uuid.uuid4()), submission_id=submission_id, event_type="upload_started", new_status="uploading", message="Upload stream received by local FastAPI intake.", actor=actor)
     registry.add_event(root, event_id=str(uuid.uuid4()), submission_id=submission_id, event_type="upload_completed", previous_status="uploading", new_status="validating", message="Upload stream completed and checksum calculated.", actor=actor)
@@ -414,6 +637,7 @@ def _write_manifest(
     sha256: str,
     files: list[dict[str, object]],
     warnings: list[str],
+    package_mode: str = "file",
 ) -> None:
     manifest = {
         "submission_id": submission_id,
@@ -423,6 +647,7 @@ def _write_manifest(
         "utility_system": metadata.utility_system,
         "source_type": metadata.source_type,
         "source_format": source_format,
+        "package_mode": package_mode,
         "source_owner": metadata.source_owner,
         "source_description": metadata.source_description,
         "sensitivity_level": metadata.sensitivity_level,

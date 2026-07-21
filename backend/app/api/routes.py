@@ -172,6 +172,41 @@ async def create_intake_submission(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
+@router.post("/intake/submissions/directory")
+async def create_directory_intake_submission(
+    files: list[UploadFile] = File(...),
+    relative_paths: list[str] = Form(...),
+    submission_name: str = Form(...),
+    utility_system: str = Form(...),
+    source_type: str = Form(...),
+    source_owner: str = Form(...),
+    source_description: str = Form(...),
+    sensitivity_level: str = Form("restricted"),
+    project_id: str = Form(""),
+    submitted_by: str = Form(""),
+    authorization_confirmed: bool = Form(False),
+    register_duplicate_as_version: bool = Form(False),
+    run_inventory_after_upload: bool = Form(False),
+) -> dict[str, object]:
+    try:
+        metadata = intake_service.IntakeMetadata(
+            submission_name=submission_name,
+            utility_system=utility_system,
+            source_type=source_type,
+            source_owner=source_owner,
+            source_description=source_description,
+            sensitivity_level=sensitivity_level,
+            project_id=project_id,
+            submitted_by=submitted_by,
+            authorization_confirmed=authorization_confirmed,
+            register_duplicate_as_version=register_duplicate_as_version,
+            run_inventory_after_upload=run_inventory_after_upload,
+        )
+        return await intake_service.create_directory_submission(files, relative_paths, metadata)
+    except UploadValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
 @router.get("/intake/submissions")
 def intake_submissions(
     status: str | None = None,

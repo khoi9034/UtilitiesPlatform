@@ -15,6 +15,13 @@
       "packaging": "ZIP containing exactly one file geodatabase folder."
     },
     {
+      "source_format": "file_geodatabase",
+      "extensions": [
+        ".gdb folder"
+      ],
+      "packaging": "Folder selection is metadata-only in demo mode."
+    },
+    {
       "source_format": "cad",
       "extensions": [
         ".dwg",
@@ -55,6 +62,7 @@
     "spreadsheet": "synthetic demo inventory only"
   },
   "maximum_upload_bytes": 1073741824,
+  "maximum_upload_files": 50000,
   "mode": "portfolio_demo",
   "packaging_requirements": {
     "loose_shapefile": "not_supported",

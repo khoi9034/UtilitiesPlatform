@@ -1,4 +1,6 @@
 import { expect, test } from "@playwright/test";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 
 const routes = ["/", "/asset-inventory", "/data-health", "/network-intelligence", "/cad-intake", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/projects", "/maintenance", "/methodology"];
 const basePath = process.env.DEMO_BASE_PATH ?? "";
@@ -32,14 +34,46 @@ test.describe("portfolio demo mode", () => {
   test("simulates intake without backend requests", async ({ page }) => {
     await page.goto(`${basePath}/data-sources/upload`, { waitUntil: "domcontentloaded" });
     await expect(page.getByText("PORTFOLIO DEMO INTAKE", { exact: true }).first()).toBeVisible();
-    await page.getByRole("button", { name: "Load Synthetic Sample" }).click();
+    await expect(page.getByText("Choose Package File").first()).toBeVisible();
+    await expect(page.getByText("Choose FileGDB Folder").first()).toBeVisible();
+    await page.getByRole("button", { name: "Load Synthetic Mixed FileGDB" }).click();
     await expect(page.getByText("Sample_Mixed_Utility_Source.gdb").first()).toBeVisible();
-    await expect(page.getByText("Demo mode does not upload or inspect your file").first()).toBeVisible();
+    await expect(page.getByText("Demo mode does not upload or inspect your folder").first()).toBeVisible();
     await page.getByRole("link", { name: "View in Raw Stage" }).first().click();
     await expect(page.getByText("Synthetic Mixed Utility Source").first()).toBeVisible();
     await page.goto(`${basePath}/data-sources/upload`, { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Reset Demo Intake" }).click();
     await expect(page.getByText("Demo intake reset.")).toBeVisible();
+  });
+
+  test("treats a selected FileGDB folder as one package", async ({ page }, testInfo) => {
+    const gdbRoot = testInfo.outputPath("Synthetic_Selected_Source.gdb");
+    mkdirSync(gdbRoot, { recursive: true });
+    writeFileSync(join(gdbRoot, "a00000001.gdbtable"), "table");
+    writeFileSync(join(gdbRoot, "a00000001.gdbtablx"), "index");
+
+    await page.goto(`${basePath}/data-sources/upload`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("radio", { name: "Choose FileGDB Folder" }).check();
+    await page.locator("input[webkitdirectory]").setInputFiles(gdbRoot);
+
+    await expect(page.getByText("Synthetic_Selected_Source.gdb").first()).toBeVisible();
+    await expect(page.getByText(/2 of 50K allowed/).first()).toBeVisible();
+    await expect(page.getByText("File geodatabase folder").first()).toBeVisible();
+    await expect(page.getByText("Passed browser precheck").first()).toBeVisible();
+    await page.getByText("View Package Contents").click();
+    await expect(page.getByText("Synthetic_Selected_Source.gdb/a00000001.gdbtable").first()).toBeVisible();
+  });
+
+  test("rejects a non-GDB folder before upload", async ({ page }, testInfo) => {
+    const folderRoot = testInfo.outputPath("LooseFolder");
+    mkdirSync(folderRoot, { recursive: true });
+    writeFileSync(join(folderRoot, "a00000001.gdbtable"), "table");
+
+    await page.goto(`${basePath}/data-sources/upload`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("radio", { name: "Choose FileGDB Folder" }).check();
+    await page.locator("input[webkitdirectory]").setInputFiles(folderRoot);
+
+    await expect(page.getByText("Top-level folder must end in .gdb.").first()).toBeVisible();
   });
 
   test("reviews synthetic mixed-package child layers", async ({ page }) => {

@@ -80,24 +80,26 @@ export function createDemoIntakeSubmission(formData: FormData): IntakeSubmission
   const file = formData.getAll("files").find((value): value is File => typeof File !== "undefined" && value instanceof File);
   const now = new Date().toISOString();
   const sample = formData.get("demo_sample") === "true";
-  const filename = sample ? "Sample_Mixed_Utility_Source.gdb" : file?.name ?? "Selected_Metadata_Only_Source.dat";
-  const size = sample ? 1843200 : file?.size ?? 0;
+  const directory = formData.get("package_mode") === "directory";
+  const filename = sample ? "Sample_Mixed_Utility_Source.gdb" : String(formData.get("directory_root") || file?.name || "Selected_Metadata_Only_Source.dat");
+  const size = sample ? 1843200 : Number(formData.get("directory_size") || file?.size || 0);
+  const fileCount = Number(formData.get("directory_file_count") || (file ? 1 : 0));
   const submission: IntakeSubmission = {
     submission_id: `DEMO-UPL-${Date.now().toString(36).toUpperCase()}`,
     submission_name: String(formData.get("submission_name") || (sample ? "Synthetic Mixed Utility Source" : "Metadata-Only Demo Source")),
     original_filename: filename,
     utility_system: sample ? "mixed" : String(formData.get("utility_system") || "wastewater"),
     source_type: String(formData.get("source_type") || "demo_source"),
-    source_format: sample ? "file_geodatabase" : detectDemoFormat(filename),
+    source_format: sample || directory ? "file_geodatabase" : detectDemoFormat(filename),
     source_owner: String(formData.get("source_owner") || "Synthetic Data Owner"),
     source_description: String(formData.get("source_description") || "Session-only portfolio demo intake simulation."),
     sensitivity_level: String(formData.get("sensitivity_level") || "restricted"),
     project_id: String(formData.get("project_id") || "DEMO"),
     authorization_confirmed: true,
     file_size_bytes: size,
-    sha256_prefix: sample ? "demoa7b91c42" : "metadataonly",
-    mime_type: sample ? "application/zip" : file?.type ?? "metadata-only",
-    extension: sample ? ".zip" : filename.includes(".") ? `.${filename.split(".").pop()}` : "",
+    sha256_prefix: sample || directory ? "syntheticgdb" : "metadataonly",
+    mime_type: sample || directory ? "application/vnd.esri.filegdb" : file?.type ?? "metadata-only",
+    extension: sample || directory ? ".gdb" : filename.includes(".") ? `.${filename.split(".").pop()}` : "",
     current_status: "inventory_complete",
     current_stage: "raw",
     inventory_status: "complete",
@@ -109,7 +111,7 @@ export function createDemoIntakeSubmission(formData: FormData): IntakeSubmission
     raw_registered_at: now,
     inventory_started_at: now,
     inventory_completed_at: now,
-    files: [{ safe_filename: filename, relative_role: sample ? "synthetic_package" : "metadata_only", extension: sample ? ".zip" : filename.includes(".") ? `.${filename.split(".").pop()}` : "", size_bytes: size, validation_status: "simulated", notes: "Demo mode did not upload or read file contents." }],
+    files: [{ safe_filename: filename, relative_role: sample || directory ? "synthetic_directory_package" : "metadata_only", extension: sample || directory ? ".gdb" : filename.includes(".") ? `.${filename.split(".").pop()}` : "", size_bytes: size, validation_status: "simulated", notes: directory ? `${fileCount} selected files; demo mode did not upload or read file contents.` : "Demo mode did not upload or read file contents." }],
     lineage: ["Selected package", "Demo validation", "Synthetic Raw registration", "Synthetic source inspection", "Human staging approval required"],
     blockers: ["Demo mode is non-persistent", "Human staging approval required"],
     next_required_action: "Review synthetic child-layer classifications before simulated staging.",

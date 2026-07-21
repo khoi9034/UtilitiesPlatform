@@ -125,3 +125,83 @@ def test_stage_browser_routes_return_safe_raw_items(tmp_path: Path, monkeypatch)
     assert items.status_code == 200
     assert any(item["item_id"] == f"submission:{submission_id}" for item in items.json()["items"])
     assert "C:\\" not in items.text
+
+
+def directory_files(entries: dict[str, bytes]) -> list[tuple[str, tuple[str, bytes, str]]]:
+    return [("files", (Path(name).name, content, "application/octet-stream")) for name, content in entries.items()]
+
+
+def test_directory_upload_registers_one_file_gdb_package(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("UTILITY_DATA_ROOT", str(tmp_path))
+    entries = {
+        "Synthetic.gdb/gdb": b"gdb-system",
+        "Synthetic.gdb/a00000001.gdbtable": b"table",
+        "Synthetic.gdb/a00000001.gdbtablx": b"index",
+    }
+
+    response = client.post(
+        "/api/intake/submissions/directory",
+        data={**metadata(), "relative_paths": list(entries)},
+        files=directory_files(entries),
+    )
+    payload = response.json()
+
+    assert response.status_code == 200
+    submission = payload["submissions"][0]
+    raw_gdb = tmp_path / "01_raw" / "submissions" / submission["submission_id"] / "original" / "Synthetic.gdb"
+    manifest = tmp_path / "01_raw" / "submissions" / submission["submission_id"] / "submission_manifest.json"
+    assert submission["current_status"] == "registered_raw"
+    assert submission["source_format"] == "file_geodatabase"
+    assert raw_gdb.is_dir()
+    assert json.loads(manifest.read_text(encoding="utf-8"))["package_mode"] == "directory"
+    assert "source_path" not in response.text
+    assert "C:\\" not in response.text
+
+
+def test_directory_upload_rejects_path_count_mismatch(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("UTILITY_DATA_ROOT", str(tmp_path))
+    response = client.post(
+        "/api/intake/submissions/directory",
+        data={**metadata(), "relative_paths": ["Synthetic.gdb/gdb"]},
+        files=directory_files({"Synthetic.gdb/gdb": b"x", "Synthetic.gdb/a00000001.gdbtable": b"x"}),
+    )
+
+    assert response.status_code == 422
+    assert not list((tmp_path / "01_raw" / "submissions").glob("*"))
+
+
+def test_directory_upload_rejects_unsafe_roots_and_paths(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("UTILITY_DATA_ROOT", str(tmp_path))
+    cases = [
+        {"One.gdb/gdb": b"x", "Two.gdb/gdb": b"x"},
+        {"NotGdb/gdb": b"x"},
+        {"Synthetic.gdb/../evil": b"x"},
+        {r"C:\Synthetic.gdb\gdb": b"x"},
+        {r"\\server\share\Synthetic.gdb\gdb": b"x"},
+        {"Synthetic.gdb/run.exe": b"x"},
+    ]
+
+    for entries in cases:
+        response = client.post(
+            "/api/intake/submissions/directory",
+            data={**metadata(), "relative_paths": list(entries)},
+            files=directory_files(entries),
+        )
+        assert response.status_code == 422
+
+
+def test_directory_upload_hash_is_deterministic_and_detects_duplicates(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("UTILITY_DATA_ROOT", str(tmp_path))
+    entries = {
+        "Synthetic.gdb/gdb": b"gdb-system",
+        "Synthetic.gdb/a00000001.gdbtable": b"table",
+    }
+
+    first = client.post("/api/intake/submissions/directory", data={**metadata(), "relative_paths": list(entries)}, files=directory_files(entries))
+    second_entries = dict(reversed(list(entries.items())))
+    second = client.post("/api/intake/submissions/directory", data={**metadata(), "relative_paths": list(second_entries)}, files=directory_files(second_entries))
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json()["submissions"][0]["sha256_prefix"] == second.json()["submissions"][0]["sha256_prefix"]
+    assert second.json()["submissions"][0]["current_status"] == "duplicate_detected"

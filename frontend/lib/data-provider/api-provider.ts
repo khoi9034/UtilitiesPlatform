@@ -1,4 +1,4 @@
-import type { CatalogResponse, ClassificationCandidatesResponse, DataSourceItem, DataSourceItemsResponse, DuplicateGroup, DuplicateGroupsResponse, IntakeCapabilities, IntakeEvent, IntakeSubmission, IntakeSubmissionResponse, IntakeSubmissionsResponse, InventorySummary, PlatformDataProvider, RunsResponse, SourceInspectionStatus, StageManifest, StagingPlanItem, StagingPlanResponse, StorageStatus, SubmissionLayer, SubmissionLayersResponse, TrustPipeline } from "./types";
+import type { CatalogResponse, ClassificationCandidatesResponse, DataSourceItem, DataSourceItemsResponse, DuplicateGroup, DuplicateGroupsResponse, IntakeCapabilities, IntakeEvent, IntakeSubmission, IntakeSubmissionResponse, IntakeSubmissionsResponse, InventorySummary, PlatformDataProvider, RunsResponse, SourceInspectionStatus, StageManifest, StagingPlanItem, StagingPlanResponse, StorageStatus, SubmissionLayer, SubmissionLayersResponse, TrustPipeline, UploadProgress } from "./types";
 import type { CalibrationRow, CommandCenterResponse, ComponentRow, IssuesResponse, MapData, MappingRow, NetworkResponse, Readiness, RuleRow } from "../api-types";
 
 export const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -10,6 +10,25 @@ export class ApiDataProvider implements PlatformDataProvider {
     const response = await fetch(`${apiUrl}${path}`, { signal });
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
     return response.json() as Promise<T>;
+  }
+
+  async uploadForm<T>(path: string, body: FormData, onProgress?: (progress: UploadProgress) => void): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const request = new XMLHttpRequest();
+      request.open("POST", `${apiUrl}${path}`);
+      request.upload.onprogress = (event) => {
+        if (event.lengthComputable) onProgress?.({ loaded: event.loaded, total: event.total, percent: Math.round((event.loaded / event.total) * 100) });
+      };
+      request.onload = () => {
+        if (request.status >= 200 && request.status < 300) {
+          resolve(JSON.parse(request.responseText) as T);
+        } else {
+          reject(new Error(`${request.status} ${request.statusText}`));
+        }
+      };
+      request.onerror = () => reject(new Error("Directory upload failed safely."));
+      request.send(body);
+    });
   }
 
   async post<T>(path: string, body?: BodyInit | Record<string, unknown>): Promise<T> {
@@ -53,6 +72,7 @@ export class ApiDataProvider implements PlatformDataProvider {
   map(signal?: AbortSignal) { return this.get<MapData>("/api/data-health/wastewater/map", signal); }
   getIntakeCapabilities(signal?: AbortSignal) { return this.get<IntakeCapabilities>("/api/intake/capabilities", signal); }
   createIntakeSubmission(formData: FormData) { return this.post<IntakeSubmissionResponse>("/api/intake/submissions", formData); }
+  createDirectoryIntakeSubmission(formData: FormData, onProgress?: (progress: UploadProgress) => void) { return this.uploadForm<IntakeSubmissionResponse>("/api/intake/submissions/directory", formData, onProgress); }
   getIntakeSubmissions(path = "/api/intake/submissions", signal?: AbortSignal) { return this.get<IntakeSubmissionsResponse>(path, signal); }
   getIntakeSubmission(submissionId: string, signal?: AbortSignal) { return this.get<IntakeSubmission>(`/api/intake/submissions/${encodeURIComponent(submissionId)}`, signal); }
   getIntakeEvents(submissionId: string, signal?: AbortSignal) { return this.get<{ events: IntakeEvent[] }>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/events`, signal); }

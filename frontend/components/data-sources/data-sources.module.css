@@ -140,6 +140,32 @@
   text-align: center;
 }
 
+.modeSelector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin: 0 0 12px;
+  padding: 0;
+  border: 0;
+}
+
+.modeSelector legend {
+  width: 100%;
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.modeSelector label {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--color-text-secondary);
+  font-weight: 800;
+}
+
 .formGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -178,6 +204,20 @@
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-sm);
   background: var(--color-surface-2);
+}
+
+.packageSummary {
+  display: grid;
+  gap: 10px;
+}
+
+.contentsList {
+  max-height: 220px;
+  margin: 8px 0 0;
+  padding-left: 22px;
+  overflow: auto;
+  color: var(--color-text-secondary);
+  font-size: 12px;
 }
 
 .progressTrack {

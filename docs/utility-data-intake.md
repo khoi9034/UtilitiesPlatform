@@ -16,4 +16,11 @@ The workflow is intentionally gated:
 
 Intake never stages, standardizes, curates, repairs, publishes, overwrites, or exports data automatically.
 
-Accepted V1 packages are shapefile ZIPs, file-geodatabase ZIPs, DWG, DXF, GeoPackage, CSV, XLSX, and PDF. PDFs are metadata-only in V1.
+The upload page supports two package selectors:
+
+- **Choose Package File** for ZIPs, CAD files, GeoPackages, spreadsheets, and PDFs.
+- **Choose FileGDB Folder** for one complete unzipped `.gdb` directory selected with the browser folder picker.
+
+Accepted V1 packages are shapefile ZIPs, file-geodatabase ZIPs, direct file-geodatabase folders, DWG, DXF, GeoPackage, CSV, XLSX, and PDF. PDFs are metadata-only in V1.
+
+Direct FileGDB folder upload preserves the browser-provided `webkitRelativePath` hierarchy and registers the folder as one logical Raw package. Local mode streams the internal files to FastAPI, reconstructs the folder under temporary storage, calculates per-file hashes, calculates one deterministic folder-package hash, then moves the reconstructed `.gdb` into the submission `original` folder. The user's selected source folder is not edited.

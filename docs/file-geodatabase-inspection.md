@@ -1,6 +1,8 @@
 # File Geodatabase Inspection
 
-File geodatabase ZIP packages must contain exactly one `.gdb` directory and no unrelated files. The immutable original remains in Raw storage; inspection reads the extracted working copy under the submission inspection folder.
+File geodatabase intake supports either a ZIP package containing exactly one `.gdb` directory or a direct `.gdb` folder selected through **Choose FileGDB Folder**. ZIP packages must contain no unrelated files. Direct folder uploads must have one top-level `.gdb` root and are copied into Raw submission storage as one immutable source package.
+
+The immutable original remains in Raw storage; inspection reads the extracted or copied working copy under the submission inspection folder. Direct folder inspection does not require ZIP extraction and uses the same normalized child-layer inventory, classification, duplicate review, coordinate review, and submission-specific staging workflow as ZIP-based geodatabases.
 
 When ArcPy is available, the adapter inventories feature datasets, feature classes, tables, fields, aliases, field types, domains, subtypes, indexes where ArcPy exposes them, attachments, editor tracking, GlobalIDs, spatial reference, extent, geometry type, Z/M flags, and record counts. Safe field profiles use aggregates such as null counts, distinct pattern counts, value-format patterns, and ranges. Full source rows are not returned.
 

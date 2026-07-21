@@ -170,6 +170,10 @@ export class DemoDataProvider implements PlatformDataProvider {
   map() { return this.get<MapData>("/api/data-health/wastewater/map"); }
   getIntakeCapabilities() { return this.get<IntakeCapabilities>("/api/intake/capabilities"); }
   createIntakeSubmission(formData: FormData) { return this.post<IntakeSubmissionResponse>("/api/intake/submissions", formData); }
+  createDirectoryIntakeSubmission(formData: FormData) {
+    formData.set("package_mode", "directory");
+    return this.post<IntakeSubmissionResponse>("/api/intake/submissions", formData);
+  }
   getIntakeSubmissions(path = "/api/intake/submissions") { return this.get<IntakeSubmissionsResponse>(path); }
   getIntakeSubmission(submissionId: string) { return this.get<IntakeSubmission>(`/api/intake/submissions/${encodeURIComponent(submissionId)}`); }
   getIntakeEvents(submissionId: string) { return this.get<{ events: IntakeEvent[] }>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/events`); }

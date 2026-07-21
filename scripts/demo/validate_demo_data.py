@@ -368,6 +368,7 @@ ALLOWED_KEYS.update(
         "intake-submissions.json",
         "loose_shapefile",
         "maximum_upload_bytes",
+        "maximum_upload_files",
         "metadata_only",
         "mime_type",
         "nested_archives",

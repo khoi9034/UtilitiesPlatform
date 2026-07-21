@@ -22,6 +22,7 @@ Rules:
 - No real utility geometry or identifiers may enter demo fixtures.
 - Demo write actions use `sessionStorage` or React state only.
 - Demo intake actions must never upload, read file contents, or persist beyond `sessionStorage`.
+- Direct FileGDB folder upload is local-only; demo mode may keep safe folder metadata in `sessionStorage` but must not transmit or inspect folder contents.
 - No local-only user-visible route may be added without a demo equivalent.
 - Planned local modules may remain planned in demo mode, but must have an honest readiness page.
 - Business logic should be shared where practical.
@@ -35,3 +36,4 @@ Rules:
 - Staging approval is explicit and layer-level.
 - Demo source-inspection reviews and staging simulation stay in `sessionStorage`.
 - File geodatabase schema inspection requires ArcPy for real `.gdb` contents.
+- Direct `.gdb` folder submissions and zipped `.gdb` submissions must share the same inspection and child-layer review workflow.

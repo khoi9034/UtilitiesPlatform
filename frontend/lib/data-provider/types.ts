@@ -37,9 +37,10 @@ export type IntakeSubmission = Record<string, unknown> & {
   next_required_action: string;
 };
 export type IntakeEvent = { event_id: string; submission_id: string; event_type: string; message: string; created_at: string; previous_status?: string; new_status?: string; actor?: string };
-export type IntakeCapabilities = Record<string, unknown> & { accepted_formats: Record<string, unknown>[]; maximum_upload_bytes: number; upload_enabled: boolean; mode: string };
+export type IntakeCapabilities = Record<string, unknown> & { accepted_formats: Record<string, unknown>[]; maximum_upload_bytes: number; maximum_upload_files?: number; upload_enabled: boolean; mode: string };
 export type IntakeSubmissionsResponse = { items: IntakeSubmission[]; pagination: Pagination; message: string };
 export type IntakeSubmissionResponse = { submissions: IntakeSubmission[]; message: string };
+export type UploadProgress = { loaded: number; total: number; percent: number };
 export type SourceInspectionStatus = Record<string, unknown> & { submission_id: string; inspection_status: string; child_layer_count: number; table_count: number; spatial_reference_count: number; warnings?: string[]; blockers?: string[] };
 export type SubmissionLayer = Record<string, unknown> & {
   layer_id: string;
@@ -131,6 +132,7 @@ export interface PlatformDataProvider {
   map(signal?: AbortSignal): Promise<MapData>;
   getIntakeCapabilities(signal?: AbortSignal): Promise<IntakeCapabilities>;
   createIntakeSubmission(formData: FormData): Promise<IntakeSubmissionResponse>;
+  createDirectoryIntakeSubmission(formData: FormData, onProgress?: (progress: UploadProgress) => void): Promise<IntakeSubmissionResponse>;
   getIntakeSubmissions(path?: string, signal?: AbortSignal): Promise<IntakeSubmissionsResponse>;
   getIntakeSubmission(submissionId: string, signal?: AbortSignal): Promise<IntakeSubmission | null>;
   getIntakeEvents(submissionId: string, signal?: AbortSignal): Promise<{ events: IntakeEvent[] }>;

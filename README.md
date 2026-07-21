@@ -88,6 +88,7 @@ File geodatabases are created only when the script runs inside an ArcGIS Pro Pyt
 - `GET /api/storage/catalog/summary`
 - `GET /api/intake/capabilities`
 - `POST /api/intake/submissions`
+- `POST /api/intake/submissions/directory`
 - `GET /api/intake/submissions`
 - `POST /api/intake/submissions/{submission_id}/inspect`
 - `GET /api/intake/submissions/{submission_id}/inspection-status`
@@ -125,7 +126,9 @@ http://localhost:3001/data-sources?stage=curated
 http://localhost:3001/data-sources?stage=export
 ```
 
-Accepted V1 formats are shapefile ZIP, file-geodatabase ZIP, DWG, DXF, GeoPackage, CSV, XLSX, and PDF. The default upload limit is `1073741824` bytes and can be changed with `UTILITY_UPLOAD_MAX_BYTES`.
+The upload page offers **Choose Package File** for ZIP/CAD/GeoPackage/spreadsheet/PDF packages and **Choose FileGDB Folder** for one complete unzipped `.gdb` directory. Direct folder upload uses the browser `webkitdirectory` picker, preserves relative paths, registers the folder as one Raw package, and computes a deterministic package SHA-256 from sorted `relative_path`, byte count, and per-file SHA-256 records.
+
+Accepted V1 formats are shapefile ZIP, file-geodatabase ZIP, direct file-geodatabase folder, DWG, DXF, GeoPackage, CSV, XLSX, and PDF. The default upload limit is `1073741824` bytes and can be changed with `UTILITY_UPLOAD_MAX_BYTES`; direct folder upload also defaults to `50000` files and can be changed with `UTILITY_UPLOAD_MAX_FILES` / `NEXT_PUBLIC_UTILITY_UPLOAD_MAX_FILES`.
 
 Intake does not stage, standardize, curate, repair, publish, overwrite, or export data automatically. Demo mode provides the same visible workflow with sanitized fixtures and session-only simulated submissions; it does not upload files or call the backend.
 

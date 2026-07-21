@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 const here = dirname(fileURLToPath(import.meta.url));
 const frontendRoot = join(here, "..");
 const repoRoot = join(frontendRoot, "..");
-const env = { ...process.env, NEXT_PUBLIC_APP_MODE: "demo", DEMO_EXPORT: "true" };
+const env = { ...process.env, NEXT_PUBLIC_APP_MODE: "demo", NEXT_PUBLIC_API_URL: "", DEMO_EXPORT: "true" };
 const result = spawnSync(process.execPath, [join(frontendRoot, "node_modules", "next", "dist", "bin", "next"), "build"], {
   cwd: frontendRoot,
   env,

@@ -3,10 +3,18 @@ $ErrorActionPreference = "Stop"
 $ProjectRoot = "C:\Projects\UtilitiesPlatform"
 $BackendPort = 8001
 $FrontendPort = 3001
-$ApiUrl = "http://127.0.0.1:$BackendPort"
+$ApiUrl = "http://[::1]:$BackendPort"
 $FrontendUrl = "http://127.0.0.1:$FrontendPort"
 $RuntimeFile = Join-Path $env:TEMP "utilities-platform-local-runtime.json"
 $Failures = 0
+
+if (Test-Path -LiteralPath $RuntimeFile) {
+    try {
+        $runtimeConfig = Get-Content -Raw -LiteralPath $RuntimeFile | ConvertFrom-Json
+        if ($runtimeConfig.api_url) { $ApiUrl = $runtimeConfig.api_url }
+    } catch {
+    }
+}
 
 function Write-Check($Status, $Name, $Detail = "") {
     if ($Status -eq "FAIL") { $script:Failures++ }
