@@ -240,6 +240,7 @@ ALLOWED_KEYS = {
     "storage",
     "structures",
     "subcategory",
+    "supported_modules",
     "summary",
     "target_field",
     "target_layer_name",

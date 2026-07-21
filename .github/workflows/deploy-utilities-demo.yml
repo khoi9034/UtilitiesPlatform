@@ -44,6 +44,9 @@ jobs:
         run: npm run build:demo
       - name: Validate demo data safety
         run: python scripts/demo/validate_demo_data.py --demo-root frontend/demo-data
+      - name: Check demo feature parity
+        working-directory: frontend
+        run: npm run test:parity
       - uses: actions/upload-pages-artifact@v3
         with:
           path: frontend/out

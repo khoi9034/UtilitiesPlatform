@@ -7,6 +7,7 @@
     "build": "next build",
     "build:demo": "node scripts/build-demo.mjs",
     "serve:demo": "node scripts/serve-demo.mjs",
+    "test:parity": "python ../scripts/demo/check_feature_parity.py --frontend-root .",
     "test:demo": "node scripts/test-demo.mjs",
     "start": "next start",
     "lint": "eslint",

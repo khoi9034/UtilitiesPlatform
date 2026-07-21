@@ -227,6 +227,21 @@ python scripts\demo\validate_demo_data.py --demo-root frontend\demo-data
 
 See `docs/demo-deployment.md` and `docs/demo-data-governance.md`.
 
+## Dual-Mode Feature Development
+
+Every user-visible local feature must have a recruiter-demo equivalent through the shared `PlatformDataProvider`. Local mode owns real processing; demo mode mirrors the workflow with sanitized or synthetic fixtures and temporary browser-session writes.
+
+Checks:
+
+```powershell
+cd C:\Projects\UtilitiesPlatform\frontend
+npm run build:demo
+npm run test:parity
+npm run test:demo
+```
+
+See `AGENTS.md` and `docs/dual-mode-feature-parity.md`.
+
 ## Repository Structure
 
 ```text

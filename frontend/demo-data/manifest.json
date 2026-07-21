@@ -22,5 +22,17 @@
   "generated_at": "2026-07-20T12:00:00-04:00",
   "live_system_connected": false,
   "mode": "portfolio_demo",
+  "supported_modules": [
+    "command-center",
+    "asset-inventory",
+    "data-health",
+    "network-intelligence",
+    "cad-intake",
+    "trust-pipeline",
+    "data-sources",
+    "projects",
+    "maintenance",
+    "methodology"
+  ],
   "writes_persisted": false
 }
