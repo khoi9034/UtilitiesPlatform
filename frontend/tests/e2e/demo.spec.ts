@@ -65,6 +65,7 @@ test.describe("portfolio demo mode", () => {
     mkdirSync(gdbRoot, { recursive: true });
     writeFileSync(join(gdbRoot, "a00000001.gdbtable"), "table");
     writeFileSync(join(gdbRoot, "a00000001.gdbtablx"), "index");
+    writeFileSync(join(gdbRoot, "_gdb.1234.sr.lock"), "lock");
 
     await page.goto(`${basePath}/data-sources/upload`, { waitUntil: "domcontentloaded" });
     await page.getByRole("radio", { name: "Choose FileGDB Folder" }).check();
@@ -74,6 +75,7 @@ test.describe("portfolio demo mode", () => {
     await expect(page.getByText(/2 of 50K allowed/).first()).toBeVisible();
     await expect(page.getByText("File geodatabase folder").first()).toBeVisible();
     await expect(page.getByText("Passed browser precheck").first()).toBeVisible();
+    await expect(page.getByText(/Recognized transient files will be omitted/).first()).toBeVisible();
     await page.getByText("View Package Contents").click();
     await expect(page.getByText("Synthetic_Selected_Source.gdb/a00000001.gdbtable").first()).toBeVisible();
   });

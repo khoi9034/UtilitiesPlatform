@@ -1,4 +1,7 @@
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+import logging
+import os
+
+from fastapi import APIRouter, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse
 
 from app.schemas.responses import (
@@ -35,6 +38,7 @@ from app.services.data_storage_service import (
 )
 
 router = APIRouter(prefix="/api")
+logger = logging.getLogger(__name__)
 
 NO_DATABASE_MESSAGE = "No production utility database has been connected."
 
@@ -174,8 +178,10 @@ async def create_intake_submission(
 
 @router.post("/intake/submissions/directory")
 async def create_directory_intake_submission(
+    request: Request,
     files: list[UploadFile] = File(...),
     relative_paths: list[str] = Form(...),
+    omitted_relative_paths: list[str] = Form(default=[]),
     submission_name: str = Form(...),
     utility_system: str = Form(...),
     source_type: str = Form(...),
@@ -188,6 +194,30 @@ async def create_directory_intake_submission(
     register_duplicate_as_version: bool = Form(False),
     run_inventory_after_upload: bool = Form(False),
 ) -> dict[str, object]:
+    request_id = str(getattr(request.state, "request_id", ""))
+    if os.getenv("UTILITY_INTAKE_DIAGNOSTICS") == "1":
+        metadata_present = [
+            name
+            for name, value in {
+                "submission_name": submission_name,
+                "utility_system": utility_system,
+                "source_type": source_type,
+                "source_owner": source_owner,
+                "source_description": source_description,
+                "sensitivity_level": sensitivity_level,
+                "submitted_by": submitted_by,
+                "authorization_confirmed": authorization_confirmed,
+            }.items()
+            if value not in {None, "", False}
+        ]
+        logger.info(
+            "Directory intake request request_id=%s files_count=%d relative_paths_count=%d metadata_fields_present=%s aggregate_declared_size=%d",
+            request_id,
+            len(files),
+            len(relative_paths),
+            metadata_present,
+            sum(int(file.size or 0) for file in files),
+        )
     try:
         metadata = intake_service.IntakeMetadata(
             submission_name=submission_name,
@@ -202,9 +232,9 @@ async def create_directory_intake_submission(
             register_duplicate_as_version=register_duplicate_as_version,
             run_inventory_after_upload=run_inventory_after_upload,
         )
-        return await intake_service.create_directory_submission(files, relative_paths, metadata)
+        return await intake_service.create_directory_submission(files, relative_paths, metadata, omitted_relative_paths)
     except UploadValidationError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise HTTPException(status_code=422, detail=exc.as_detail(request_id=request_id)) from exc
 
 
 @router.get("/intake/submissions")

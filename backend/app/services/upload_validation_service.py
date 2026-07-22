@@ -44,7 +44,34 @@ class UploadValidationResult:
 
 
 class UploadValidationError(ValueError):
-    pass
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str = "upload_validation_failed",
+        safe_item: str = "",
+        retryable: bool = True,
+        safe_context: dict[str, str | int | bool] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+        self.safe_item = safe_item
+        self.retryable = retryable
+        self.safe_context = safe_context or {}
+
+    def as_detail(self, *, request_id: str = "") -> dict[str, object]:
+        detail: dict[str, object] = {
+            "code": self.code,
+            "message": self.message,
+            "retryable": self.retryable,
+            "safe_context": self.safe_context,
+        }
+        if self.safe_item:
+            detail["safe_item"] = self.safe_item
+        if request_id:
+            detail["request_id"] = request_id
+        return detail
 
 
 def sanitize_filename(filename: str) -> str:

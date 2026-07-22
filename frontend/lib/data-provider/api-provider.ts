@@ -3,12 +3,75 @@ import type { CalibrationRow, CommandCenterResponse, ComponentRow, IssuesRespons
 
 export const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+export class ApiRequestError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly statusText: string,
+    public readonly errorCode: string,
+    public readonly detail: string,
+    public readonly retryable: boolean,
+    public readonly safeContext: Record<string, string | number | boolean>,
+  ) {
+    super(detail);
+    this.name = "ApiRequestError";
+  }
+}
+
+const safeContextKeys = new Set(["files_count", "relative_paths_count", "aggregate_size", "root_name", "raw_source_created", "request_id"]);
+
+function safeApiText(value: unknown): string {
+  const text = String(value ?? "").replace(/[A-Za-z]:[\\/][^\s"']+/g, "[local path hidden]").replace(/\\\\[^\s"']+/g, "[local path hidden]");
+  return /traceback|stack trace|\bat\s+\S+\s*\(/i.test(text) ? "The backend rejected the request safely." : text.slice(0, 500);
+}
+
+function validationDetail(detail: unknown[]): string {
+  const messages = detail.slice(0, 5).map((item) => {
+    if (!item || typeof item !== "object") return "Invalid request field.";
+    const row = item as Record<string, unknown>;
+    const loc = Array.isArray(row.loc) ? safeApiText(row.loc.at(-1)) : "request";
+    return `${loc}: ${safeApiText(row.msg || "Invalid value.")}`;
+  });
+  return `Request validation failed. ${messages.join("; ")}`;
+}
+
+export function parseApiRequestError(status: number, statusText: string, responseText: string, requestId = ""): ApiRequestError {
+  let payload: unknown;
+  try { payload = JSON.parse(responseText); } catch { payload = null; }
+  const body = payload && typeof payload === "object" ? payload as Record<string, unknown> : {};
+  const detail = body.detail;
+  const structured = detail && typeof detail === "object" && !Array.isArray(detail) ? detail as Record<string, unknown> : {};
+  const safeContext: Record<string, string | number | boolean> = {};
+  if (structured.safe_context && typeof structured.safe_context === "object") {
+    for (const [key, value] of Object.entries(structured.safe_context as Record<string, unknown>)) {
+      if (safeContextKeys.has(key) && ["string", "number", "boolean"].includes(typeof value)) safeContext[key] = value as string | number | boolean;
+    }
+  }
+  const safeItem = safeApiText(structured.safe_item);
+  const message = Array.isArray(detail)
+    ? validationDetail(detail)
+    : safeApiText(typeof detail === "string" ? detail : structured.message) || `${status} ${statusText || "Request failed"}`;
+  const responseRequestId = safeApiText(structured.request_id || requestId);
+  if (responseRequestId) safeContext.request_id = responseRequestId;
+  return new ApiRequestError(
+    status,
+    statusText,
+    safeApiText(structured.code) || `http_${status || "network"}`,
+    safeItem ? `${message} Item: ${safeItem}.` : message,
+    typeof structured.retryable === "boolean" ? structured.retryable : status === 0 || status >= 500,
+    safeContext,
+  );
+}
+
+async function errorFromResponse(response: Response): Promise<ApiRequestError> {
+  return parseApiRequestError(response.status, response.statusText, await response.text(), response.headers.get("X-Request-ID") ?? "");
+}
+
 export class ApiDataProvider implements PlatformDataProvider {
   readonly mode = "local" as const;
 
   async get<T>(path: string, signal?: AbortSignal): Promise<T> {
     const response = await fetch(`${apiUrl}${path}`, { signal });
-    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+    if (!response.ok) throw await errorFromResponse(response);
     return response.json() as Promise<T>;
   }
 
@@ -23,10 +86,10 @@ export class ApiDataProvider implements PlatformDataProvider {
         if (request.status >= 200 && request.status < 300) {
           resolve(JSON.parse(request.responseText) as T);
         } else {
-          reject(new Error(`${request.status} ${request.statusText}`));
+          reject(parseApiRequestError(request.status, request.statusText, request.responseText, request.getResponseHeader("X-Request-ID") ?? ""));
         }
       };
-      request.onerror = () => reject(new Error("Directory upload failed safely."));
+      request.onerror = () => reject(new ApiRequestError(0, "Network Error", "network_error", "Backend unavailable or upload interrupted.", true, {}));
       request.send(body);
     });
   }
@@ -38,7 +101,7 @@ export class ApiDataProvider implements PlatformDataProvider {
       headers: isForm || body === undefined ? undefined : { "Content-Type": "application/json" },
       body: isForm || body === undefined ? body as BodyInit | undefined : JSON.stringify(body),
     });
-    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+    if (!response.ok) throw await errorFromResponse(response);
     return response.json() as Promise<T>;
   }
 
@@ -48,7 +111,7 @@ export class ApiDataProvider implements PlatformDataProvider {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+    if (!response.ok) throw await errorFromResponse(response);
     return response.json() as Promise<T>;
   }
 

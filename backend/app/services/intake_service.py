@@ -124,13 +124,18 @@ async def create_submissions(files: list[UploadFile], metadata: IntakeMetadata) 
     return {"submissions": submissions, "message": f"{len(submissions)} package(s) processed."}
 
 
-async def create_directory_submission(files: list[UploadFile], relative_paths: list[str], metadata: IntakeMetadata) -> dict[str, object]:
+async def create_directory_submission(
+    files: list[UploadFile],
+    relative_paths: list[str],
+    metadata: IntakeMetadata,
+    omitted_relative_paths: list[str] | None = None,
+) -> dict[str, object]:
     if not files:
-        raise UploadValidationError("Select one complete .gdb folder.")
+        raise UploadValidationError("Select one complete .gdb folder.", code="directory_empty")
     if len(files) != len(relative_paths):
-        raise UploadValidationError("Directory file list and relative path list must match.")
+        raise UploadValidationError("Directory file list and relative-path list did not match.", code="directory_file_path_count_mismatch")
     if len(files) > max_upload_files():
-        raise UploadValidationError("Directory upload exceeds configured file count limit.")
+        raise UploadValidationError("Directory upload exceeds the configured file-count limit.", code="directory_file_count_exceeded")
     validate_metadata(metadata.as_validation_dict())
 
     paths = storage.get_storage_paths()
@@ -139,6 +144,7 @@ async def create_directory_submission(files: list[UploadFile], relative_paths: l
     actor = _safe_actor(metadata.submitted_by)
     started_at = utc_now()
     normalized_paths = validate_directory_relative_paths(relative_paths)
+    omitted_paths = validate_omitted_directory_paths(omitted_relative_paths or [], normalized_paths[0].split("/", 1)[0])
     root_name = normalized_paths[0].split("/", 1)[0]
     temp_root = intake_paths["temp_uploads"] / submission_id
     temp_gdb = temp_root / root_name
@@ -151,11 +157,11 @@ async def create_directory_submission(files: list[UploadFile], relative_paths: l
         registry.add_event(paths.root, event_id=str(uuid.uuid4()), submission_id=submission_id, event_type="upload_started", new_status="uploading", message="Directory upload stream received by local FastAPI intake.", actor=actor)
         for file, relative_path in zip(files, normalized_paths):
             if relative_path in seen_paths:
-                raise UploadValidationError("Duplicate relative path in directory upload.")
+                raise UploadValidationError("Duplicate relative path in directory upload.", code="directory_duplicate_relative_path")
             seen_paths.add(relative_path)
             target = temp_root / Path(*relative_path.split("/"))
             if not is_relative_to(target, temp_root):
-                raise UploadValidationError("Unsafe directory upload path.")
+                raise UploadValidationError("Directory upload contains path traversal or an unsafe relative path.", code="directory_path_traversal", retryable=False)
             target.parent.mkdir(parents=True, exist_ok=True)
             file_hash = hashlib.sha256()
             file_size = 0
@@ -164,12 +170,12 @@ async def create_directory_submission(files: list[UploadFile], relative_paths: l
                     file_size += len(chunk)
                     total_size += len(chunk)
                     if total_size > max_upload_bytes():
-                        raise UploadValidationError("Directory upload exceeds configured size limit.")
+                        raise UploadValidationError("Directory upload exceeds the configured size limit.", code="directory_size_exceeded")
                     file_hash.update(chunk)
                     handle.write(chunk)
             package_records.append({"relative_path": relative_path, "size_bytes": file_size, "sha256": file_hash.hexdigest()})
         if not package_records:
-            raise UploadValidationError("Directory upload is empty.")
+            raise UploadValidationError("Directory upload is empty.", code="directory_empty")
         validate_reconstructed_gdb(temp_gdb)
         digest = directory_package_hash(package_records)
         duplicate_of = registry.find_duplicate(paths.root, digest)
@@ -198,7 +204,20 @@ async def create_directory_submission(files: list[UploadFile], relative_paths: l
         registry.insert_submission(paths.root, row)
         add_standard_events(paths.root, submission_id, actor)
         registry.add_file(paths.root, file_row(submission_id, safe_name, "original_directory", ".gdb", total_size, digest, "passed", f"{len(package_records)} internal files; package manifest stored with submission."))
-        _write_manifest(submission_root / "submission_manifest.json", submission_id, metadata, safe_name, stored_filename, "file_geodatabase", total_size, digest, package_records, [], package_mode="directory")
+        _write_manifest(
+            submission_root / "submission_manifest.json",
+            submission_id,
+            metadata,
+            safe_name,
+            stored_filename,
+            "file_geodatabase",
+            total_size,
+            digest,
+            package_records,
+            ["Recognized transient FileGDB files were omitted before upload."] if omitted_paths else [],
+            package_mode="directory",
+            omitted_files=[{"relative_path": item, "reason": "transient_file_omitted"} for item in omitted_paths],
+        )
         dataset_id = storage.append_catalog_row(
             {
                 "dataset_id": submission_id,
@@ -242,8 +261,6 @@ async def create_directory_submission(files: list[UploadFile], relative_paths: l
                 "notes": "Raw FileGDB directory registered; no staging, standardization, or curation performed.",
             }
         )
-        if metadata.run_inventory_after_upload:
-            run_inventory(submission_id, actor=actor)
         storage.build_stage_manifest()
         return {"submissions": [safe_submission(submission_id)], "message": "FileGDB folder registered in local Raw storage."}
     except Exception as exc:
@@ -251,7 +268,13 @@ async def create_directory_submission(files: list[UploadFile], relative_paths: l
         registry.add_event(paths.root, event_id=str(uuid.uuid4()), submission_id=submission_id, event_type="upload_failed", new_status="failed", message=f"Directory upload failed safely: {type(exc).__name__}.", actor=actor)
         if "submission_root" in locals() and submission_root.exists():
             shutil.rmtree(submission_root, ignore_errors=True)
-        raise
+        if isinstance(exc, UploadValidationError):
+            raise
+        raise UploadValidationError(
+            "Raw registration failed after safe package validation. No complete Raw source was created.",
+            code="raw_registration_failed",
+            retryable=False,
+        ) from exc
     finally:
         for file in files:
             await file.close()
@@ -349,8 +372,6 @@ async def _create_single_submission(file: UploadFile, metadata: IntakeMetadata) 
                 "notes": "Raw package registered; no staging, standardization, or curation performed.",
             }
         )
-        if metadata.run_inventory_after_upload:
-            run_inventory(submission_id, actor=actor)
         return safe_submission(submission_id)
     except Exception:
         temp_path.unlink(missing_ok=True)
@@ -493,30 +514,69 @@ def validate_directory_relative_paths(relative_paths: list[str]) -> list[str]:
     for raw in relative_paths:
         path = str(raw or "").replace("\\", "/").strip()
         if not path:
-            raise UploadValidationError("Directory upload contains an empty relative path.")
+            raise UploadValidationError("Directory upload contains an empty relative path.", code="directory_empty_relative_path")
         if path.startswith("/") or path.startswith("//") or re_drive_letter(path):
-            raise UploadValidationError("Directory upload contains an absolute path.")
+            raise UploadValidationError("Directory upload contains an absolute path.", code="directory_absolute_path", retryable=False)
         parts = path.split("/")
         if any(part in {"", ".", ".."} for part in parts):
-            raise UploadValidationError("Directory upload contains an unsafe relative path.")
+            raise UploadValidationError("Directory upload contains path traversal or an unsafe relative path.", code="directory_path_traversal", retryable=False)
         if len(parts) < 2:
-            raise UploadValidationError("Directory upload files must be inside one .gdb root folder.")
+            raise UploadValidationError("Directory upload files must be inside one .gdb root folder.", code="directory_multiple_roots")
         if any(part != sanitize_path_component(part) for part in parts):
-            raise UploadValidationError("Directory upload contains an unsupported path component.")
+            raise UploadValidationError(
+                "The FileGDB contains an internal filename that is not currently accepted.",
+                code="directory_unsupported_path_component",
+                safe_item=sanitize_path_component(parts[-1]),
+            )
+        if is_transient_filegdb_path(path):
+            raise UploadValidationError(
+                "The FileGDB contains a transient lock or temporary file that must be closed or omitted.",
+                code="directory_transient_file",
+                safe_item=parts[-1],
+            )
         if Path(parts[-1]).suffix.lower() in FORBIDDEN_EXTENSIONS:
-            raise UploadValidationError("Directory upload contains a forbidden internal file type.")
+            raise UploadValidationError("Directory upload contains a forbidden internal file type.", code="directory_forbidden_internal_type", safe_item=parts[-1], retryable=False)
         normalized_path = "/".join(parts)
         if normalized_path in seen:
-            raise UploadValidationError("Duplicate relative path in directory upload.")
+            raise UploadValidationError("Duplicate relative path in directory upload.", code="directory_duplicate_relative_path")
         seen.add(normalized_path)
         roots.add(parts[0])
         normalized.append(normalized_path)
     if len(roots) != 1:
-        raise UploadValidationError("Select exactly one top-level .gdb folder.")
+        raise UploadValidationError("Select exactly one top-level .gdb folder.", code="directory_multiple_roots")
     root = next(iter(roots))
     if not root.lower().endswith(".gdb"):
-        raise UploadValidationError("Selected folder must end in .gdb.")
+        raise UploadValidationError("Selected folder must end in .gdb.", code="directory_root_not_gdb")
     return normalized
+
+
+def validate_omitted_directory_paths(relative_paths: list[str], root: str) -> list[str]:
+    omitted: list[str] = []
+    seen: set[str] = set()
+    for raw in relative_paths:
+        path = str(raw or "").replace("\\", "/").strip()
+        parts = path.split("/")
+        if (
+            not path
+            or path.startswith("/")
+            or re_drive_letter(path)
+            or any(part in {"", ".", ".."} or part != sanitize_path_component(part) for part in parts)
+            or len(parts) < 2
+            or parts[0] != root
+            or not is_transient_filegdb_path(path)
+        ):
+            raise UploadValidationError("Omitted directory metadata contains an unsupported item.", code="directory_unsupported_path_component", retryable=False)
+        normalized = "/".join(parts)
+        if normalized in seen:
+            raise UploadValidationError("Duplicate relative path in omitted directory metadata.", code="directory_duplicate_relative_path")
+        seen.add(normalized)
+        omitted.append(normalized)
+    return omitted
+
+
+def is_transient_filegdb_path(path: str) -> bool:
+    name = path.replace("\\", "/").rsplit("/", 1)[-1].lower()
+    return name.endswith((".lock", ".sr.lock", ".tmp"))
 
 
 def sanitize_path_component(value: str) -> str:
@@ -535,10 +595,10 @@ def re_sub_unsafe_component(value: str) -> str:
 
 def validate_reconstructed_gdb(gdb: Path) -> None:
     if not gdb.is_dir() or not gdb.name.lower().endswith(".gdb"):
-        raise UploadValidationError("Reconstructed package is not one .gdb folder.")
+        raise UploadValidationError("Reconstructed package is not one .gdb folder.", code="directory_root_not_gdb")
     files = [path.name.lower() for path in gdb.iterdir() if path.is_file()]
     if "gdb" not in files and not any(name.endswith(".gdbtable") for name in files):
-        raise UploadValidationError("Selected folder does not look like a file geodatabase.")
+        raise UploadValidationError("Selected folder does not contain recognizable FileGDB system files.", code="file_gdb_structure_invalid")
     try:
         import arcpy  # type: ignore
     except ImportError:
@@ -546,7 +606,7 @@ def validate_reconstructed_gdb(gdb: Path) -> None:
     try:
         arcpy.Describe(str(gdb))
     except Exception as exc:
-        raise UploadValidationError("ArcPy could not open the reconstructed file geodatabase.") from exc
+        raise UploadValidationError("ArcPy could not open the reconstructed FileGDB.", code="file_gdb_arcpy_open_failed") from exc
 
 
 def directory_package_hash(records: list[dict[str, object]]) -> str:
@@ -638,6 +698,7 @@ def _write_manifest(
     files: list[dict[str, object]],
     warnings: list[str],
     package_mode: str = "file",
+    omitted_files: list[dict[str, str]] | None = None,
 ) -> None:
     manifest = {
         "submission_id": submission_id,
@@ -662,6 +723,7 @@ def _write_manifest(
         "authorization_confirmed": True,
         "created_at": utc_now(),
         "files": files,
+        "omitted_files": omitted_files or [],
         "lineage": ["browser_upload", "temporary_upload", "validated_package", "raw_registration"],
         "next_required_action": "Run inventory when ready; staging requires explicit human approval.",
         "blockers": warnings,

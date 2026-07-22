@@ -26,6 +26,7 @@ if ($BackendService) {
     $env:UTILITY_DATA_ROOT = $DataRoot
     $env:UTILITY_UPLOAD_MAX_BYTES = "1073741824"
     $env:UTILITY_UPLOAD_MAX_FILES = "$MaxUploadFiles"
+    $env:UTILITY_INTAKE_DIAGNOSTICS = "1"
     & (Join-Path $BackendRoot ".venv\Scripts\python.exe") -m uvicorn app.main:app --host $BackendHost --port $BackendPort
     return
 }
@@ -33,6 +34,8 @@ if ($BackendService) {
 if ($FrontendService) {
     $Host.UI.RawUI.WindowTitle = "Utilities Platform Frontend"
     Set-Location -LiteralPath $FrontendRoot
+    $env:DEMO_EXPORT = "false"
+    $env:DEMO_DEPLOY_TARGET = "local"
     $env:NEXT_PUBLIC_APP_MODE = "local"
     $env:NEXT_PUBLIC_API_URL = $ApiUrl
     $env:NEXT_PUBLIC_UTILITY_UPLOAD_MAX_FILES = "$MaxUploadFiles"

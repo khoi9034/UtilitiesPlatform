@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, FormEvent, InputHTMLAttributes, ReactNode } from "react";
 import { getDataProvider, isDemoMode } from "../../lib/data-provider/provider";
+import { ApiRequestError } from "../../lib/data-provider/api-provider";
 import type { IntakeCapabilities, IntakeSubmission, UploadProgress } from "../../lib/data-provider/types";
 import { compactNumber, label, safeText } from "../../lib/formatters";
 import { resetDemoIntake } from "../../lib/data-provider/demo-review-store";
@@ -18,8 +19,9 @@ const uploadSteps = ["Preparing submission", "Uploading files", "Validating pack
 type PackageMode = "file" | "directory";
 type UploadState = "idle" | "preparing" | "uploading" | "validating" | "registering" | "complete" | "failed" | "duplicate_detected";
 type DirectoryInputProps = InputHTMLAttributes<HTMLInputElement> & { webkitdirectory?: string; directory?: string };
-type DirectorySummary = { rootName: string; fileCount: number; totalBytes: number; valid: boolean; errors: string[]; relativePaths: string[] };
+type DirectorySummary = { rootName: string; fileCount: number; totalBytes: number; valid: boolean; errors: string[]; relativePaths: string[]; omittedPaths: string[] };
 type PackageReview = { name: string; format: string; fileCount: number; totalBytes: number; structureReady: boolean; sizeReady: boolean; fileCountReady: boolean; errors: string[] };
+type UploadFailure = { error: ApiRequestError; occurredAt: string };
 
 export function UploadDataWorkspace() {
   const provider = getDataProvider();
@@ -27,6 +29,7 @@ export function UploadDataWorkspace() {
   const [packageMode, setPackageMode] = useState<PackageMode>("file");
   const [files, setFiles] = useState<File[]>([]);
   const [directoryFiles, setDirectoryFiles] = useState<File[]>([]);
+  const [omittedDirectoryPaths, setOmittedDirectoryPaths] = useState<string[]>([]);
   const [demoSyntheticSelected, setDemoSyntheticSelected] = useState(false);
   const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [message, setMessage] = useState("");
@@ -34,6 +37,7 @@ export function UploadDataWorkspace() {
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   const [allowDuplicateVersion, setAllowDuplicateVersion] = useState(false);
   const [inspectionMessage, setInspectionMessage] = useState("");
+  const [uploadFailure, setUploadFailure] = useState<UploadFailure | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState({
     submission_name: "",
@@ -58,7 +62,7 @@ export function UploadDataWorkspace() {
   const maxDirectoryFiles = Number(process.env.NEXT_PUBLIC_UTILITY_UPLOAD_MAX_FILES ?? capabilities?.maximum_upload_files ?? defaultMaxDirectoryFiles);
   const maxUploadBytes = Number(capabilities?.maximum_upload_bytes ?? 1073741824);
   const preliminary = useMemo(() => files.map((file) => ({ file, format: detectFormat(file.name), valid: Boolean(detectFormat(file.name)) })), [files]);
-  const directorySummary = useMemo(() => validateDirectorySelection(directoryFiles, maxDirectoryFiles, maxUploadBytes), [directoryFiles, maxDirectoryFiles, maxUploadBytes]);
+  const directorySummary = useMemo(() => validateDirectorySelection(directoryFiles, maxDirectoryFiles, maxUploadBytes, omittedDirectoryPaths), [directoryFiles, maxDirectoryFiles, maxUploadBytes, omittedDirectoryPaths]);
   const packageReview = useMemo(() => selectedPackage({ packageMode, files, preliminary, directorySummary, demoSyntheticSelected, maxUploadBytes, maxDirectoryFiles }), [packageMode, files, preliminary, directorySummary, demoSyntheticSelected, maxUploadBytes, maxDirectoryFiles]);
   const backendReady = isDemoMode || Boolean(capabilities?.upload_enabled);
   const packageReady = packageReview.structureReady && packageReview.sizeReady && packageReview.fileCountReady;
@@ -86,6 +90,7 @@ export function UploadDataWorkspace() {
     }
     setReceipts([]);
     setMessage("");
+    setUploadFailure(null);
     setInspectionMessage("");
     setUploadProgress(null);
     setIsSubmitting(true);
@@ -104,11 +109,16 @@ export function UploadDataWorkspace() {
       setUploadState("complete");
       setMessage(isDemoMode ? "Synthetic Raw registration complete. No files were uploaded or inspected." : "Raw registration complete.");
       if (trimmedForm.run_inventory_after_upload) {
-        await runSourceInspection(nextReceipts[0]);
+        try {
+          await runSourceInspection(nextReceipts[0]);
+        } catch (error) {
+          const inspectionError = asApiRequestError(error);
+          setInspectionMessage(`Raw registration remains complete. Source inspection failed: ${inspectionError.detail}`);
+        }
       }
     } catch (error) {
       setUploadState("failed");
-      setMessage(safeUploadError(error));
+      setUploadFailure({ error: asApiRequestError(error), occurredAt: new Date().toISOString() });
     } finally {
       setIsSubmitting(false);
     }
@@ -158,6 +168,7 @@ export function UploadDataWorkspace() {
     data.delete("files");
     for (const file of directoryFiles) data.append("files", file, file.name);
     for (const relativePath of summary.relativePaths) data.append("relative_paths", relativePath);
+    for (const relativePath of summary.omittedPaths) data.append("omitted_relative_paths", relativePath);
     data.set("submission_name", trimmedForm.submission_name || summary.rootName);
     return data;
   }
@@ -165,6 +176,7 @@ export function UploadDataWorkspace() {
   function onFileSelect(selected: FileList | null) {
     setFiles(Array.from(selected ?? []));
     setDirectoryFiles([]);
+    setOmittedDirectoryPaths([]);
     setDemoSyntheticSelected(false);
     setUploadState("idle");
     setReceipts([]);
@@ -172,12 +184,15 @@ export function UploadDataWorkspace() {
   }
 
   function onDirectorySelect(selected: FileList | null) {
-    setDirectoryFiles(Array.from(selected ?? []));
+    const selectedFiles = Array.from(selected ?? []);
+    setDirectoryFiles(selectedFiles.filter((file) => !isTransientFileGdbPath(relativePath(file))));
+    setOmittedDirectoryPaths(selectedFiles.map(relativePath).filter(isTransientFileGdbPath));
     setFiles([]);
     setDemoSyntheticSelected(false);
     setUploadState("idle");
     setReceipts([]);
     setMessage("");
+    setUploadFailure(null);
   }
 
   function selectSyntheticDemoPackage() {
@@ -185,6 +200,7 @@ export function UploadDataWorkspace() {
     setDemoSyntheticSelected(true);
     setFiles([]);
     setDirectoryFiles([]);
+    setOmittedDirectoryPaths([]);
     setReceipts([]);
     setUploadState("idle");
     setMessage("Synthetic FileGDB selected locally. Not uploaded yet.");
@@ -193,12 +209,14 @@ export function UploadDataWorkspace() {
   function uploadAnother() {
     setFiles([]);
     setDirectoryFiles([]);
+    setOmittedDirectoryPaths([]);
     setDemoSyntheticSelected(false);
     setReceipts([]);
     setUploadState("idle");
     setUploadProgress(null);
     setMessage("");
     setInspectionMessage("");
+    setUploadFailure(null);
     setAllowDuplicateVersion(false);
   }
 
@@ -233,6 +251,7 @@ export function UploadDataWorkspace() {
             <FieldError labelText="Project ID"><input className={ws.input} value={form.project_id} onBlur={() => setForm(trimTextForm(form))} onChange={(event) => setForm({ ...form, project_id: event.target.value })} /></FieldError>
             <FieldError labelText="Submitted by" error={metadataErrors.submitted_by}><input className={ws.input} value={form.submitted_by} onBlur={() => setForm(trimTextForm(form))} onChange={(event) => setForm({ ...form, submitted_by: event.target.value })} /></FieldError>
             <FieldError labelText="Description" error={metadataErrors.source_description} fullWidth><textarea className={ws.input} value={form.source_description} onBlur={() => setForm(trimTextForm(form))} onChange={(event) => setForm({ ...form, source_description: event.target.value })} /></FieldError>
+            {form.utility_system === "wastewater" && mayContainMultipleSystems(form.source_description) ? <p className={`${styles.warnChip} ${styles.fullWidth}`}>This package may contain more than one utility system. Consider selecting Mixed.</p> : null}
             <label className={`${styles.checkRow} ${styles.fullWidth}`}><input type="checkbox" checked={form.authorization_confirmed} onChange={(event) => setForm({ ...form, authorization_confirmed: event.target.checked })} /> I am authorized to store and analyze this source in the local Utilities Platform environment.</label>
             {metadataErrors.authorization_confirmed ? <span className={`${styles.fieldError} ${styles.fullWidth}`}>{metadataErrors.authorization_confirmed}</span> : null}
             <label className={`${styles.checkRow} ${styles.fullWidth}`}><input type="checkbox" checked={form.run_inventory_after_upload} onChange={(event) => setForm({ ...form, run_inventory_after_upload: event.target.checked })} /> Run source inspection after upload</label>
@@ -254,7 +273,8 @@ export function UploadDataWorkspace() {
           <ValidationGroups metadataReady={metadataReady} packageReview={packageReview} authorizationReady={trimmedForm.authorization_confirmed} backendReady={backendReady} />
           {duplicateReceipt ? <DuplicateNotice receipt={duplicateReceipt} onCancel={() => { setReceipts([]); setUploadState("idle"); setMessage(""); }} onRegister={() => { setAllowDuplicateVersion(true); void submit(undefined, true); }} /> : null}
           {uploadState !== "idle" ? <ProgressPanel state={uploadState} progress={uploadProgress} packageReview={packageReview} /> : null}
-          {message ? <p className={uploadState === "failed" ? styles.errorBanner : styles.muted}>{message}</p> : null}
+          {uploadFailure ? <UploadFailurePanel failure={uploadFailure} packageReview={packageReview} onCopied={() => setMessage("Diagnostic summary copied.")} /> : null}
+          {message ? <p className={styles.muted}>{message}</p> : null}
           <div className={styles.actionBar}>
             <div><strong>{readyToUpload ? "Ready to upload" : actionLabel({ metadataReady, packageReady, hasPackageValidationProblems, backendReady, uploadState, isSubmitting })}</strong><p className={styles.muted}>{isDemoMode ? "Demo mode stores a temporary synthetic receipt only." : "The package goes only to local Raw storage."}</p></div>
             <button className={`${ws.button} ${ws.buttonPrimary}`} type="submit" disabled={!readyToUpload || isSubmitting}>{isDemoMode ? "Simulate Raw Registration" : actionLabel({ metadataReady, packageReady, hasPackageValidationProblems, backendReady, uploadState, isSubmitting, readyText: "Upload to Local Raw" })}</button>
@@ -327,6 +347,7 @@ function DirectorySummaryView({ summary, maxFiles, maxBytes }: { summary: Direct
         <ol className={styles.contentsList}>{summary.relativePaths.slice(0, 25).map((path) => <li key={path}>{path}</li>)}</ol>
         {summary.relativePaths.length > 25 ? <p className={styles.muted}>Showing first 25 of {compactNumber(summary.relativePaths.length)} files.</p> : null}
       </details>
+      {summary.omittedPaths.length ? <p className={styles.warnChip}>Recognized transient files will be omitted: {summary.omittedPaths.join(", ")}. Close ArcGIS Pro before retrying if these locks are active.</p> : null}
     </div>
   );
 }
@@ -406,6 +427,42 @@ function DuplicateNotice({ receipt, onCancel, onRegister }: { receipt: IntakeSub
   );
 }
 
+function UploadFailurePanel({ failure, packageReview, onCopied }: { failure: UploadFailure; packageReview: PackageReview; onCopied: () => void }) {
+  const { error, occurredAt } = failure;
+  const requestId = String(error.safeContext.request_id ?? "Unavailable");
+  const rawCreated = error.safeContext.raw_source_created === true;
+  const correctiveAction = error.errorCode === "directory_transient_file"
+    ? "Close ArcGIS Pro to remove transient lock files, reselect the folder, and retry."
+    : error.errorCode === "file_gdb_structure_invalid"
+      ? "Select the complete FileGDB folder containing its top-level system files, then retry."
+      : error.errorCode === "directory_unsupported_path_component"
+        ? "Review the named internal item, reselect the folder, and retry after correcting only that unsupported item."
+        : error.retryable ? "Correct the reported condition and retry with the selected package." : "Review the diagnostic summary before retrying.";
+  const diagnostic = JSON.stringify({
+    request_id: requestId,
+    error_code: error.errorCode,
+    message: error.detail,
+    file_count: packageReview.fileCount,
+    aggregate_size: packageReview.totalBytes,
+    root_folder_name: packageReview.name,
+    timestamp: occurredAt,
+  }, null, 2);
+  return (
+    <section className={styles.errorBanner} aria-live="polite">
+      <strong>Registration Failed</strong>
+      <dl className={styles.metadataList}>
+        <div><dt>Safe error code</dt><dd>{error.errorCode}</dd></div>
+        <div><dt>Explanation</dt><dd>{error.detail}</dd></div>
+        <div><dt>Retry appropriate</dt><dd>{error.retryable ? "Yes" : "Review first"}</dd></div>
+        <div><dt>Corrective action</dt><dd>{correctiveAction}</dd></div>
+        <div><dt>Raw source created</dt><dd>{rawCreated ? "Yes" : "No"}</dd></div>
+        <div><dt>Request ID</dt><dd>{requestId}</dd></div>
+      </dl>
+      <button className={ws.button} type="button" onClick={() => void navigator.clipboard.writeText(diagnostic).then(onCopied)}>Copy Diagnostic Summary</button>
+    </section>
+  );
+}
+
 function SuccessReceipt({ receipts, packageReview, inspectionMessage, onInspect, onAnother }: { receipts: IntakeSubmission[]; packageReview: PackageReview; inspectionMessage: string; onInspect: (receipt: IntakeSubmission) => void; onAnother: () => void }) {
   return (
     <Panel title="Raw Registration Complete" description="Safe receipt only; absolute local paths are not included.">
@@ -473,13 +530,21 @@ function trimTextForm<T extends Record<string, string | boolean>>(form: T): T {
   return trimForm(form) as unknown as T;
 }
 
-function validateDirectorySelection(files: File[], maxFiles: number, maxBytes: number): DirectorySummary {
+function relativePath(file: File): string {
+  return String((file as File & { webkitRelativePath?: string }).webkitRelativePath || "").replaceAll("\\", "/");
+}
+
+function isTransientFileGdbPath(path: string): boolean {
+  return path.toLowerCase().endsWith(".lock") || path.toLowerCase().endsWith(".tmp");
+}
+
+function validateDirectorySelection(files: File[], maxFiles: number, maxBytes: number, omittedPaths: string[]): DirectorySummary {
   const errors: string[] = [];
-  const relativePaths = files.map((file) => String((file as File & { webkitRelativePath?: string }).webkitRelativePath || ""));
+  const relativePaths = files.map(relativePath);
   const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
   const roots = new Set<string>();
   const seen = new Set<string>();
-  if (!files.length) return { rootName: "", fileCount: 0, totalBytes: 0, valid: false, errors: ["Select one complete .gdb folder."], relativePaths: [] };
+  if (!files.length) return { rootName: "", fileCount: 0, totalBytes: 0, valid: false, errors: ["Select one complete .gdb folder."], relativePaths: [], omittedPaths };
   if (files.length > maxFiles) errors.push("File count exceeds configured limit.");
   if (totalBytes > maxBytes) errors.push("Aggregate size exceeds configured limit.");
   for (const relativePath of relativePaths) {
@@ -488,15 +553,28 @@ function validateDirectorySelection(files: File[], maxFiles: number, maxBytes: n
     if (!normalized) errors.push("A selected file is missing a browser relative path.");
     if (normalized.startsWith("/") || normalized.startsWith("//") || /^[A-Za-z]:\//.test(normalized)) errors.push("A selected file has an absolute path.");
     if (parts.some((part) => !part || part === "." || part === "..")) errors.push("A selected file has an unsafe relative path.");
+    if (parts.some((part) => !/^[A-Za-z0-9._ -]+$/.test(part))) errors.push("A selected file has an unsupported path component.");
     if (parts.length < 2) errors.push("All files must be inside the selected .gdb root.");
     if (seen.has(normalized)) errors.push("Duplicate relative path detected.");
     seen.add(normalized);
     if (parts[0]) roots.add(parts[0]);
   }
+  for (const omittedPath of omittedPaths) {
+    const parts = omittedPath.split("/");
+    if (parts.some((part) => !part || part === "." || part === ".." || !/^[A-Za-z0-9._ -]+$/.test(part))) errors.push("An omitted transient file has an unsafe path.");
+    if (seen.has(omittedPath)) errors.push("Duplicate relative path detected.");
+    seen.add(omittedPath);
+    if (parts[0]) roots.add(parts[0]);
+  }
   const rootName = roots.size === 1 ? [...roots][0] : "";
   if (roots.size > 1) errors.push("Select exactly one top-level folder.");
   if (rootName && !rootName.toLowerCase().endsWith(".gdb")) errors.push("Top-level folder must end in .gdb.");
-  return { rootName, fileCount: files.length, totalBytes, valid: errors.length === 0, errors: [...new Set(errors)], relativePaths };
+  const hasSystemFile = relativePaths.some((path) => {
+    const parts = path.split("/");
+    return parts.length === 2 && (parts[1].toLowerCase() === "gdb" || parts[1].toLowerCase().endsWith(".gdbtable"));
+  });
+  if (rootName && !hasSystemFile) errors.push("Selected folder does not contain recognizable FileGDB system files.");
+  return { rootName, fileCount: files.length, totalBytes, valid: errors.length === 0, errors: [...new Set(errors)], relativePaths, omittedPaths };
 }
 
 function actionLabel(args: { metadataReady: boolean; packageReady: boolean; hasPackageValidationProblems?: boolean; backendReady: boolean; uploadState: UploadState; isSubmitting: boolean; readyText?: string }) {
@@ -512,15 +590,15 @@ function actionLabel(args: { metadataReady: boolean; packageReady: boolean; hasP
   return args.readyText ?? "Ready to upload";
 }
 
-function safeUploadError(error: unknown) {
-  const text = error instanceof Error ? error.message : "Upload failed safely.";
-  if (/413|too large|size/i.test(text)) return "Package too large. Reduce package size or increase the configured upload limit.";
-  if (/count|too many/i.test(text)) return "Too many files. Select one complete FileGDB within the configured file-count limit.";
-  if (/duplicate/i.test(text)) return "A matching package is already registered.";
-  if (/fetch|network|failed|0 /.test(text)) return "Backend unavailable or upload interrupted. Confirm the local backend is running, then retry.";
-  if (/gdb|structure|path/i.test(text)) return `Invalid FileGDB structure. ${text}`;
-  if (/authorization/i.test(text)) return "Authorization missing. Confirm authorization before upload.";
-  return `Registration failed. ${text}`;
+function asApiRequestError(error: unknown): ApiRequestError {
+  return error instanceof ApiRequestError
+    ? error
+    : new ApiRequestError(0, "Request failed", "request_failed", "The request failed safely.", true, {});
+}
+
+function mayContainMultipleSystems(description: string): boolean {
+  if (/\bmixed\b|multiple utilit/i.test(description)) return true;
+  return ["water", "wastewater", "stormwater", "telecom", "electric", "gas"].filter((system) => new RegExp(`\\b${system}\\b`, "i").test(description)).length > 1;
 }
 
 function detectFormat(name: string) {

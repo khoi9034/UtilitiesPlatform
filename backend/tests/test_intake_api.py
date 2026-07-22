@@ -177,6 +177,7 @@ def test_directory_upload_rejects_path_count_mismatch(tmp_path: Path, monkeypatc
     )
 
     assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "directory_file_path_count_mismatch"
     assert not list((tmp_path / "01_raw" / "submissions").glob("*"))
 
 
@@ -215,3 +216,93 @@ def test_directory_upload_hash_is_deterministic_and_detects_duplicates(tmp_path:
     assert second.status_code == 200
     assert first.json()["submissions"][0]["sha256_prefix"] == second.json()["submissions"][0]["sha256_prefix"]
     assert second.json()["submissions"][0]["current_status"] == "duplicate_detected"
+
+
+def test_directory_upload_accepts_272_typical_file_gdb_parts(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("UTILITY_DATA_ROOT", str(tmp_path))
+    entries = {"Synthetic.gdb/gdb": b"system"}
+    entries.update({f"Synthetic.gdb/a{index:08x}.gdbtable": b"x" for index in range(1, 272)})
+
+    response = client.post(
+        "/api/intake/submissions/directory",
+        data={**metadata(), "relative_paths": list(entries)},
+        files=directory_files(entries),
+    )
+
+    assert response.status_code == 200
+    submission_id = response.json()["submissions"][0]["submission_id"]
+    manifest = json.loads((tmp_path / "01_raw" / "submissions" / submission_id / "submission_manifest.json").read_text(encoding="utf-8"))
+    assert len(manifest["files"]) == 272
+
+
+def test_directory_upload_omits_only_declared_transient_files(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("UTILITY_DATA_ROOT", str(tmp_path))
+    entries = {"Synthetic.gdb/gdb": b"system", "Synthetic.gdb/a00000001.gdbtable": b"table"}
+    response = client.post(
+        "/api/intake/submissions/directory",
+        data={**metadata(), "relative_paths": list(entries), "omitted_relative_paths": ["Synthetic.gdb/_gdb.1234.sr.lock"]},
+        files=directory_files(entries),
+    )
+
+    assert response.status_code == 200
+    submission_id = response.json()["submissions"][0]["submission_id"]
+    manifest = json.loads((tmp_path / "01_raw" / "submissions" / submission_id / "submission_manifest.json").read_text(encoding="utf-8"))
+    assert manifest["omitted_files"] == [{"relative_path": "Synthetic.gdb/_gdb.1234.sr.lock", "reason": "transient_file_omitted"}]
+
+
+def test_directory_upload_rejects_transient_file_with_safe_detail(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("UTILITY_DATA_ROOT", str(tmp_path))
+    entries = {"Synthetic.gdb/gdb": b"system", "Synthetic.gdb/_gdb.1234.sr.lock": b"lock"}
+
+    response = client.post(
+        "/api/intake/submissions/directory",
+        data={**metadata(), "relative_paths": list(entries)},
+        files=directory_files(entries),
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "directory_transient_file"
+    assert response.json()["detail"]["safe_item"] == "_gdb.1234.sr.lock"
+    assert "C:\\" not in response.text
+    assert not list((tmp_path / "temp" / "uploads").glob("*"))
+    assert not list((tmp_path / "01_raw" / "submissions").glob("*"))
+
+
+def test_invalid_file_gdb_structure_returns_exact_safe_error(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("UTILITY_DATA_ROOT", str(tmp_path))
+    entries = {"Synthetic.gdb/timestamps": b"not-enough"}
+
+    response = client.post(
+        "/api/intake/submissions/directory",
+        data={**metadata(), "relative_paths": list(entries)},
+        files=directory_files(entries),
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "file_gdb_structure_invalid"
+    assert response.json()["detail"]["message"] == "Selected folder does not contain recognizable FileGDB system files."
+    assert response.json()["detail"]["request_id"]
+    assert not list((tmp_path / "temp" / "uploads").glob("*"))
+    assert not list((tmp_path / "01_raw" / "submissions").glob("*"))
+
+
+def test_raw_registration_survives_optional_source_inspection_failure(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("UTILITY_DATA_ROOT", str(tmp_path))
+    entries = {"Synthetic.gdb/gdb": b"system", "Synthetic.gdb/a00000001.gdbtable": b"table"}
+    response = client.post(
+        "/api/intake/submissions/directory",
+        data={**metadata(), "run_inventory_after_upload": "true", "relative_paths": list(entries)},
+        files=directory_files(entries),
+    )
+    submission_id = response.json()["submissions"][0]["submission_id"]
+
+    from app.api import routes
+
+    monkeypatch.setattr(routes.source_inspection, "inspect_submission", lambda _submission_id: (_ for _ in ()).throw(routes.UploadValidationError("Synthetic inspection failure.")))
+    inspection = client.post(f"/api/intake/submissions/{submission_id}/inspect")
+    detail = client.get(f"/api/intake/submissions/{submission_id}")
+
+    assert response.status_code == 200
+    assert inspection.status_code == 422
+    assert detail.json()["current_status"] == "registered_raw"
+    assert (tmp_path / "01_raw" / "submissions" / submission_id / "original" / "Synthetic.gdb").is_dir()
