@@ -73,6 +73,7 @@ def initialize(connection: sqlite3.Connection) -> None:
             inventory_completed_at TEXT,
             error_category TEXT,
             safe_error_message TEXT,
+            is_test_data INTEGER NOT NULL DEFAULT 0,
             notes TEXT
         );
         CREATE INDEX IF NOT EXISTS idx_intake_submissions_sha256 ON intake_submissions(sha256);
@@ -102,6 +103,9 @@ def initialize(connection: sqlite3.Connection) -> None:
         );
         """
     )
+    columns = {row[1] for row in connection.execute("PRAGMA table_info(intake_submissions)")}
+    if "is_test_data" not in columns:
+        connection.execute("ALTER TABLE intake_submissions ADD COLUMN is_test_data INTEGER NOT NULL DEFAULT 0")
     connection.commit()
 
 

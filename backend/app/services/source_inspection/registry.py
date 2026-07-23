@@ -157,6 +157,20 @@ def initialize(connection: sqlite3.Connection) -> None:
             created_at TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS inspection_runs (
+            inspection_run_id TEXT PRIMARY KEY,
+            submission_id TEXT NOT NULL,
+            status TEXT NOT NULL,
+            safe_error_code TEXT,
+            safe_message TEXT,
+            started_at TEXT NOT NULL,
+            completed_at TEXT NOT NULL,
+            retryable INTEGER NOT NULL DEFAULT 0,
+            child_layer_count INTEGER NOT NULL DEFAULT 0,
+            table_count INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE INDEX IF NOT EXISTS idx_inspection_runs_submission ON inspection_runs(submission_id, started_at);
+
         CREATE TABLE IF NOT EXISTS duplicate_groups (
             duplicate_group_id TEXT PRIMARY KEY,
             submission_id TEXT NOT NULL,
@@ -263,6 +277,54 @@ def save_inspection(
         connection.commit()
 
 
+def record_run(
+    root: Path,
+    *,
+    run_id: str,
+    submission_id: str,
+    status: str,
+    started_at: str,
+    completed_at: str,
+    safe_error_code: str = "",
+    safe_message: str = "",
+    retryable: bool = False,
+    child_layer_count: int = 0,
+    table_count: int = 0,
+) -> None:
+    with connect(root) as connection:
+        connection.execute(
+            """
+            INSERT OR IGNORE INTO inspection_runs (
+                inspection_run_id, submission_id, status, safe_error_code, safe_message,
+                started_at, completed_at, retryable, child_layer_count, table_count
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (run_id, submission_id, status, safe_error_code, safe_message, started_at, completed_at, int(retryable), child_layer_count, table_count),
+        )
+        connection.commit()
+
+
+def archive_current_run(root: Path, submission_id: str) -> None:
+    with connect(root) as connection:
+        row = connection.execute("SELECT * FROM inspection_containers WHERE submission_id = ?", (submission_id,)).fetchone()
+    if not row or not row["inspection_run_id"]:
+        return
+    blockers = loads(row["blockers_json"], [])
+    record_run(
+        root,
+        run_id=str(row["inspection_run_id"]),
+        submission_id=submission_id,
+        status=str(row["inspection_status"]),
+        started_at=str(row["inspected_at"]),
+        completed_at=str(row["inspected_at"]),
+        safe_error_code="arcpy_required" if blockers else "",
+        safe_message=str(blockers[0]) if blockers else "Inspection completed.",
+        retryable=bool(blockers),
+        child_layer_count=int(row["child_layer_count"] or 0),
+        table_count=int(row["table_count"] or 0),
+    )
+
+
 def upsert_layer(connection: sqlite3.Connection, layer: SourceLayer) -> None:
     existing = connection.execute("SELECT latest_review_status, latest_reviewer, staging_status FROM inspected_layers WHERE layer_id = ?", (layer.layer_id,)).fetchone()
     if existing:
@@ -367,7 +429,29 @@ def insert_staging_item(connection: sqlite3.Connection, item: StagingPlanItem) -
 def inspection_status(root: Path, submission_id: str) -> dict[str, Any] | None:
     with connect(root) as connection:
         row = connection.execute("SELECT * FROM inspection_containers WHERE submission_id = ?", (submission_id,)).fetchone()
-    return safe_container(dict(row)) if row else None
+        if not row:
+            return None
+        counts = connection.execute(
+            """
+            SELECT
+                COALESCE(SUM(CASE WHEN object_type = 'feature_class' THEN record_count ELSE 0 END), 0) AS spatial_records,
+                COALESCE(SUM(CASE WHEN object_type = 'table' THEN record_count ELSE 0 END), 0) AS table_rows,
+                COALESCE(SUM(CASE WHEN record_count IS NULL THEN 1 ELSE 0 END), 0) AS unknown_record_counts,
+                COALESCE(SUM(CASE WHEN coordinate_status NOT IN ('coordinate_ready', 'mixed_source_spatial_references') THEN 1 ELSE 0 END), 0) AS coordinate_issues,
+                COALESCE(SUM(CASE WHEN routing_state != 'ready_for_classification_review' THEN 1 ELSE 0 END), 0) AS needs_review
+            FROM inspected_layers WHERE submission_id = ?
+            """,
+            (submission_id,),
+        ).fetchone()
+        latest_run = connection.execute(
+            "SELECT * FROM inspection_runs WHERE submission_id = ? ORDER BY started_at DESC LIMIT 1",
+            (submission_id,),
+        ).fetchone()
+    payload = safe_container(dict(row))
+    payload.update(dict(counts))
+    if latest_run:
+        payload["latest_run"] = safe_run(dict(latest_run))
+    return payload
 
 
 def list_layers(root: Path, submission_id: str, **filters: Any) -> tuple[list[dict[str, Any]], int]:
@@ -715,6 +799,11 @@ def safe_staging_item(row: dict[str, Any]) -> dict[str, Any]:
 def safe_review(row: dict[str, Any]) -> dict[str, Any]:
     row["data_owner_confirmation_required"] = bool(row.get("data_owner_confirmation_required"))
     row["engineering_review_required"] = bool(row.get("engineering_review_required"))
+    return row
+
+
+def safe_run(row: dict[str, Any]) -> dict[str, Any]:
+    row["retryable"] = bool(row.get("retryable"))
     return row
 
 

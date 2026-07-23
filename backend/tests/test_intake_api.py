@@ -127,6 +127,30 @@ def test_stage_browser_routes_return_safe_raw_items(tmp_path: Path, monkeypatch)
     assert "C:\\" not in items.text
 
 
+def test_raw_counts_exclude_duplicate_attempts_and_test_submissions(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("UTILITY_DATA_ROOT", str(tmp_path))
+    package = shapefile_package()
+    first = client.post("/api/intake/submissions", data=metadata(), files=[("files", ("Gravity.zip", package, "application/zip"))])
+    duplicate = client.post("/api/intake/submissions", data=metadata(), files=[("files", ("Gravity Copy.zip", package, "application/zip"))])
+    first_id = first.json()["submissions"][0]["submission_id"]
+
+    initial = client.get("/api/data-sources/stages").json()
+    assert initial["counts"]["raw"] == 1
+    assert initial["activity_counts"]["duplicate_attempts"] == 1
+
+    from app.services import intake_registry_service
+
+    intake_registry_service.update_submission(tmp_path, first_id, is_test_data=1)
+    marked = client.get("/api/data-sources/stages").json()
+    items = client.get("/api/data-sources/items?stage=raw").json()["items"]
+
+    assert marked["counts"]["raw"] == 0
+    assert marked["activity_counts"]["test_submissions"] == 1
+    assert any(item["is_test_data"] for item in items if item.get("submission_id") == first_id)
+    assert any(item["raw_registered"] is False for item in items if item["status"] == "duplicate_detected")
+    assert "pending inspection" in next(item["record_label"].lower() for item in items if item.get("submission_id") == first_id)
+
+
 def directory_files(entries: dict[str, bytes]) -> list[tuple[str, tuple[str, bytes, str]]]:
     return [("files", (Path(name).name, content, "application/octet-stream")) for name, content in entries.items()]
 

@@ -42,6 +42,8 @@ def main() -> int:
             make_verify_script(temp_root),
             {"SMOKE_SOURCE_GDB": str(source_gdb), "SMOKE_RAW_GDB": upload_result["raw_gdb"]},
         )
+        inspection_result = inspect_existing_submission(upload_result["submission_id"], data_root)
+        upload_result.update(inspection_result)
         print(json.dumps(upload_result, indent=2))
         print("ArcPy synthetic directory upload smoke passed.")
         return 0
@@ -152,6 +154,17 @@ print(f"ArcPy smoke verified source_count={source_count} raw_count={raw_count}")
         encoding="utf-8",
     )
     return path
+
+
+def inspect_existing_submission(submission_id: str, data_root: Path) -> dict[str, str]:
+    os.environ["UTILITY_DATA_ROOT"] = str(data_root)
+    from app.services.source_inspection import registry, runner
+
+    result = runner.inspect_submission(submission_id, actor="automated-smoke-test")
+    layers = registry.all_layers(data_root, submission_id)
+    if result["inspection_status"] != "complete" or len(layers) != 1 or layers[0]["record_count"] != 2:
+        raise SystemExit(f"inspection mismatch: {result} layers={len(layers)}")
+    return {"inspection_status": str(result["inspection_status"]), "inspected_child_layers": str(len(layers))}
 
 
 if __name__ == "__main__":

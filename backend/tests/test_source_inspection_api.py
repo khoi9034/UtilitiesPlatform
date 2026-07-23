@@ -1,4 +1,7 @@
 import io
+import json
+import sqlite3
+import subprocess
 import zipfile
 from pathlib import Path
 
@@ -93,3 +96,45 @@ def test_layer_review_and_staging_gates(tmp_path: Path, monkeypatch) -> None:
     assert approval.status_code == 200
     assert approval.json()["approved_for_staging"] is False
     assert "coordinate review" in approval.json()["blocker"]
+
+
+def test_real_file_gdb_retry_uses_existing_submission_and_versions_failures(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("UTILITY_DATA_ROOT", str(tmp_path))
+    entries = {
+        "Synthetic.gdb/gdb": b"system",
+        "Synthetic.gdb/a00000001.gdbtable": b"table",
+        "Synthetic.gdb/a00000001.gdbtablx": b"index",
+    }
+    upload = client.post(
+        "/api/intake/submissions/directory",
+        data={**metadata(), "relative_paths": list(entries)},
+        files=[("files", (Path(name).name, content, "application/octet-stream")) for name, content in entries.items()],
+    )
+    submission_id = upload.json()["submissions"][0]["submission_id"]
+
+    from app.services.source_inspection import runner
+
+    payload = {
+        "status": "blocked",
+        "safe_error_code": "arcpy_license_unavailable",
+        "safe_message": "ArcGIS Pro licensing is not initialized for the inspection worker.",
+        "retryable": True,
+    }
+    monkeypatch.setattr(
+        runner.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(args=args, returncode=2, stdout=f"{runner.WORKER_RESULT_PREFIX}{json.dumps(payload)}\n", stderr="not exposed"),
+    )
+
+    first = client.post(f"/api/intake/submissions/{submission_id}/inspect")
+    second = client.post(f"/api/intake/submissions/{submission_id}/inspect")
+    detail = client.get(f"/api/intake/submissions/{submission_id}").json()
+
+    assert first.status_code == second.status_code == 200
+    assert detail["current_status"] == "inspection_blocked"
+    assert detail["raw_registered_at"]
+    assert detail["error_category"] == "arcpy_license_unavailable"
+    assert (tmp_path / "01_raw" / "submissions" / submission_id / "original" / "Synthetic.gdb").is_dir()
+    with sqlite3.connect(tmp_path / "00_admin" / "intake" / "utility_intake.sqlite") as connection:
+        assert connection.execute("SELECT COUNT(*) FROM inspection_runs WHERE submission_id = ?", (submission_id,)).fetchone()[0] == 2
+        assert connection.execute("SELECT COUNT(*) FROM inspected_layers WHERE submission_id = ?", (submission_id,)).fetchone()[0] == 0

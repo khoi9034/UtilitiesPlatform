@@ -670,6 +670,7 @@ def safe_submission(submission_id: str, *, row: dict[str, Any] | None = None) ->
         "inventory_completed_at": row.get("inventory_completed_at", ""),
         "error_category": row.get("error_category", ""),
         "safe_error_message": row.get("safe_error_message", ""),
+        "is_test_data": bool(row.get("is_test_data")),
         "files": files,
         "lineage": ["Selected package", "Validated upload", "Raw registered source"] if row.get("current_status") != "duplicate_detected" else ["Selected package", "Duplicate detected"],
         "blockers": ["Duplicate requires explicit version registration"] if row.get("current_status") == "duplicate_detected" else [],

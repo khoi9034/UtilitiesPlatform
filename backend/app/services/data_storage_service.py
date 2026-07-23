@@ -360,13 +360,14 @@ def build_stage_manifest(write: bool = True) -> dict[str, object]:
     inventory_rows = read_inventory_layers()
     export_rows = read_export_registry()
     raw_items = raw_stage_items(paths, catalog_rows)
+    operational_raw_items = [item for item in raw_items if item.get("raw_registered") and not item.get("is_test_data")]
     staging_items = staging_stage_items(catalog_rows, inventory_rows)
     standardized_items = primary_stage_items(catalog_rows, "standardized")
     curated_items = primary_stage_items(catalog_rows, "curated")
     export_items = export_stage_items(export_rows)
     items = raw_items + staging_items + standardized_items + curated_items + export_items
     stages = [
-        stage_summary("raw", raw_items, "Immutable source packages registered for inventory and staging review."),
+        stage_summary("raw", operational_raw_items, "Immutable source packages and registered source layers."),
         stage_summary("staging", staging_items, "Temporary imported or converted working layers."),
         stage_summary("standardized", standardized_items, "Schema-normalized working data awaiting approved mappings."),
         stage_summary("curated", curated_items, "Approved analysis-ready utility layers."),
@@ -377,6 +378,16 @@ def build_stage_manifest(write: bool = True) -> dict[str, object]:
         "stages": stages,
         "items": items,
         "counts": {str(stage["stage"]): stage["item_count"] for stage in stages},
+        "activity_counts": {
+            "raw_registered_sources": len(operational_raw_items),
+            "uploaded_packages": sum(item.get("item_type") == "source_package" for item in operational_raw_items),
+            "inspected_layers": sum(int(item.get("child_layer_count") or 0) for item in operational_raw_items),
+            "needs_classification_review": sum(int(item.get("needs_review_count") or 0) for item in operational_raw_items),
+            "duplicate_attempts": sum(item.get("status") == "duplicate_detected" for item in raw_items),
+            "inspection_failures": sum(item.get("status") == "inspection_blocked" and not item.get("is_test_data") for item in raw_items),
+            "test_submissions": sum(bool(item.get("is_test_data")) for item in raw_items),
+            "staging_items": len(staging_items),
+        },
         "message": "Stage manifest generated from safe catalog, intake registry, inventory, and export metadata.",
     }
     if write:
@@ -498,6 +509,11 @@ def export_stage_items(export_rows: list[dict[str, str]]) -> list[dict[str, obje
 
 
 def submission_stage_item(row: dict[str, Any]) -> dict[str, object]:
+    from app.services.source_inspection import registry as source_inspection_registry
+
+    inspection = source_inspection_registry.inspection_status(get_storage_paths().root, str(row.get("submission_id", ""))) or {}
+    raw_registered = bool(row.get("raw_registered_at")) and row.get("current_status") != "duplicate_detected"
+    inspection_complete = row.get("current_status") == "inspection_complete"
     return {
         "item_id": f"submission:{row.get('submission_id')}",
         "submission_id": row.get("submission_id", ""),
@@ -508,15 +524,27 @@ def submission_stage_item(row: dict[str, Any]) -> dict[str, object]:
         "asset_category": "pending_inventory",
         "asset_subcategory": "pending_inventory",
         "source_format": row.get("source_format", ""),
-        "geometry_type": "pending_inventory",
-        "coordinate_system": "pending_inventory",
-        "record_count": "pending_inventory",
+        "geometry_type": "container",
+        "coordinate_system": "multiple_or_pending",
+        "record_count": inspection.get("spatial_records") if inspection_complete and not inspection.get("unknown_record_counts") else None,
+        "record_label": package_record_label(inspection, inspection_complete),
         "sensitivity_level": row.get("sensitivity_level", ""),
         "status": row.get("current_status", ""),
         "inventory_status": row.get("inventory_status", ""),
         "classification_status": row.get("classification_status", ""),
         "staging_status": row.get("staging_status", ""),
         "qa_state": "not_started",
+        "item_type": "source_package" if raw_registered else "intake_attempt",
+        "raw_registered": raw_registered,
+        "is_test_data": bool(row.get("is_test_data")),
+        "inspection_status": inspection.get("inspection_status", "not_started"),
+        "child_layer_count": inspection.get("child_layer_count", 0),
+        "table_count": inspection.get("table_count", 0),
+        "spatial_record_count": inspection.get("spatial_records", 0),
+        "table_row_count": inspection.get("table_rows", 0),
+        "needs_review_count": inspection.get("needs_review", 0),
+        "coordinate_issue_count": inspection.get("coordinate_issues", 0),
+        "duplicate_of_submission_id": row.get("duplicate_of_submission_id", ""),
         "next_required_action": next_action_for_submission(row),
         "lineage": ["Uploaded package", "Raw registered source"] if row.get("current_status") != "duplicate_detected" else ["Uploaded package", "Duplicate detected before Raw registration"],
         "trust_state": trust_state("raw", row),
@@ -544,11 +572,22 @@ def catalog_stage_item(row: dict[str, str], stage: str) -> dict[str, object]:
         "classification_status": "complete" if row.get("asset_category") else "pending_inventory",
         "staging_status": "approved" if stage == "staging" else "not_applicable",
         "qa_state": "evaluated" if row.get("current_stage") == "qa_evaluated" else "not_started",
+        "item_type": "registered_layer",
+        "raw_registered": stage == "raw",
+        "is_test_data": False,
         "next_required_action": "Continue human review before standardization." if stage == "staging" else "Follow stage gate requirements.",
         "lineage": ["Registered dataset", f"{stage.title()} stage metadata"],
         "trust_state": trust_state(stage),
         "blockers": [],
     }
+
+
+def package_record_label(inspection: dict[str, Any], complete: bool) -> str:
+    if not complete:
+        return "Layer and record counts pending inspection"
+    if inspection.get("unknown_record_counts"):
+        return f"{inspection.get('child_layer_count', 0)} child layers; record totals unavailable"
+    return f"{inspection.get('spatial_records', 0)} spatial records; {inspection.get('table_rows', 0)} table rows"
 
 
 def inventory_stage_item(row: dict[str, str]) -> dict[str, object]:
@@ -610,11 +649,15 @@ def trust_state(stage: str, row: dict[str, Any] | None = None) -> dict[str, str]
 def next_action_for_submission(row: dict[str, Any]) -> str:
     if row.get("current_status") == "duplicate_detected":
         return "Cancel the duplicate or register it as a new version explicitly."
-    if row.get("inventory_status") == "not_started":
-        return "Run inventory when ready; staging still requires human approval."
-    if row.get("inventory_status") == "complete":
-        return "Review classification and staging recommendation."
-    return "Resolve validation or inventory blockers."
+    if row.get("current_status") == "inspection_running":
+        return "Source inspection is running against the controlled inspection copy."
+    if row.get("current_status") == "inspection_blocked":
+        return "Retry source inspection after resolving the recorded blocker."
+    if row.get("current_status") == "inspection_complete":
+        return "Review child-layer classifications; no layer is approved for staging."
+    if row.get("raw_registered_at"):
+        return "Run source inspection; staging still requires human approval."
+    return "Review the intake attempt and its safe error details."
 
 
 def normalize_taxonomy(row: dict[str, str]) -> dict[str, str]:

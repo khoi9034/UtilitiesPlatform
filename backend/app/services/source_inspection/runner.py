@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
+import re
+import subprocess
 import uuid
 from pathlib import Path
 from typing import Any
@@ -12,10 +15,31 @@ from app.services.source_inspection.base import InspectionContext
 from app.services.source_inspection.models import SourceContainer
 from app.services.source_inspection.normalization import apply_coordinate_status, classify_layers, create_plan_items, detect_duplicate_groups, utc_now
 from app.services.source_inspection import registry as inspection_registry
+from app.services.source_inspection.file_gdb_inspector import arcpy_available, requires_arcpy
 from app.services.upload_validation_service import UploadValidationError
+
+ARCGIS_PRO_PYTHON = Path(r"C:\Program Files\ArcGIS\Pro\bin\Python\envs\arcgispro-py3\python.exe")
+WORKER_RESULT_PREFIX = "UTILITY_INSPECTION_RESULT="
+SUBMISSION_ID_PATTERN = re.compile(r"^UPL-\d{8}-[A-F0-9]{8}$")
 
 
 def inspect_submission(submission_id: str, *, actor: str = "") -> dict[str, object]:
+    paths = storage.get_storage_paths()
+    submission = intake_registry.get_submission(paths.root, submission_id)
+    if not submission:
+        raise KeyError("Submission not found.")
+    inspection_dir = paths.raw_submissions / submission_id / "inspection"
+    if (
+        submission.get("source_format") == "file_geodatabase"
+        and not os.environ.get("UTILITY_INSPECTION_ARCGIS_WORKER")
+        and not arcpy_available()
+        and requires_arcpy(inspection_dir)
+    ):
+        return inspect_with_arcgis_pro(submission_id, actor=actor)
+    return _inspect_submission_in_process(submission_id, actor=actor)
+
+
+def _inspect_submission_in_process(submission_id: str, *, actor: str = "") -> dict[str, object]:
     paths = storage.get_storage_paths()
     intake_registry.ensure_intake_storage(paths.root)
     submission = intake_registry.get_submission(paths.root, submission_id)
@@ -31,17 +55,18 @@ def inspect_submission(submission_id: str, *, actor: str = "") -> dict[str, obje
     run_id = str(uuid.uuid4())
     inspected_at = utc_now()
     previous = str(submission.get("current_status", ""))
-    intake_registry.update_submission(paths.root, submission_id, current_status="inspection_running", inventory_status="running")
-    intake_registry.add_event(
-        paths.root,
-        event_id=str(uuid.uuid4()),
-        submission_id=submission_id,
-        event_type="source_inspection_started",
-        previous_status=previous,
-        new_status="inspection_running",
-        message="Child-layer source inspection started against the inspection copy only.",
-        actor=actor,
-    )
+    if not os.environ.get("UTILITY_INSPECTION_PARENT_STARTED"):
+        intake_registry.update_submission(paths.root, submission_id, current_status="inspection_running", inventory_status="running")
+        intake_registry.add_event(
+            paths.root,
+            event_id=str(uuid.uuid4()),
+            submission_id=submission_id,
+            event_type="source_inspection_started",
+            previous_status=previous,
+            new_status="inspection_running",
+            message="Child-layer source inspection started against the inspection copy only.",
+            actor=actor,
+        )
 
     inspector = inspector_registry.inspector_for(str(submission.get("source_format", "")))
     if not inspector:
@@ -58,6 +83,19 @@ def inspect_submission(submission_id: str, *, actor: str = "") -> dict[str, obje
     report = safe_report(container, layers, candidates_by_layer, duplicate_groups, staging_items)
     (reports_dir / "source_inspection_report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     status = "inspection_complete" if container.inspection_status != "blocked" else "inspection_blocked"
+    inspection_registry.record_run(
+        paths.root,
+        run_id=run_id,
+        submission_id=submission_id,
+        status=container.inspection_status,
+        started_at=inspected_at,
+        completed_at=utc_now(),
+        safe_error_code="inspection_blocked" if container.blockers else "",
+        safe_message=container.blockers[0] if container.blockers else "Inspection completed.",
+        retryable=bool(container.blockers),
+        child_layer_count=container.child_layer_count,
+        table_count=container.table_count,
+    )
     intake_registry.update_submission(
         paths.root,
         submission_id,
@@ -66,6 +104,8 @@ def inspect_submission(submission_id: str, *, actor: str = "") -> dict[str, obje
         classification_status="review_required",
         staging_status="not_approved",
         inventory_completed_at=inspected_at,
+        error_category="" if status == "inspection_complete" else "inspection_blocked",
+        safe_error_message="" if status == "inspection_complete" else (container.blockers[0] if container.blockers else "Inspection is blocked."),
     )
     intake_registry.add_event(
         paths.root,
@@ -88,7 +128,118 @@ def inspect_submission(submission_id: str, *, actor: str = "") -> dict[str, obje
         "staging_plan_item_count": len(staging_items),
         "warnings": container.warnings,
         "blockers": container.blockers,
-        "message": "Inspection completed. Human review is required before staging.",
+        "message": "Inspection completed. Human review is required before staging." if status == "inspection_complete" else "Inspection remains blocked; Raw registration was preserved.",
+    }
+
+
+def inspect_with_arcgis_pro(submission_id: str, *, actor: str = "") -> dict[str, object]:
+    if not SUBMISSION_ID_PATTERN.fullmatch(submission_id):
+        raise UploadValidationError("Invalid submission identifier.")
+    paths = storage.get_storage_paths()
+    submission = intake_registry.get_submission(paths.root, submission_id)
+    if not submission:
+        raise KeyError("Submission not found.")
+
+    inspection_registry.archive_current_run(paths.root, submission_id)
+    run_id = str(uuid.uuid4())
+    started_at = utc_now()
+    previous = str(submission.get("current_status", ""))
+    intake_registry.update_submission(paths.root, submission_id, current_status="inspection_running", inventory_status="running")
+    intake_registry.add_event(
+        paths.root,
+        event_id=str(uuid.uuid4()),
+        submission_id=submission_id,
+        event_type="source_inspection_started",
+        previous_status=previous,
+        new_status="inspection_running",
+        message="Controlled ArcGIS Pro child-layer inspection started against the inspection copy only.",
+        actor=actor,
+    )
+
+    worker = Path(__file__).with_name("arcgis_worker.py")
+    if not ARCGIS_PRO_PYTHON.is_file() or not worker.is_file():
+        return record_worker_failure(paths.root, submission_id, run_id, started_at, "arcgis_worker_unavailable", "The verified ArcGIS Pro inspection worker is unavailable.")
+    env = os.environ.copy()
+    env["UTILITY_INSPECTION_PARENT_STARTED"] = "1"
+    try:
+        completed = subprocess.run(
+            [str(ARCGIS_PRO_PYTHON), str(worker), "--submission-id", submission_id],
+            cwd=str(Path(__file__).resolve().parents[4]),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=300,
+            check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+    except subprocess.TimeoutExpired:
+        return record_worker_failure(paths.root, submission_id, run_id, started_at, "arcgis_inspection_timeout", "ArcGIS Pro inspection exceeded the five-minute safety timeout.")
+
+    payload = parse_worker_result(completed.stdout)
+    if completed.returncode == 0 and isinstance(payload.get("result"), dict):
+        return dict(payload["result"])
+    return record_worker_failure(
+        paths.root,
+        submission_id,
+        run_id,
+        started_at,
+        str(payload.get("safe_error_code") or "arcgis_worker_failed"),
+        str(payload.get("safe_message") or "ArcGIS Pro inspection failed safely."),
+    )
+
+
+def parse_worker_result(stdout: str) -> dict[str, object]:
+    for line in reversed(stdout.splitlines()):
+        if line.startswith(WORKER_RESULT_PREFIX):
+            try:
+                value = json.loads(line.removeprefix(WORKER_RESULT_PREFIX))
+                return value if isinstance(value, dict) else {}
+            except json.JSONDecodeError:
+                return {}
+    return {}
+
+
+def record_worker_failure(root: Path, submission_id: str, run_id: str, started_at: str, code: str, message: str) -> dict[str, object]:
+    completed_at = utc_now()
+    inspection_registry.record_run(
+        root,
+        run_id=run_id,
+        submission_id=submission_id,
+        status="blocked",
+        started_at=started_at,
+        completed_at=completed_at,
+        safe_error_code=code,
+        safe_message=message,
+        retryable=True,
+    )
+    intake_registry.update_submission(
+        root,
+        submission_id,
+        current_status="inspection_blocked",
+        inventory_status="blocked",
+        inventory_completed_at=completed_at,
+        error_category=code,
+        safe_error_message=message,
+    )
+    intake_registry.add_event(
+        root,
+        event_id=str(uuid.uuid4()),
+        submission_id=submission_id,
+        event_type="source_inspection_failed",
+        previous_status="inspection_running",
+        new_status="inspection_blocked",
+        message=message,
+        actor="arcgis_pro_worker",
+    )
+    storage.build_stage_manifest()
+    return {
+        "submission_id": submission_id,
+        "inspection_status": "blocked",
+        "inspection_run_id": run_id,
+        "safe_error_code": code,
+        "safe_message": message,
+        "retryable": True,
+        "message": "Inspection is blocked; the existing Raw registration was preserved.",
     }
 
 

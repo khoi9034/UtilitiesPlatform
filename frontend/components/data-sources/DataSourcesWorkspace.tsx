@@ -16,6 +16,7 @@ const workflow = [
   ["Curated", "Approved analysis-ready data"],
   ["Export", "Controlled output packages"],
 ];
+type RawView = "all_raw" | "uploaded_packages" | "registered_layers" | "needs_attention" | "duplicates";
 
 export function DataSourcesWorkspace({ initialTab: _initialTab }: { initialTab?: string } = {}) {
   void _initialTab;
@@ -27,6 +28,9 @@ export function DataSourcesWorkspace({ initialTab: _initialTab }: { initialTab?:
   const [summary, setSummary] = useState<InventorySummary | null>(null);
   const [runs, setRuns] = useState<RunsResponse["runs"]>([]);
   const [selectedId, setSelectedId] = useState("");
+  const [rawView, setRawView] = useState<RawView>("all_raw");
+  const [showTestRecords, setShowTestRecords] = useState(false);
+  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<string[]>([]);
 
@@ -68,9 +72,28 @@ export function DataSourcesWorkspace({ initialTab: _initialTab }: { initialTab?:
     window.history.replaceState(null, "", url);
   }
 
-  const selectedItem = items.find((item) => item.item_id === selectedId) ?? items[0];
+  async function runInspection(item: DataSourceItem) {
+    const submissionId = String(item.submission_id ?? "");
+    if (!submissionId) return;
+    setMessage("Source inspection started against the existing inspection copy.");
+    try {
+      const result = await provider.startSourceInspection(submissionId);
+      setMessage(String(result.message ?? "Source inspection finished."));
+      await load();
+      setSelectedId(item.item_id);
+    } catch {
+      setMessage("Source inspection could not start. Raw registration remains intact.");
+    }
+  }
+
   const systems = useMemo(() => Array.from(new Set(items.map((item) => item.utility_system).filter(Boolean))).sort(), [items]);
   const stageRows = manifest?.stages ?? stages.map((stage) => ({ stage, label: label(stage), item_count: 0, description: "" }));
+  const activity = manifest?.activity_counts ?? {};
+  const visibleItems = useMemo(
+    () => activeStage === "raw" ? filterRawItems(items, rawView, showTestRecords) : items,
+    [activeStage, items, rawView, showTestRecords],
+  );
+  const visibleSelectedItem = visibleItems.find((item) => item.item_id === selectedId) ?? visibleItems[0];
   const allFailed = !loading && errors.length >= 5 && !manifest && !status && !summary;
 
   if (allFailed) {
@@ -86,13 +109,18 @@ export function DataSourcesWorkspace({ initialTab: _initialTab }: { initialTab?:
     <div className={ws.workspace}>
       <PageIntro />
       {errors.length ? <DegradedBanner errors={errors} onRetry={load} /> : null}
+      {message ? <div className={styles.degradedBanner} role="status"><span>{message}</span></div> : null}
       {loading && !manifest ? <LoadingSkeleton /> : null}
 
       <section className={ws.grid12}>
-        <div className={ws.span3}><MetricTile labelText="Raw sources" value={compactNumber(stageCount(stageRows, "raw"))} detail="Registered source packages." /></div>
-        <div className={ws.span3}><MetricTile labelText="Staging items" value={compactNumber(stageCount(stageRows, "staging"))} detail="Working layers and candidates." /></div>
-        <div className={ws.span3}><MetricTile labelText="Inventory layers" value={compactNumber(summary?.layer_count as string | number | undefined)} detail="From safe inventory reports." /></div>
-        <div className={ws.span3}><MetricTile labelText="Review required" value={compactNumber(summary?.review_required_layers as string | number | undefined)} detail="Not replaced by zeros when offline." /></div>
+        <div className={ws.span3}><MetricTile labelText="Raw registered sources" value={compactNumber(activity.raw_registered_sources ?? stageCount(stageRows, "raw"))} detail="Operational packages and registered layers." /></div>
+        <div className={ws.span3}><MetricTile labelText="Uploaded packages" value={compactNumber(activity.uploaded_packages)} detail="Raw packages with an immutable source copy." /></div>
+        <div className={ws.span3}><MetricTile labelText="Inspected layers" value={compactNumber(activity.inspected_layers)} detail="Child layers discovered in uploaded packages." /></div>
+        <div className={ws.span3}><MetricTile labelText="Needs classification review" value={compactNumber(activity.needs_classification_review)} detail="Inspection candidates awaiting a person." /></div>
+        <div className={ws.span3}><MetricTile labelText="Duplicate attempts" value={compactNumber(activity.duplicate_attempts)} detail="Audit attempts without another Raw copy." /></div>
+        <div className={ws.span3}><MetricTile labelText="Inspection failures" value={compactNumber(activity.inspection_failures)} detail="Retryable blockers on operational sources." /></div>
+        <div className={ws.span3}><MetricTile labelText="Test submissions" value={compactNumber(activity.test_submissions)} detail="Hidden from the default operational view." /></div>
+        <div className={ws.span3}><MetricTile labelText="Staging items" value={compactNumber(activity.staging_items ?? stageCount(stageRows, "staging"))} detail="No uploaded child layer is staged automatically." /></div>
       </section>
 
       <Panel
@@ -129,9 +157,9 @@ export function DataSourcesWorkspace({ initialTab: _initialTab }: { initialTab?:
           </div>
         </Panel>
 
-        <StagePanel stage={activeStage} items={items} selectedId={selectedItem?.item_id ?? ""} onSelect={setSelectedId} />
+        <StagePanel stage={activeStage} items={visibleItems} selectedId={visibleSelectedItem?.item_id ?? ""} onSelect={setSelectedId} rawView={rawView} showTestRecords={showTestRecords} onRawView={setRawView} onShowTestRecords={setShowTestRecords} onInspect={runInspection} />
 
-        <Inspector item={selectedItem} status={status} runs={runs} />
+        <Inspector item={visibleSelectedItem} status={status} runs={runs} onInspect={runInspection} />
       </section>
     </div>
   );
@@ -157,7 +185,7 @@ function DegradedBanner({ errors, onRetry }: { errors: string[]; onRetry: () => 
   );
 }
 
-function StagePanel({ stage, items, selectedId, onSelect }: { stage: PrimaryDataStage; items: DataSourceItem[]; selectedId: string; onSelect: (id: string) => void }) {
+function StagePanel({ stage, items, selectedId, onSelect, rawView, showTestRecords, onRawView, onShowTestRecords, onInspect }: { stage: PrimaryDataStage; items: DataSourceItem[]; selectedId: string; onSelect: (id: string) => void; rawView: RawView; showTestRecords: boolean; onRawView: (view: RawView) => void; onShowTestRecords: (show: boolean) => void; onInspect: (item: DataSourceItem) => void }) {
   const emptyMessages = {
     raw: "No utility source packages have been registered in Raw yet.",
     staging: "No staging layers are available for the selected filter.",
@@ -171,22 +199,32 @@ function StagePanel({ stage, items, selectedId, onSelect }: { stage: PrimaryData
       description={stage === "raw" ? "Immutable source packages and web-uploaded submissions." : "Safe stage metadata only."}
       action={stage === "raw" ? <Link className={ws.button} href="/data-sources/upload">Upload Data</Link> : null}
     >
+      {stage === "raw" ? (
+        <div className={ws.buttonRow} aria-label="Raw source filters">
+          {(["all_raw", "uploaded_packages", "registered_layers", "needs_attention", "duplicates"] as RawView[]).map((view) => (
+            <button className={ws.button} aria-pressed={rawView === view} key={view} onClick={() => onRawView(view)}>{label(view)}</button>
+          ))}
+          <label><input type="checkbox" checked={showTestRecords} onChange={(event) => onShowTestRecords(event.target.checked)} /> Show Test Records</label>
+        </div>
+      ) : null}
       {items.length ? (
         <div className={ws.tableWrap}>
           <table className={ws.table}>
-            <thead><tr><th>Name</th><th>System</th><th>Network</th><th>Category</th><th>Format</th><th>Sensitivity</th><th>Records</th><th>Status</th><th>Next Action</th></tr></thead>
+            <thead><tr><th>Name</th><th>Type</th><th>System</th><th>Network</th><th>Category</th><th>Format</th><th>Sensitivity</th><th>Records</th><th>Status</th><th>Next Action</th><th>Action</th></tr></thead>
             <tbody>
               {items.map((item) => (
                 <tr key={item.item_id} className={selectedId === item.item_id ? styles.selectedRow : ""} onClick={() => onSelect(item.item_id)}>
                   <td><button className={styles.rowButton} onClick={() => onSelect(item.item_id)}>{item.name}</button></td>
+                  <td><StatusBadge value={item.is_test_data ? "test_data" : String(item.item_type ?? "registered_layer")} /></td>
                   <td>{label(item.utility_system)}</td>
                   <td>{label(item.network_group)}</td>
                   <td>{label(item.asset_category)}</td>
                   <td>{label(item.source_format)}</td>
                   <td><StatusBadge value={item.sensitivity_level} /></td>
-                  <td>{compactNumber(String(item.record_count ?? ""))}</td>
+                  <td>{recordDisplay(item)}</td>
                   <td><StageBadge value={item.status} /></td>
                   <td>{safeText(item.next_required_action)}</td>
+                  <td><ItemAction item={item} onInspect={onInspect} /></td>
                 </tr>
               ))}
             </tbody>
@@ -197,7 +235,7 @@ function StagePanel({ stage, items, selectedId, onSelect }: { stage: PrimaryData
   );
 }
 
-function Inspector({ item, status, runs }: { item?: DataSourceItem; status: StorageStatus | null; runs: RunsResponse["runs"] }) {
+function Inspector({ item, status, runs, onInspect }: { item?: DataSourceItem; status: StorageStatus | null; runs: RunsResponse["runs"]; onInspect: (item: DataSourceItem) => void }) {
   if (!item) {
     return (
       <Panel title="Inspector" description="Safe metadata only.">
@@ -214,7 +252,9 @@ function Inspector({ item, status, runs }: { item?: DataSourceItem; status: Stor
         <div><dt>Stage</dt><dd><StageBadge value={item.stage} /></dd></div>
         <div><dt>Format</dt><dd>{label(item.source_format)}</dd></div>
         <div><dt>Geometry</dt><dd>{label(String(item.geometry_type ?? ""))}</dd></div>
-        <div><dt>Records</dt><dd>{compactNumber(String(item.record_count ?? ""))}</dd></div>
+        <div><dt>Type</dt><dd><StatusBadge value={item.is_test_data ? "test_data" : String(item.item_type ?? "registered_layer")} /></dd></div>
+        <div><dt>Records</dt><dd>{recordDisplay(item)}</dd></div>
+        {item.item_type === "source_package" ? <div><dt>Package contents</dt><dd>{compactNumber(item.child_layer_count)} child layers; {compactNumber(item.table_count)} tables</dd></div> : null}
         <div><dt>Spatial reference</dt><dd>{safeText(item.coordinate_system)}</dd></div>
         <div><dt>Sensitivity</dt><dd><StatusBadge value={item.sensitivity_level} /></dd></div>
         <div><dt>Trust state</dt><dd>{Object.entries(trustState).map(([key, value]) => `${label(key)}: ${label(value)}`).join(" | ") || "Unavailable"}</dd></div>
@@ -224,12 +264,49 @@ function Inspector({ item, status, runs }: { item?: DataSourceItem; status: Stor
         <div><dt>Storage</dt><dd>{isDemoMode ? "Portfolio demo snapshot" : status?.master_root_available ? "Local storage connected" : "Local storage unavailable"}</dd></div>
         <div><dt>Recent processing</dt><dd>{runs[0] ? `${safeText(runs[0].process_name)} (${shortDate(runs[0].completed_at)})` : "No safe run history available"}</dd></div>
       </dl>
+      <div className={ws.buttonRow}><ItemAction item={item} onInspect={onInspect} /><ItemEventsLink item={item} /></div>
     </Panel>
   );
 }
 
+function ItemAction({ item, onInspect }: { item: DataSourceItem; onInspect: (item: DataSourceItem) => void }) {
+  const submissionId = String(item.submission_id ?? "");
+  if (!submissionId) return <span className={styles.muted}>Select layer</span>;
+  if (item.status === "duplicate_detected") {
+    const prior = String(item.duplicate_of_submission_id ?? "");
+    return <><Link className={ws.button} href={`/data-sources/submission?id=${encodeURIComponent(prior)}`}>View Prior Submission</Link><Link className={ws.button} href="/data-sources/upload?mode=new-version">Register as New Version</Link></>;
+  }
+  if (item.raw_registered === false) return <Link className={ws.button} href={`/data-sources/submission?id=${encodeURIComponent(submissionId)}&tab=Events`}>View Intake Event</Link>;
+  if (item.status === "inspection_blocked") return <button className={ws.button} onClick={(event) => { event.stopPropagation(); void onInspect(item); }}>Retry Inspection</button>;
+  if (item.status === "inspection_complete") return <Link className={ws.button} href={`/data-sources/submission?id=${encodeURIComponent(submissionId)}&tab=Layers`}>Review Child Layers</Link>;
+  if (item.status === "inspection_running") return <span className={styles.muted}>Inspection running</span>;
+  return <button className={ws.button} onClick={(event) => { event.stopPropagation(); void onInspect(item); }}>Run Source Inspection</button>;
+}
+
+function ItemEventsLink({ item }: { item: DataSourceItem }) {
+  const submissionId = String(item.submission_id ?? "");
+  return submissionId ? <Link className={ws.button} href={`/data-sources/submission?id=${encodeURIComponent(submissionId)}&tab=Events`}>View Events</Link> : null;
+}
+
 function stageCount(rows: DataSourceStage[], stage: PrimaryDataStage) {
   return rows.find((row) => row.stage === stage)?.item_count ?? undefined;
+}
+
+export function filterRawItems(items: DataSourceItem[], view: RawView, showTestRecords: boolean) {
+  return items.filter((item) => {
+    if (item.is_test_data && !showTestRecords) return false;
+    const operational = item.raw_registered !== false && item.status !== "duplicate_detected" && item.item_type !== "intake_attempt";
+    if (view === "uploaded_packages") return operational && item.item_type === "source_package";
+    if (view === "registered_layers") return operational && item.item_type === "registered_layer";
+    if (view === "needs_attention") return item.status === "inspection_blocked" || item.status === "duplicate_detected" || !operational;
+    if (view === "duplicates") return item.status === "duplicate_detected";
+    return operational;
+  });
+}
+
+export function recordDisplay(item: DataSourceItem) {
+  if (item.item_type === "source_package") return String(item.record_label || "Layer and record counts pending inspection");
+  return compactNumber(String(item.record_count ?? ""));
 }
 
 function initialStage(): PrimaryDataStage {

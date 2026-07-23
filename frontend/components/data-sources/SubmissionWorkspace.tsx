@@ -24,7 +24,7 @@ export function SubmissionWorkspace() {
   const [selectedLayerId, setSelectedLayerId] = useState("");
   const [selectedLayer, setSelectedLayer] = useState<SubmissionLayer | null>(null);
   const [candidates, setCandidates] = useState<ClassificationCandidate[]>([]);
-  const [activeTab, setActiveTab] = useState<Tab>("Overview");
+  const [activeTab, setActiveTab] = useState<Tab>(() => initialTab());
   const [filters, setFilters] = useState<FilterState>({ utility_system: "", owner: "", confidence: "", routing_state: "", duplicate_status: "", coordinate_status: "", operational_role: "", lifecycle_representation: "", search: "" });
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -61,9 +61,9 @@ export function SubmissionWorkspace() {
   }
 
   async function runInspection() {
-    await provider.startSourceInspection(submissionId);
+    const result = await provider.startSourceInspection(submissionId);
     await load();
-    setMessage("Source inspection completed. Human approval is still required before staging.");
+    setMessage(String(result.message ?? "Source inspection finished. Human approval is still required before staging."));
   }
 
   async function approveLayer(layer: SubmissionLayer) {
@@ -229,7 +229,7 @@ function Overview({ submission, inspection, layers, duplicateGroups, stagingPlan
           <div><dt>Blockers</dt><dd>{listText(inspection?.blockers)}</dd></div>
         </dl>
         <div className={ws.buttonRow}>
-          <button className={`${ws.button} ${ws.buttonPrimary}`} onClick={onInspect}>Run Source Inspection</button>
+          <button className={`${ws.button} ${ws.buttonPrimary}`} onClick={onInspect}>{submission.current_status === "inspection_blocked" ? "Retry Inspection" : "Run Source Inspection"}</button>
           <Link className={ws.button} href="/data-sources?stage=raw">View Raw Stage</Link>
           <Link className={ws.button} href="/data-sources/upload">Upload Another Package</Link>
         </div>
@@ -451,6 +451,12 @@ function PageIntro() {
 function initialSubmissionId() {
   if (typeof window === "undefined") return "";
   return new URLSearchParams(window.location.search).get("id") ?? (isDemoMode ? "DEMO-UPL-20260720-A1B2C3D4" : "");
+}
+
+function initialTab(): Tab {
+  if (typeof window === "undefined") return "Overview";
+  const requested = new URLSearchParams(window.location.search).get("tab");
+  return tabs.includes(requested as Tab) ? requested as Tab : "Overview";
 }
 
 function matchesLayer(layer: SubmissionLayer, filters: FilterState) {

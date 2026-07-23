@@ -47,6 +47,25 @@ test.describe("enterprise shell", () => {
     await expect(page.getByRole("button", { name: "Complete required information" })).toBeDisabled();
   });
 
+  test("Raw browser separates packages, layers, duplicate attempts, and test records", async ({ page }) => {
+    await page.goto("/data-sources?stage=raw");
+    await expect(page.getByText("Raw registered sources")).toBeVisible();
+    await expect(page.getByRole("cell", { name: "103106 spatial records; 0 table rows" })).toBeVisible();
+    await expect(page.getByText("Synthetic Upload Workflow Check")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Registered Layers" }).click();
+    await page.getByRole("button", { name: "WSACC_Manholes26" }).click();
+    await expect(page.getByRole("definition").filter({ hasText: "WSACC_Manholes26" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Duplicates" }).click();
+    await expect(page.getByText("Duplicate Detected", { exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "View Prior Submission" })).toHaveCount(2);
+
+    await page.getByRole("button", { name: "All Raw" }).click();
+    await page.getByLabel("Show Test Records").check();
+    await expect(page.getByText("Synthetic Upload Workflow Check")).toBeVisible();
+  });
+
   test("upload failure displays structured backend detail", async ({ page, context }, testInfo) => {
     const gdbRoot = testInfo.outputPath("Synthetic_Error_Source.gdb");
     mkdirSync(gdbRoot, { recursive: true });

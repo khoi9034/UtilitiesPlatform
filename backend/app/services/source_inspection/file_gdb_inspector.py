@@ -70,8 +70,14 @@ def arcpy_available() -> bool:
         import arcpy  # type: ignore  # noqa: F401
 
         return True
-    except ImportError:
+    except Exception:
         return False
+
+
+def requires_arcpy(root: Path) -> bool:
+    """Return true when a real FileGDB has no safe fallback layer manifests."""
+    gdb = find_gdb(root)
+    return bool(gdb) and not any(not is_esri_internal_file(path) for path in gdb.rglob("*") if path.is_file())
 
 
 def find_gdb(root: Path) -> Path | None:

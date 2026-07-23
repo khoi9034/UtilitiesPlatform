@@ -102,8 +102,16 @@ export type DataSourceItem = Record<string, unknown> & {
   classification_status: string;
   staging_status: string;
   next_required_action: string;
+  item_type?: "source_package" | "registered_layer" | "intake_attempt" | "container" | "derived_artifact";
+  raw_registered?: boolean;
+  is_test_data?: boolean;
+  inspection_status?: string;
+  child_layer_count?: number;
+  table_count?: number;
+  record_label?: string;
+  duplicate_of_submission_id?: string;
 };
-export type StageManifest = { generated_at: string; stages: DataSourceStage[]; items: DataSourceItem[]; counts: Record<PrimaryDataStage, number>; message: string };
+export type StageManifest = { generated_at: string; stages: DataSourceStage[]; items: DataSourceItem[]; counts: Record<PrimaryDataStage, number>; activity_counts?: Record<string, number>; message: string };
 export type DataSourceItemsResponse = { items: DataSourceItem[]; pagination: Pagination };
 export type Pagination = { total: number; limit: number; offset: number; has_more: boolean };
 
