@@ -93,9 +93,18 @@ def test_layer_review_and_staging_gates(tmp_path: Path, monkeypatch) -> None:
 
     assert bad_review.status_code == 422
     assert good_review.status_code == 200
+    assert good_review.json()["classification_status"] == "classification_approved"
     assert approval.status_code == 200
     assert approval.json()["approved_for_staging"] is False
     assert "coordinate review" in approval.json()["blocker"]
+
+    excluded = client.patch(
+        f"/api/intake/submissions/{submission_id}/layers/{layer_id}/review",
+        json={"classification_decision": "excluded", "workflow_status": "decision_recorded", "reviewer": "tester"},
+    )
+    assert excluded.status_code == 200
+    assert excluded.json()["classification_status"] == "excluded"
+    assert excluded.json()["routing_state"] == "excluded"
 
 
 def test_real_file_gdb_retry_uses_existing_submission_and_versions_failures(tmp_path: Path, monkeypatch) -> None:

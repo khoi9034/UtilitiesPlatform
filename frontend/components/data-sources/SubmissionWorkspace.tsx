@@ -146,7 +146,7 @@ export function SubmissionWorkspace() {
   }, [provider, selectedLayerId, submissionId]);
 
   const filteredLayers = useMemo(() => layers.filter((layer) => matchesLayer(layer, filters)), [layers, filters]);
-  const needsReview = filteredLayers.filter((layer) => layer.routing_state !== "ready_for_classification_review" || layer.duplicate_status === "potential_duplicate" || layer.coordinate_status !== "coordinate_ready");
+  const needsReview = filteredLayers.filter((layer) => !["approved", "classification_approved", "reference_approved", "excluded"].includes(layer.classification_status) || layer.duplicate_status === "potential_duplicate" || layer.coordinate_status !== "coordinate_ready");
   const coordinateReview = filteredLayers.filter((layer) => !["coordinate_ready", "mixed_source_spatial_references"].includes(layer.coordinate_status));
   const approvedPlanItems = stagingPlan.filter((item) => item.approved_for_staging);
 
@@ -291,7 +291,7 @@ function LayerTable({ title, description, layers, selectedLayerId, onSelect }: {
       {layers.length ? (
         <div className={ws.tableWrap}>
           <table className={ws.table}>
-            <thead><tr><th>Source Layer</th><th>Alias</th><th>Owner/Jurisdiction</th><th>Utility</th><th>Network Group</th><th>Category</th><th>Subcategory</th><th>Role</th><th>Lifecycle</th><th>Geometry</th><th>Records</th><th>Spatial Reference</th><th>Confidence</th><th>Routing State</th><th>Staging Status</th></tr></thead>
+            <thead><tr><th>Source Layer</th><th>Alias</th><th>Owner/Jurisdiction</th><th>Utility</th><th>Network Group</th><th>Category</th><th>Subcategory</th><th>Role</th><th>Lifecycle</th><th>Geometry</th><th>Records</th><th>Spatial Reference</th><th>Confidence</th><th>Classification</th><th>Routing State</th><th>Staging Status</th></tr></thead>
             <tbody>
               {layers.map((layer) => (
                 <tr key={layer.layer_id} className={selectedLayerId === layer.layer_id ? styles.selectedRow : ""}>
@@ -308,6 +308,7 @@ function LayerTable({ title, description, layers, selectedLayerId, onSelect }: {
                   <td>{compactNumber(layer.record_count)}</td>
                   <td>{safeText(layer.spatial_reference_name)}</td>
                   <td><StatusBadge value={layer.confidence} /></td>
+                  <td><StatusBadge value={layer.classification_status} /></td>
                   <td><StageBadge value={layer.routing_state} /></td>
                   <td><StatusBadge value={layer.staging_status} /></td>
                 </tr>
@@ -417,7 +418,7 @@ function StagingPlan({ items, hasApproved, onApprove, onStageApproved }: { items
           </div>
           {hasApproved ? <button className={`${ws.button} ${ws.buttonPrimary}`} onClick={onStageApproved}>{isDemoMode ? "Simulate Approved Staging" : "Stage Approved Layers"}</button> : null}
         </>
-      ) : <EmptyState title="No staging plan" message="Run source inspection to create a candidate staging plan. Nothing is staged automatically." />}
+      ) : <EmptyState title="No staging preview items" message="No classification-approved layers are eligible for a staging preview. Nothing is staged automatically." />}
     </Panel>
   );
 }

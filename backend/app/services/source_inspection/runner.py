@@ -323,7 +323,7 @@ def create_staging_plan(submission_id: str) -> dict[str, object]:
 
 def staging_plan(submission_id: str) -> dict[str, object]:
     items = inspection_registry.staging_plan(storage.get_storage_paths().root, submission_id)
-    return {"items": items, "message": "No staging plan has been created yet." if not items else "Staging plan loaded."}
+    return {"items": items, "message": "No classification-approved layers are eligible for a staging preview." if not items else "Staging plan loaded."}
 
 
 def review_staging_plan_item(submission_id: str, item_id: str, payload: dict[str, Any]) -> dict[str, object]:

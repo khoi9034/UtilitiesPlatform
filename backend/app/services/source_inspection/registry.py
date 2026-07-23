@@ -555,17 +555,29 @@ def add_layer_review(root: Path, submission_id: str, layer_id: str, payload: dic
                 now,
             ),
         )
+        workflow_status = str(review.get("workflow_status", "classification_approved"))
+        classification_decision = str(review.get("classification_decision", "approve_top_candidate"))
+        classification_status = workflow_status
+        routing_state = dict(layer).get("routing_state", "")
+        if classification_decision in {"approved", "approve_top_candidate", "manual_override"}:
+            classification_status = workflow_status if workflow_status in {"classification_approved", "reference_approved"} else "approved"
+            routing_state = "reference_approved" if workflow_status == "reference_approved" else "classification_approved"
+        elif classification_decision == "excluded":
+            classification_status = routing_state = "excluded"
+        elif classification_decision == "deferred":
+            classification_status = "deferred"
         connection.execute(
             """
             UPDATE inspected_layers
-            SET latest_review_status = ?, latest_reviewer = ?, classification_status = ?, sensitivity_status = ?, updated_at = ?
+            SET latest_review_status = ?, latest_reviewer = ?, classification_status = ?, sensitivity_status = ?, routing_state = ?, updated_at = ?
             WHERE layer_id = ?
             """,
             (
-                review.get("workflow_status", "classification_approved"),
+                workflow_status,
                 review.get("reviewer", ""),
-                "classification_approved" if review.get("workflow_status") in {"classification_approved", "reference_approved"} else str(review.get("workflow_status", "")),
+                classification_status,
                 "sensitivity_review_complete" if review.get("sensitivity_decision") in {"complete", "approved"} else dict(layer).get("sensitivity_status", ""),
+                routing_state,
                 now,
                 layer_id,
             ),
