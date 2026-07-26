@@ -36,6 +36,8 @@ import network from "../../demo-data/network.json";
 import calibration from "../../demo-data/calibration.json";
 import { applyDemoDuplicateGroup, applyDemoLayerReview, applyDemoStagingPlanItem, applyDemoReview, batchUpdateDemoIssues, batchUpdateDemoLayers, createDemoIntakeSubmission, demoAutomatedReviewRuns, demoAutomatedReviewStatus, demoAutomatedReviewSummary, demoIntakeEvents, readDemoIntake, readDemoStagedOutputs, runDemoAutomatedReview, stageDemoApprovedLayers, updateDemoDuplicateGroup, updateDemoIntakeInventory, updateDemoIssue, updateDemoLayerReview, updateDemoStagingPlanItem } from "./demo-review-store";
 import type { AutomationRun, AutomationSummary, CatalogResponse, ClassificationCandidate, ClassificationCandidatesResponse, DataSourceItem, DataSourceItemsResponse, DuplicateGroup, DuplicateGroupsResponse, IntakeCapabilities, IntakeEvent, IntakeSubmission, IntakeSubmissionResponse, IntakeSubmissionsResponse, InventorySummary, PlatformDataProvider, RunsResponse, SourceInspectionStatus, StageManifest, StagingPlanItem, StagingPlanResponse, StorageStatus, SubmissionLayer, SubmissionLayersResponse, TrustPipeline } from "./types";
+import { createDemoCanonicalAssets, demoAssets, demoPlans, demoRelationships, electricCounts, telecomCounts, updateDemoPlan } from "../utility-assets";
+import type { CanonicalizationPlan } from "../utility-assets";
 
 const demoIssues = issues.items as unknown as Issue[];
 
@@ -47,6 +49,14 @@ export class DemoDataProvider implements PlatformDataProvider {
     const pathname = url.pathname;
     const params = url.searchParams;
     if (pathname === "/api/platform/command-center") return clone(commandCenter) as T;
+    if (pathname === "/api/utility-assets/taxonomy") return clone(demoAssetTaxonomy()) as T;
+    if (pathname.startsWith("/api/utility-assets/taxonomy/")) {
+      const vertical = pathname.split("/").pop() ?? "";
+      return clone(demoAssetTaxonomy(vertical)) as T;
+    }
+    if (pathname === "/api/utility-assets/canonicalization-plans") return clone({ items: demoPlans() }) as T;
+    if (pathname === "/api/utility-assets") return clone(demoAssetResponse(params)) as T;
+    if (pathname.startsWith("/api/utility-assets/")) return clone(demoAssetPath(pathname)) as T;
     if (pathname === "/api/storage/status") return clone(stageSummary) as T;
     if (pathname === "/api/storage/catalog") return clone(stageItems) as T;
     if (pathname === "/api/storage/catalog/summary") return clone({ counts: { wastewater: 2 }, message: "Sanitized demo catalog summary loaded." }) as T;
@@ -112,6 +122,34 @@ export class DemoDataProvider implements PlatformDataProvider {
     if (pathname.endsWith("/stage-approved")) {
       const submissionId = decodeURIComponent(pathname.split("/").at(-2) ?? "");
       return clone(stageDemoApprovedLayers(demoStagingPlan(submissionId).items)) as T;
+    }
+    if (pathname.endsWith("/canonicalization-plan/approve")) {
+      const plan = demoPlanForPath(pathname);
+      return clone(updateDemoPlan(plan.plan_id, {
+        status: "approved", approved_for_canonicalization: true,
+        approved_by: String((body as Record<string, unknown> | undefined)?.approved_by || "Demo Reviewer"),
+      })) as T;
+    }
+    if (pathname.endsWith("/canonicalization-plan/defer")) {
+      const plan = demoPlanForPath(pathname);
+      return clone(updateDemoPlan(plan.plan_id, { status: "deferred", approved_for_canonicalization: false })) as T;
+    }
+    if (pathname.endsWith("/canonicalization-plan/create-assets")) {
+      return clone(createDemoCanonicalAssets(demoPlanForPath(pathname).plan_id)) as T;
+    }
+    return this.get<T>(path);
+  }
+
+  async put<T>(path: string, body: unknown): Promise<T> {
+    const pathname = new URL(path, "https://demo.local").pathname;
+    if (pathname.endsWith("/canonicalization-plan/field-mappings")) {
+      const plan = demoPlanForPath(pathname);
+      const mappings = (body as { mappings?: CanonicalizationPlan["mappings"] }).mappings ?? plan.mappings;
+      return clone(updateDemoPlan(plan.plan_id, {
+        mappings, mapped_field_count: mappings.filter((item) => item.transformation_type !== "unmapped").length,
+        unmapped_field_count: mappings.filter((item) => item.transformation_type === "unmapped").length,
+        status: "mapping_review", approved_for_canonicalization: false,
+      })) as T;
     }
     return this.get<T>(path);
   }
@@ -510,4 +548,69 @@ function severityRank(severity: string) {
 
 function clone<T>(data: T): T {
   return JSON.parse(JSON.stringify(data)) as T;
+}
+
+function demoAssetTaxonomy(vertical?: string) {
+  const shared = {
+    lifecycle_states: ["proposed", "planned", "approved", "under_construction", "installed", "active", "inactive", "abandoned", "retired", "removed", "unknown"],
+    review_states: ["imported", "mapped", "needs_review", "provisionally_approved", "approved", "deferred", "excluded"],
+    qa_states: ["not_evaluated", "passed", "warning", "failed", "blocked", "acknowledged"],
+    relationship_types: ["connects_to", "upstream_of", "downstream_of", "contained_in", "mounted_on", "routed_through", "protected_by", "feeds", "served_by", "spliced_to", "terminates_at", "belongs_to_feeder", "belongs_to_circuit", "belongs_to_route", "associated_with_work_order", "replaces", "retires", "reference_for"],
+    transformation_types: ["direct", "renamed", "normalized_text", "normalized_identifier", "boolean_mapping", "lifecycle_mapping", "unit_conversion", "numeric_parse", "domain_mapping", "inferred", "unmapped"],
+    rule_version: "canonical-assets-v1",
+  };
+  const profiles = {
+    electric_distribution: { label: "Electric Distribution", asset_classes: Object.keys(electricCounts), operational_states: ["energized", "de_energized", "normally_open", "normally_closed", "open", "closed", "unknown"] },
+    telecom_fiber: { label: "Telecom/Fiber", asset_classes: Object.keys(telecomCounts), operational_states: ["proposed", "installed", "active", "reserved", "unavailable", "retired", "unknown"] },
+  };
+  if (vertical && vertical in profiles) return { utility_vertical: vertical, ...profiles[vertical as keyof typeof profiles], ...shared };
+  return { utility_verticals: Object.entries(profiles).map(([id, value]) => ({ id, ...value })), future_verticals: ["water", "wastewater", "gas", "stormwater"], ...shared };
+}
+
+function demoAssetResponse(params: URLSearchParams) {
+  let items = demoAssets();
+  for (const field of ["utility_vertical", "asset_class", "asset_subtype", "lifecycle_status", "operational_status", "qa_status", "review_status", "owner_status", "source_layer_id"] as const) {
+    if (params.get(field)) items = items.filter((item) => matches(item[field], params.get(field)));
+  }
+  if (params.get("provisional_relationships")) items = items.filter((item) => item.has_provisional_relationships === (params.get("provisional_relationships") === "true"));
+  if (params.get("search")) items = items.filter((item) => matchesSearch([item.asset_id, item.canonical_name, item.display_name], params.get("search")));
+  const byVertical = { electric_distribution: items.filter((item) => item.utility_vertical === "electric_distribution").length, telecom_fiber: items.filter((item) => item.utility_vertical === "telecom_fiber").length };
+  return {
+    ...pageItems(items, params),
+    summary: {
+      total_assets: items.length, electric_assets: byVertical.electric_distribution,
+      telecom_assets: byVertical.telecom_fiber, assets_needing_review: items.filter((item) => item.review_status === "needs_review").length,
+      provisional_relationships: demoAssets().filter((item) => item.has_provisional_relationships).length,
+      active_plans: demoPlans().filter((plan) => !["approved", "deferred", "created"].includes(plan.status)).length,
+      approved_plans: demoPlans().filter((plan) => plan.approved_for_canonicalization).length,
+      blocked_plans: demoPlans().filter((plan) => plan.status === "blocked").length,
+      lifecycle_distribution: Object.fromEntries(["active", "proposed", "retired"].map((state) => [state, items.filter((item) => item.lifecycle_status === state).length])),
+      qa_status_distribution: Object.fromEntries(["passed", "warning", "not_evaluated"].map((state) => [state, items.filter((item) => item.qa_status === state).length])),
+      data_scope: "synthetic",
+    },
+    message: "Synthetic canonical asset registry loaded.",
+  };
+}
+
+function demoAssetPath(pathname: string) {
+  const assetId = decodeURIComponent(pathname.split("/")[3] ?? "");
+  const asset = demoAssets().find((item) => item.asset_id === assetId);
+  if (pathname.endsWith("/relationships")) return { items: demoRelationships(assetId) };
+  if (pathname.endsWith("/lineage")) return {
+    asset_id: assetId,
+    source: asset ? { source_system: asset.source_system, source_submission_id: asset.source_submission_id, source_layer_id: asset.source_layer_id, source_record_id: asset.source_record_id, source_fingerprint: asset.source_fingerprint } : {},
+    canonicalization_plan_id: asset?.canonicalization_plan_id ?? "",
+    mapping_rule_version: asset?.mapping_rule_version ?? "synthetic-assets-v1",
+    history: [{ action: "synthetic_asset_seeded", actor_type: "system", actor: "demo", created_at: "2026-07-26T12:00:00Z" }],
+  };
+  return asset ?? {};
+}
+
+function demoPlanForPath(pathname: string): CanonicalizationPlan {
+  const parts = pathname.split("/");
+  const submissionId = decodeURIComponent(parts[4] ?? "");
+  const layerId = decodeURIComponent(parts[6] ?? "");
+  const plan = demoPlans().find((item) => item.submission_id === submissionId && item.layer_id === layerId);
+  if (!plan) throw new Error("Synthetic canonicalization plan not found.");
+  return plan;
 }

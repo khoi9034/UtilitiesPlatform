@@ -3,7 +3,7 @@ export const utilitySystems = [
   { id: "water", label: "Water", enabled: false, status: "Not onboarded" },
   { id: "wastewater", label: "Wastewater", enabled: true, status: "Active" },
   { id: "stormwater", label: "Stormwater", enabled: false, status: "Not onboarded" },
-  { id: "telecom", label: "Telecom", enabled: false, status: "Planned" },
-  { id: "electric", label: "Electric", enabled: false, status: "Planned" },
+  { id: "telecom_fiber", label: "Telecom/Fiber", enabled: true, status: "Canonical assets active" },
+  { id: "electric_distribution", label: "Electric Distribution", enabled: true, status: "Canonical assets active" },
   { id: "gas", label: "Gas", enabled: false, status: "Planned" },
 ];

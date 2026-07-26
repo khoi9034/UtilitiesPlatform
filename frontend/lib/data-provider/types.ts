@@ -165,6 +165,7 @@ export interface PlatformDataProvider {
   readonly mode: ProviderMode;
   get<T>(path: string, signal?: AbortSignal): Promise<T>;
   post<T>(path: string, body?: BodyInit | Record<string, unknown>): Promise<T>;
+  put<T>(path: string, body: unknown): Promise<T>;
   patch<T>(path: string, body: unknown): Promise<T>;
   commandCenter(signal?: AbortSignal): Promise<CommandCenterResponse>;
   storageStatus(signal?: AbortSignal): Promise<StorageStatus>;

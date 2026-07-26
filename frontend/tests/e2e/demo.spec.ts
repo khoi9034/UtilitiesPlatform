@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const routes = ["/", "/asset-inventory", "/data-health", "/network-intelligence", "/cad-intake", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/projects", "/maintenance", "/methodology"];
+const routes = ["/", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/data-health", "/network-intelligence", "/cad-intake", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/projects", "/maintenance", "/methodology"];
 const basePath = process.env.DEMO_BASE_PATH ?? "";
 
 test.describe("portfolio demo mode", () => {
@@ -53,7 +53,10 @@ test.describe("portfolio demo mode", () => {
     await expect(page.getByText("RAW REGISTERED").first()).toBeVisible();
     await expect(page.getByText("Demo mode does not upload or inspect your folder").first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Run Source Inspection" }).first()).toBeVisible();
-    await page.getByRole("link", { name: "View in Raw Stage" }).first().click();
+    await Promise.all([
+      page.waitForURL("**/data-sources?stage=raw"),
+      page.getByRole("link", { name: "View in Raw Stage" }).first().click(),
+    ]);
     await expect(page.getByText("Synthetic Mixed Utility Source").first()).toBeVisible();
     await page.goto(`${basePath}/data-sources/upload`, { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Reset Demo Intake" }).click();
@@ -138,5 +141,27 @@ test.describe("portfolio demo mode", () => {
     await page.getByRole("button", { name: "Close" }).click();
     await page.getByRole("button", { name: "Reset Demo Session" }).click();
     await expect(page.getByText("PORTFOLIO DEMO", { exact: true }).first()).toBeVisible();
+  });
+
+  test("explores synthetic assets and simulates governed creation", async ({ page }) => {
+    await page.goto(`${basePath}/utility-assets`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("All utility assets, relationships, and canonicalization results in this demo are synthetic and reset with the demo session.")).toBeVisible();
+    await page.getByRole("tab", { name: "Electric Distribution" }).click();
+    await expect(page.getByText("ELEC-SUBSTATION-001", { exact: true })).toBeVisible();
+    await page.getByRole("tab", { name: "Telecom/Fiber" }).click();
+    await expect(page.getByText("FIBER-NETWORK-HUB-001", { exact: true })).toBeVisible();
+    await page.getByRole("tab", { name: "Canonicalization Plans" }).click();
+    await expect(page.getByText("Electric Distribution to Transformer")).toBeVisible();
+    await page.getByRole("button", { name: "Create canonical assets" }).first().click();
+    await expect(page.getByText(/Creation simulation complete: 3 assets created/)).toBeVisible();
+    expect(await page.evaluate(() => sessionStorage.getItem("utilities-platform-demo-canonical-assets-v1"))).toContain("DEMO-ELECTRIC-PLAN");
+  });
+
+  test("shows synthetic asset detail and relationship evidence", async ({ page }) => {
+    await page.goto(`${basePath}/utility-assets/detail?asset_id=demo-telecom_fiber-splice_closure-1`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "FIBER-SPLICE-CLOSURE-001" })).toBeVisible();
+    await expect(page.getByText("Source lineage")).toBeVisible();
+    await expect(page.getByText("Provisional / Rule Inferred")).toBeVisible();
+    await expect(page.locator("body")).not.toContainText("C:\\");
   });
 });

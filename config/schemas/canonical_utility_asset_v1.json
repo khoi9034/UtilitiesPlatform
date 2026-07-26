@@ -1,0 +1,168 @@
+{
+  "schema_version": "canonical-assets-v1",
+  "utility_verticals": [
+    "electric_distribution",
+    "telecom_fiber"
+  ],
+  "future_verticals": [
+    "water",
+    "wastewater",
+    "gas",
+    "stormwater"
+  ],
+  "lifecycle_states": [
+    "proposed",
+    "planned",
+    "approved",
+    "under_construction",
+    "installed",
+    "active",
+    "inactive",
+    "abandoned",
+    "retired",
+    "removed",
+    "unknown"
+  ],
+  "review_states": [
+    "imported",
+    "mapped",
+    "needs_review",
+    "provisionally_approved",
+    "approved",
+    "deferred",
+    "excluded"
+  ],
+  "qa_states": [
+    "not_evaluated",
+    "passed",
+    "warning",
+    "failed",
+    "blocked",
+    "acknowledged"
+  ],
+  "approved_for_canonicalization_default": false,
+  "transformations": [
+    "direct",
+    "renamed",
+    "normalized_text",
+    "normalized_identifier",
+    "boolean_mapping",
+    "lifecycle_mapping",
+    "unit_conversion",
+    "numeric_parse",
+    "domain_mapping",
+    "inferred",
+    "unmapped"
+  ],
+  "relationship_sources": [
+    "source",
+    "spatially_inferred",
+    "rule_inferred",
+    "human_confirmed"
+  ],
+  "electric_distribution": {
+    "asset_classes": [
+      "substation",
+      "feeder",
+      "feeder_breaker",
+      "switch",
+      "fuse",
+      "recloser",
+      "transformer",
+      "pole",
+      "overhead_conductor",
+      "underground_conductor",
+      "secondary_conductor",
+      "conduit",
+      "service_point",
+      "junction",
+      "attachment",
+      "electric_structure",
+      "reference_boundary"
+    ],
+    "operational_states": [
+      "energized",
+      "de_energized",
+      "normally_open",
+      "normally_closed",
+      "open",
+      "closed",
+      "unknown"
+    ],
+    "extension_fields": [
+      "feeder_id",
+      "circuit_id",
+      "phase",
+      "nominal_voltage",
+      "operating_voltage",
+      "normally_open",
+      "device_state",
+      "protective_device_type",
+      "upstream_asset_id",
+      "downstream_asset_id",
+      "transformer_rating_kva",
+      "transformer_configuration",
+      "conductor_material",
+      "conductor_size",
+      "conductor_count",
+      "placement_type",
+      "energized_status",
+      "conduit_id",
+      "structure_id",
+      "service_type",
+      "customer_count_safe_aggregate"
+    ]
+  },
+  "telecom_fiber": {
+    "asset_classes": [
+      "central_office",
+      "network_hub",
+      "fiber_cabinet",
+      "fiber_route",
+      "fiber_cable",
+      "conduit",
+      "pole",
+      "handhole",
+      "manhole",
+      "splice_closure",
+      "splitter",
+      "terminal",
+      "service_area",
+      "proposed_construction_segment",
+      "telecom_structure",
+      "reference_boundary"
+    ],
+    "operational_states": [
+      "proposed",
+      "installed",
+      "active",
+      "reserved",
+      "unavailable",
+      "retired",
+      "unknown"
+    ],
+    "extension_fields": [
+      "route_id",
+      "cable_id",
+      "cable_type",
+      "fiber_count",
+      "strand_start",
+      "strand_end",
+      "placement_type",
+      "from_structure_id",
+      "to_structure_id",
+      "splice_closure_id",
+      "cabinet_id",
+      "terminal_id",
+      "splitter_ratio",
+      "total_capacity",
+      "used_capacity",
+      "reserved_capacity",
+      "available_capacity",
+      "construction_status",
+      "service_area_id",
+      "network_tier",
+      "hub_id"
+    ]
+  }
+}

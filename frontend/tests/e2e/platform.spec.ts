@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const routes = ["/", "/data-health", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/asset-inventory", "/network-intelligence", "/cad-intake", "/projects", "/maintenance", "/methodology"];
+const routes = ["/", "/data-health", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/network-intelligence", "/cad-intake", "/projects", "/maintenance", "/methodology"];
 const viewports = [
   { width: 1440, height: 900 },
   { width: 1280, height: 800 },
@@ -36,6 +36,15 @@ test.describe("enterprise shell", () => {
     await page.getByRole("tab", { name: "Issues" }).click();
     await page.getByLabel("Severity").selectOption({ index: 1 });
     await expect(page.getByText(/results/i).first()).toBeVisible();
+  });
+
+  test("explores canonical electric and telecom assets", async ({ page }) => {
+    await page.goto("/utility-assets");
+    await expect(page.getByRole("heading", { name: "Utility Assets" })).toBeVisible();
+    await page.getByRole("tab", { name: "Electric Distribution" }).click();
+    await expect(page.getByText("ELEC-SUBSTATION-001", { exact: true })).toBeVisible();
+    await page.getByRole("tab", { name: "Telecom/Fiber" }).click();
+    await expect(page.getByText("FIBER-NETWORK-HUB-001", { exact: true })).toBeVisible();
   });
 
   test("upload workflow keeps metadata before local package selection", async ({ page }) => {
@@ -102,6 +111,13 @@ test.describe("enterprise shell", () => {
     test(`no body horizontal overflow at ${viewport.width}`, async ({ page }) => {
       await page.setViewportSize(viewport);
       await page.goto("/data-health");
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
+      expect(overflow).toBe(false);
+    });
+
+    test(`Utility Assets has no body horizontal overflow at ${viewport.width}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await page.goto("/utility-assets");
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
       expect(overflow).toBe(false);
     });

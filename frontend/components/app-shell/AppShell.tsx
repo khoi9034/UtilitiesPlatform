@@ -6,6 +6,7 @@ import { PropsWithChildren, useEffect, useMemo, useState } from "react";
 import { fetchJson } from "../../lib/api-client";
 import { isDemoMode } from "../../lib/data-provider/provider";
 import { resetDemoSession } from "../../lib/data-provider/demo-review-store";
+import { resetDemoUtilityAssets } from "../../lib/utility-assets";
 import { activeNavigationItem, navigationItems } from "../../lib/navigation";
 import { utilitySystems } from "../../lib/utility-systems";
 import { label, shortDate } from "../../lib/formatters";
@@ -98,6 +99,7 @@ export function AppShell({ children }: PropsWithChildren) {
 
   function resetAndReload() {
     resetDemoSession();
+    resetDemoUtilityAssets();
     window.location.reload();
   }
 

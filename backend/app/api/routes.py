@@ -24,6 +24,7 @@ from app.services import wastewater_data_health_service as wastewater_health
 from app.services import intake_service
 from app.services import source_inspection
 from app.services import review_automation
+from app.services.utility_assets import UtilityAssetError, service as utility_assets
 from app.services.upload_validation_service import UploadValidationError
 from app.services.data_storage_service import (
     catalog_summary,
@@ -103,6 +104,66 @@ def qa_summary() -> QaSummaryResponse:
         values_connected=False,
         message=NO_DATABASE_MESSAGE,
     )
+
+
+@router.get("/utility-assets/taxonomy")
+def utility_asset_taxonomy() -> dict[str, object]:
+    return utility_assets.taxonomy()
+
+
+@router.get("/utility-assets/taxonomy/{utility_vertical}")
+def utility_asset_vertical_taxonomy(utility_vertical: str) -> dict[str, object]:
+    try:
+        return utility_assets.taxonomy(utility_vertical)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/utility-assets")
+def canonical_utility_assets(
+    utility_vertical: str | None = None,
+    asset_class: str | None = None,
+    asset_subtype: str | None = None,
+    lifecycle_status: str | None = None,
+    operational_status: str | None = None,
+    qa_status: str | None = None,
+    review_status: str | None = None,
+    owner_status: str | None = None,
+    source_layer_id: str | None = None,
+    provisional_relationships: bool | None = None,
+    search: str | None = None,
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> dict[str, object]:
+    return utility_assets.list_assets(locals())
+
+
+@router.get("/utility-assets/canonicalization-plans")
+def canonicalization_plans() -> dict[str, object]:
+    return utility_assets.list_plans()
+
+
+@router.get("/utility-assets/{asset_id}")
+def canonical_utility_asset(asset_id: str) -> dict[str, object]:
+    asset = utility_assets.asset(asset_id)
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset not found.")
+    return asset
+
+
+@router.get("/utility-assets/{asset_id}/relationships")
+def canonical_utility_asset_relationships(asset_id: str) -> dict[str, object]:
+    if not utility_assets.asset(asset_id):
+        raise HTTPException(status_code=404, detail="Asset not found.")
+    return utility_assets.relationships(asset_id)
+
+
+@router.get("/utility-assets/{asset_id}/lineage")
+def canonical_utility_asset_lineage(asset_id: str) -> dict[str, object]:
+    try:
+        return utility_assets.lineage(asset_id)
+    except UtilityAssetError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
 
 @router.get("/storage/status", response_model=StorageStatusResponse)
@@ -404,6 +465,55 @@ def intake_submission_layer(submission_id: str, layer_id: str) -> dict[str, obje
 @router.get("/intake/submissions/{submission_id}/layers/{layer_id}/candidates")
 def intake_submission_layer_candidates(submission_id: str, layer_id: str) -> dict[str, object]:
     return source_inspection.layer_candidates(submission_id, layer_id)
+
+
+@router.post("/intake/submissions/{submission_id}/layers/{layer_id}/canonicalization-plan")
+def create_canonicalization_plan(submission_id: str, layer_id: str, payload: dict[str, object]) -> dict[str, object]:
+    try:
+        return utility_assets.create_plan(submission_id, layer_id, payload)
+    except UtilityAssetError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+
+@router.get("/intake/submissions/{submission_id}/layers/{layer_id}/canonicalization-plan")
+def canonicalization_plan(submission_id: str, layer_id: str) -> dict[str, object]:
+    return utility_assets.get_plan(submission_id, layer_id)
+
+
+@router.put("/intake/submissions/{submission_id}/layers/{layer_id}/canonicalization-plan/field-mappings")
+def update_canonicalization_field_mappings(
+    submission_id: str, layer_id: str, payload: dict[str, object],
+) -> dict[str, object]:
+    try:
+        return utility_assets.update_mappings(submission_id, layer_id, payload)
+    except UtilityAssetError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+
+@router.post("/intake/submissions/{submission_id}/layers/{layer_id}/canonicalization-plan/approve")
+def approve_canonicalization_plan(submission_id: str, layer_id: str, payload: dict[str, object]) -> dict[str, object]:
+    try:
+        return utility_assets.approve_plan(submission_id, layer_id, payload)
+    except UtilityAssetError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+
+@router.post("/intake/submissions/{submission_id}/layers/{layer_id}/canonicalization-plan/defer")
+def defer_canonicalization_plan(submission_id: str, layer_id: str, payload: dict[str, object]) -> dict[str, object]:
+    try:
+        return utility_assets.defer_plan(submission_id, layer_id, payload)
+    except UtilityAssetError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+
+@router.post("/intake/submissions/{submission_id}/layers/{layer_id}/canonicalization-plan/create-assets")
+def create_assets_from_canonicalization_plan(
+    submission_id: str, layer_id: str, payload: dict[str, object],
+) -> dict[str, object]:
+    try:
+        return utility_assets.create_assets(submission_id, layer_id, payload)
+    except UtilityAssetError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
 
 @router.patch("/intake/submissions/{submission_id}/layers/{layer_id}/review")

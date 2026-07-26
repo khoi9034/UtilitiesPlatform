@@ -285,7 +285,7 @@ npm run serve:demo
 npm run test:demo
 ```
 
-The demo runs with `NEXT_PUBLIC_APP_MODE=demo` and loads only committed sanitized JSON from `frontend/demo-data`. No live utility system is connected, no exact utility geometry is published, no backend is required, and review decisions are temporary browser-session changes.
+The demo runs with `NEXT_PUBLIC_APP_MODE=demo` and loads only committed sanitized JSON plus deterministic synthetic source definitions. No live utility system is connected, no exact utility geometry is published, no backend is required, and review decisions are temporary browser-session changes.
 
 The local full-system processing architecture is intentionally not deployed to the public demo. FastAPI, ArcPy, file geodatabases, SQLite review persistence, and `C:\UtilitiesPlatform_Data` remain local research/runtime infrastructure.
 
@@ -313,6 +313,28 @@ npm run test:demo
 ```
 
 See `AGENTS.md` and `docs/dual-mode-feature-parity.md`.
+
+## Canonical Utility Asset Model V1
+
+The platform now has one shared canonical asset architecture for Electric Distribution and Telecom/Fiber. It includes vertical taxonomies, separate lifecycle and operational states, source lineage, provisional relationships, deterministic field mapping, human-approved canonicalization plans, immutable history, and synthetic asset explorers.
+
+No real submission is eligible for canonicalization until source-review and staging blockers are resolved. Plan approval and asset creation are separate explicit actions. Neither action edits source or staged geometry or publishes a service.
+
+Local routes:
+
+- `http://localhost:3001/utility-assets`
+- `http://localhost:3001/utility-assets/detail?asset_id=<asset_id>`
+
+Start both local services:
+
+```powershell
+cd C:\Projects\UtilitiesPlatform
+powershell -ExecutionPolicy Bypass -File scripts\local\start-local-platform.ps1
+```
+
+The local workspace uses FastAPI and the external application registry. The public demo uses deterministic synthetic definitions and `sessionStorage` only; it makes no backend requests.
+
+See `docs/canonical-utility-asset-model.md`.
 
 ## Repository Structure
 

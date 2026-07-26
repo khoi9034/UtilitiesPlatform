@@ -16,6 +16,7 @@ export type NavigationItem = {
 export const navigationItems: NavigationItem[] = [
   { label: "Command Center", href: "/", icon: "dashboard", group: "OPERATE", status: "Active", description: "Aggregate operating picture." },
   { label: "Asset Inventory", href: "/asset-inventory", icon: "layers", group: "OPERATE", status: "Foundation ready", description: "Safe utility asset inventory." },
+  { label: "Utility Assets", href: "/utility-assets", icon: "utilityNetworkTrace", group: "OPERATE", status: "Active", description: "Canonical electric and telecom assets." },
   { label: "Data Health", href: "/data-health", icon: "checkShield", group: "OPERATE", status: "Active", description: "QA review and calibration." },
   { label: "Network Intelligence", href: "/network-intelligence", icon: "utilityNetworkTrace", group: "OPERATE", status: "Foundation ready", description: "Proximity connectivity analysis." },
   { label: "CAD & As-Built Intake", href: "/cad-intake", icon: "fileData", group: "INTEGRATE", status: "Planned", description: "Controlled CAD intake workflow." },
