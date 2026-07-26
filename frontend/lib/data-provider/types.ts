@@ -86,6 +86,48 @@ export type SubmissionLayersResponse = { items: SubmissionLayer[]; pagination: P
 export type ClassificationCandidatesResponse = { items: ClassificationCandidate[]; message: string };
 export type DuplicateGroupsResponse = { items: DuplicateGroup[]; message: string };
 export type StagingPlanResponse = { items: StagingPlanItem[]; message: string };
+export type AutomationStage = { stage_name: string; status: string; records_read: number; records_updated: number };
+export type AutomationRun = Record<string, unknown> & {
+  automation_run_id: string;
+  status: string;
+  rule_version: string;
+  policy_mode: string;
+  layers_processed: number;
+  taxonomy_approved: number;
+  taxonomy_deferred: number;
+  coordinate_blocked: number;
+  duplicate_groups: number;
+  sensitivity_inherited: number;
+  owner_confirmation_required: number;
+  staging_ready: number;
+  staging_blocked: number;
+  stages?: AutomationStage[];
+};
+export type AutomationLayerState = Record<string, unknown> & {
+  layer_id: string;
+  source_layer_name: string;
+  canonical_layer_name: string;
+  taxonomy_status: string;
+  taxonomy_decision: string;
+  coordinate_status: string;
+  sensitivity_status: string;
+  duplicate_status: string;
+  owner_status: string;
+  staging_readiness: string;
+  staging_blockers: string[];
+};
+export type AutomationSummary = {
+  latest_run: AutomationRun;
+  rule_version: string;
+  policy_mode: string;
+  layers: AutomationLayerState[];
+  exceptions: Record<string, AutomationLayerState[]>;
+  exception_count: number;
+  taxonomy_approved_operational: string[];
+  taxonomy_approved_reference: string[];
+  staging_ready_layers: string[];
+  message: string;
+};
 export type DataSourceStage = { stage: PrimaryDataStage; label: string; item_count: number; description: string };
 export type DataSourceItem = Record<string, unknown> & {
   item_id: string;
@@ -110,6 +152,10 @@ export type DataSourceItem = Record<string, unknown> & {
   table_count?: number;
   record_label?: string;
   duplicate_of_submission_id?: string;
+  automated_review_status?: string;
+  human_exception_count?: number;
+  staging_ready_count?: number;
+  final_staging_approval_count?: number;
 };
 export type StageManifest = { generated_at: string; stages: DataSourceStage[]; items: DataSourceItem[]; counts: Record<PrimaryDataStage, number>; activity_counts?: Record<string, number>; message: string };
 export type DataSourceItemsResponse = { items: DataSourceItem[]; pagination: Pagination };
@@ -148,6 +194,11 @@ export interface PlatformDataProvider {
   getIntakeInventoryStatus(submissionId: string, signal?: AbortSignal): Promise<Record<string, unknown>>;
   startSourceInspection(submissionId: string): Promise<Record<string, unknown>>;
   getSourceInspectionStatus(submissionId: string, signal?: AbortSignal): Promise<SourceInspectionStatus>;
+  runAutomatedReview(submissionId: string, body?: Record<string, unknown>): Promise<AutomationRun>;
+  rerunAutomatedReview(submissionId: string, body?: Record<string, unknown>): Promise<AutomationRun>;
+  getAutomatedReviewStatus(submissionId: string, signal?: AbortSignal): Promise<AutomationRun>;
+  getAutomatedReviewRuns(submissionId: string, signal?: AbortSignal): Promise<{ items: AutomationRun[]; message: string }>;
+  getAutomatedReviewSummary(submissionId: string, signal?: AbortSignal): Promise<AutomationSummary>;
   getSubmissionLayers(submissionId: string, path?: string, signal?: AbortSignal): Promise<SubmissionLayersResponse>;
   getSubmissionLayer(submissionId: string, layerId: string, signal?: AbortSignal): Promise<SubmissionLayer | null>;
   getLayerClassificationCandidates(submissionId: string, layerId: string, signal?: AbortSignal): Promise<ClassificationCandidatesResponse>;

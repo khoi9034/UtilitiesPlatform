@@ -334,6 +334,6 @@ def staging_blocker(layer: SourceLayer, candidate: ClassificationCandidate) -> s
         blockers.append("duplicate review unresolved")
     if layer.coordinate_status in {"unknown_spatial_reference", "suspicious_extent", "name_and_metadata_conflict"}:
         blockers.append("coordinate review required")
-    if layer.sensitivity_status != "sensitivity_review_complete":
+    if layer.sensitivity_status not in {"sensitivity_review_complete", "inherited_from_package"}:
         blockers.append("sensitivity review required")
     return "; ".join(blockers)

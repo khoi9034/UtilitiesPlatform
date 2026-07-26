@@ -510,10 +510,13 @@ def export_stage_items(export_rows: list[dict[str, str]]) -> list[dict[str, obje
 
 def submission_stage_item(row: dict[str, Any]) -> dict[str, object]:
     from app.services.source_inspection import registry as source_inspection_registry
+    from app.services import review_automation
 
     inspection = source_inspection_registry.inspection_status(get_storage_paths().root, str(row.get("submission_id", ""))) or {}
+    automation_summary = review_automation.summary(str(row.get("submission_id", "")))
+    automation = automation_summary["latest_run"]
     raw_registered = bool(row.get("raw_registered_at")) and row.get("current_status") != "duplicate_detected"
-    inspection_complete = row.get("current_status") == "inspection_complete"
+    inspection_complete = inspection.get("inspection_status") in {"complete", "inspection_complete"}
     return {
         "item_id": f"submission:{row.get('submission_id')}",
         "submission_id": row.get("submission_id", ""),
@@ -544,9 +547,17 @@ def submission_stage_item(row: dict[str, Any]) -> dict[str, object]:
         "table_row_count": inspection.get("table_rows", 0),
         "needs_review_count": inspection.get("needs_review", 0),
         "coordinate_issue_count": inspection.get("coordinate_issues", 0),
+        "automated_review_status": automation.get("status", "not_started"),
+        "human_exception_count": automation_summary.get("exception_count", 0),
+        "staging_ready_count": automation.get("staging_ready", 0),
+        "final_staging_approval_count": 0,
         "duplicate_of_submission_id": row.get("duplicate_of_submission_id", ""),
         "next_required_action": next_action_for_submission(row),
-        "lineage": ["Uploaded package", "Raw registered source"] if row.get("current_status") != "duplicate_detected" else ["Uploaded package", "Duplicate detected before Raw registration"],
+        "lineage": (
+            ["Uploaded package", "Raw registered source", *(["Automated review"] if automation.get("status") in {"complete", "unchanged"} else [])]
+            if row.get("current_status") != "duplicate_detected"
+            else ["Uploaded package", "Duplicate detected before Raw registration"]
+        ),
         "trust_state": trust_state("raw", row),
         "blockers": ["Duplicate requires explicit version registration"] if row.get("current_status") == "duplicate_detected" else [],
         "metadata": {"original_filename": row.get("original_filename", ""), "sha256_prefix": str(row.get("sha256", ""))[:12], "file_size_bytes": row.get("file_size_bytes", 0)},
@@ -654,7 +665,9 @@ def next_action_for_submission(row: dict[str, Any]) -> str:
     if row.get("current_status") == "inspection_blocked":
         return "Retry source inspection after resolving the recorded blocker."
     if row.get("current_status") == "inspection_complete":
-        return "Review child-layer classifications; no layer is approved for staging."
+        return "Run Automated Review; no layer is approved for staging."
+    if row.get("current_status") == "automated_review_complete":
+        return "Open Review Exceptions, resolve blockers, and approve selected staging-plan items."
     if row.get("raw_registered_at"):
         return "Run source inspection; staging still requires human approval."
     return "Review the intake attempt and its safe error details."

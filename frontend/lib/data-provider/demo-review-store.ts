@@ -1,5 +1,5 @@
 import type { Issue } from "../api-types";
-import type { DataSourceItem, DuplicateGroup, IntakeSubmission, StagingPlanItem, SubmissionLayer } from "./types";
+import type { AutomationLayerState, AutomationRun, AutomationSummary, DataSourceItem, DuplicateGroup, IntakeSubmission, StagingPlanItem, SubmissionLayer } from "./types";
 
 const key = "utilities-platform-demo-reviews";
 const intakeKey = "utilities-platform-demo-intake";
@@ -12,6 +12,7 @@ type InspectionStore = {
   duplicateGroups: Record<string, Partial<DuplicateGroup>>;
   stagingPlan: Record<string, Partial<StagingPlanItem>>;
   stagedOutputs: DataSourceItem[];
+  automation: Record<string, { latest: AutomationRun; runs: AutomationRun[]; summary: AutomationSummary }>;
 };
 
 function read(): ReviewMap {
@@ -131,11 +132,160 @@ export function updateDemoIntakeInventory(submissionId: string): Record<string, 
 export function demoIntakeEvents(submissionId: string) {
   const item = readDemoIntake().find((submission) => submission.submission_id === submissionId);
   if (!item) return [];
+  const automation = readInspection().automation[submissionId];
   return [
     { event_id: `${submissionId}-1`, submission_id: submissionId, event_type: "upload_started", message: "Demo upload simulation started; no backend request was made.", created_at: String(item.created_at), previous_status: "", new_status: "uploading", actor: "demo" },
     { event_id: `${submissionId}-2`, submission_id: submissionId, event_type: "raw_registered", message: "Synthetic Raw registration created in sessionStorage.", created_at: String(item.created_at), previous_status: "validating", new_status: "registered_raw", actor: "demo" },
     { event_id: `${submissionId}-3`, submission_id: submissionId, event_type: "source_inspection_completed", message: "Synthetic child-layer inspection results loaded for portfolio review.", created_at: String(item.created_at), previous_status: "inspection_running", new_status: "inspection_complete", actor: "demo" },
+    ...(automation ? [{ event_id: `${submissionId}-4`, submission_id: submissionId, event_type: "automated_review_completed", message: "Synthetic conservative review completed in sessionStorage.", created_at: String(automation.latest.completed_at), previous_status: "inspection_complete", new_status: "automated_review_complete", actor: "demo_automation" }] : []),
   ];
+}
+
+export function runDemoAutomatedReview(
+  submissionId: string,
+  layers: SubmissionLayer[],
+  duplicateGroups: DuplicateGroup[],
+  forceRecalculate = false,
+): AutomationRun {
+  const store = readInspection();
+  const previous = store.automation[submissionId];
+  if (previous && !forceRecalculate) {
+    const unchanged = { ...previous.latest, automation_run_id: `DEMO-AUT-${Date.now().toString(36).toUpperCase()}`, status: "unchanged", reused_run_id: previous.latest.automation_run_id };
+    previous.runs = [unchanged, ...previous.runs];
+    previous.latest = unchanged;
+    writeInspection(store);
+    return unchanged;
+  }
+  const now = new Date().toISOString();
+  const states = layers.map((layer): AutomationLayerState => {
+    const decision = String(layer.classification_decision ?? "");
+    const excluded = decision === "excluded";
+    const deferred = decision === "deferred";
+    const manuallyApproved = decision === "manual_override";
+    const approved = !excluded && !deferred && (manuallyApproved || (layer.confidence === "high" && layer.utility_system !== "review_required"));
+    const duplicate = layer.duplicate_status === "potential_duplicate";
+    const coordinateBlocked = layer.coordinate_status !== "coordinate_ready";
+    const ownerConfirmed = layer.owner_decision === "acknowledge_provisional";
+    const blockers = [
+      ...(!approved ? ["Taxonomy requires human review."] : []),
+      ...(coordinateBlocked ? ["Coordinate metadata requires human review."] : []),
+      ...(duplicate ? ["Potential duplicate requires individual review."] : []),
+      ...(approved && !ownerConfirmed ? ["Final staging reviewer must acknowledge provisional ownership."] : []),
+    ];
+    return {
+      layer_id: layer.layer_id,
+      source_layer_name: layer.source_layer_name,
+      canonical_layer_name: layer.source_layer_name,
+      taxonomy_status: excluded ? "excluded" : approved ? "approved" : "deferred",
+      taxonomy_decision: excluded ? "excluded" : manuallyApproved ? "manual_override_preserved" : deferred ? "deferred" : approved ? "approved" : "needs_taxonomy_review",
+      coordinate_status: coordinateBlocked ? "coordinate_name_conflict" : "coordinate_ready",
+      sensitivity_status: "inherited_from_package",
+      duplicate_status: layer.duplicate_status,
+      owner_status: ownerConfirmed ? "confirmed" : "provisional",
+      staging_readiness: excluded ? "excluded" : coordinateBlocked || duplicate ? "staging_blocked" : approved ? ownerConfirmed ? "fully_ready_for_staging_review" : "human_review_required" : "deferred",
+      staging_blockers: blockers,
+      approved_utility_system: layer.approved_utility_system ?? layer.utility_system,
+      approved_network_group: layer.approved_network_group ?? layer.network_group,
+      approved_asset_category: layer.approved_asset_category ?? layer.asset_category,
+      approved_asset_subcategory: layer.approved_asset_subcategory ?? layer.asset_subcategory,
+      approved_operational_role: layer.approved_operational_role ?? layer.operational_role,
+      approved_lifecycle_representation: layer.approved_lifecycle_representation ?? layer.lifecycle_representation,
+      owner_candidate: layer.approved_owner_or_jurisdiction ?? layer.owner_or_jurisdiction,
+      owner_confidence: ownerConfirmed ? "human_confirmed" : "high",
+      coordinate_blocker: coordinateBlocked ? "Synthetic coordinate naming conflict." : "",
+      sensitivity_blocker: "",
+      approved_for_staging: false,
+    };
+  });
+  for (const state of states) {
+    store.layerReviews[state.layer_id] = {
+      ...store.layerReviews[state.layer_id],
+      classification_status: state.taxonomy_status,
+      sensitivity_status: "inherited_from_package",
+      duplicate_status: state.duplicate_status,
+    };
+  }
+  const stageNames = ["validate_inspection", "apply_sensitivity", "normalize_names", "classify_layers", "evaluate_coordinates", "detect_duplicates", "evaluate_ownership", "calculate_staging_readiness", "generate_staging_preview", "write_summary"];
+  const latest: AutomationRun = {
+    automation_run_id: `DEMO-AUT-${Date.now().toString(36).toUpperCase()}`,
+    status: "complete",
+    rule_version: "source_review_automation_v1",
+    policy_mode: "conservative",
+    layers_processed: states.length,
+    taxonomy_approved: states.filter((state) => state.taxonomy_status === "approved").length,
+    taxonomy_deferred: states.filter((state) => state.taxonomy_status === "deferred").length,
+    coordinate_blocked: states.filter((state) => state.coordinate_status !== "coordinate_ready").length,
+    duplicate_groups: duplicateGroups.length,
+    sensitivity_inherited: states.length,
+    owner_confirmation_required: states.filter((state) => state.owner_status !== "confirmed").length,
+    staging_ready: states.filter((state) => state.staging_readiness === "fully_ready_for_staging_review").length,
+    staging_blocked: states.filter((state) => state.staging_readiness !== "fully_ready_for_staging_review").length,
+    started_at: now,
+    completed_at: now,
+    stages: stageNames.map((stage_name) => ({ stage_name, status: "complete", records_read: states.length, records_updated: states.length })),
+  };
+  const exceptions = {
+    taxonomy_ambiguity: states.filter((state) => state.taxonomy_status === "deferred"),
+    coordinate_conflict: states.filter((state) => state.coordinate_status !== "coordinate_ready"),
+    duplicate_candidate: states.filter((state) => state.duplicate_status === "potential_duplicate"),
+    owner_uncertainty: states.filter((state) => state.owner_status !== "confirmed"),
+    sensitivity_escalation: [],
+    unsupported_source: [],
+    out_of_scope_recommendation: [],
+  };
+  const summary: AutomationSummary = {
+    latest_run: latest,
+    rule_version: latest.rule_version,
+    policy_mode: latest.policy_mode,
+    layers: states,
+    exceptions,
+    exception_count: new Set(Object.values(exceptions).flat().map((state) => state.layer_id)).size,
+    taxonomy_approved_operational: states.filter((state) => state.taxonomy_status === "approved").map((state) => state.source_layer_name),
+    taxonomy_approved_reference: [],
+    staging_ready_layers: states.filter((state) => state.staging_readiness === "fully_ready_for_staging_review").map((state) => state.source_layer_name),
+    message: "Synthetic automated review results loaded.",
+  };
+  store.automation[submissionId] = { latest, runs: [latest, ...(previous?.runs ?? [])], summary };
+  writeInspection(store);
+  return latest;
+}
+
+export function demoAutomatedReviewStatus(submissionId: string): AutomationRun {
+  return readInspection().automation[submissionId]?.latest ?? {
+    automation_run_id: "",
+    status: "not_started",
+    rule_version: "source_review_automation_v1",
+    policy_mode: "conservative",
+    layers_processed: 0,
+    taxonomy_approved: 0,
+    taxonomy_deferred: 0,
+    coordinate_blocked: 0,
+    duplicate_groups: 0,
+    sensitivity_inherited: 0,
+    owner_confirmation_required: 0,
+    staging_ready: 0,
+    staging_blocked: 0,
+  };
+}
+
+export function demoAutomatedReviewSummary(submissionId: string): AutomationSummary {
+  return readInspection().automation[submissionId]?.summary ?? {
+    latest_run: demoAutomatedReviewStatus(submissionId),
+    rule_version: "source_review_automation_v1",
+    policy_mode: "conservative",
+    layers: [],
+    exceptions: {},
+    exception_count: 0,
+    taxonomy_approved_operational: [],
+    taxonomy_approved_reference: [],
+    staging_ready_layers: [],
+    message: "Synthetic automated review has not run.",
+  };
+}
+
+export function demoAutomatedReviewRuns(submissionId: string) {
+  const runs = readInspection().automation[submissionId]?.runs ?? [];
+  return { items: runs, message: runs.length ? "Synthetic automation history loaded." : "Synthetic automated review has not run." };
 }
 
 export function applyDemoLayerReview(layer: SubmissionLayer): SubmissionLayer {
@@ -144,10 +294,12 @@ export function applyDemoLayerReview(layer: SubmissionLayer): SubmissionLayer {
 
 export function updateDemoLayerReview(layer: SubmissionLayer, update: Record<string, unknown>): SubmissionLayer {
   const store = readInspection();
+  const decision = String(update.classification_decision ?? "");
   const review = {
+    ...update,
     latest_review_status: String(update.workflow_status || "classification_approved"),
     latest_reviewer: String(update.reviewer || "demo_reviewer"),
-    classification_status: "classification_approved",
+    classification_status: decision === "excluded" ? "excluded" : decision === "deferred" ? "deferred" : "classification_approved",
     sensitivity_status: update.sensitivity_decision === "complete" ? "sensitivity_review_complete" : layer.sensitivity_status,
   };
   store.layerReviews[layer.layer_id] = { ...store.layerReviews[layer.layer_id], ...review };
@@ -248,7 +400,7 @@ function writeInspection(store: InspectionStore) {
 }
 
 function emptyInspectionStore(): InspectionStore {
-  return { layerReviews: {}, duplicateGroups: {}, stagingPlan: {}, stagedOutputs: [] };
+  return { layerReviews: {}, duplicateGroups: {}, stagingPlan: {}, stagedOutputs: [], automation: {} };
 }
 
 function detectDemoFormat(filename: string) {

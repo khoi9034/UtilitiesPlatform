@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { getDataProvider, isDemoMode } from "../../lib/data-provider/provider";
-import type { ClassificationCandidate, DuplicateGroup, IntakeEvent, IntakeSubmission, SourceInspectionStatus, StagingPlanItem, SubmissionLayer } from "../../lib/data-provider/types";
+import type { AutomationRun, AutomationSummary, ClassificationCandidate, DuplicateGroup, IntakeEvent, IntakeSubmission, SourceInspectionStatus, StagingPlanItem, SubmissionLayer } from "../../lib/data-provider/types";
 import { compactNumber, label, safeText, shortDate } from "../../lib/formatters";
 import { EmptyState, LoadingSkeleton, MetricTile, Panel, StageBadge, StatusBadge, workspaceStyles as ws } from "../ui/Primitives";
 import styles from "./data-sources.module.css";
 
-const tabs = ["Overview", "Layers", "Needs Review", "Duplicate Candidates", "Coordinate Review", "Staging Plan", "Events"] as const;
+const tabs = ["Overview", "Automation", "Review Exceptions", "Approved Classifications", "Layers", "Needs Review", "Duplicate Candidates", "Coordinate Review", "Staging Plan", "Events"] as const;
 type Tab = typeof tabs[number];
 type FilterState = { utility_system: string; owner: string; confidence: string; routing_state: string; duplicate_status: string; coordinate_status: string; operational_role: string; lifecycle_representation: string; search: string };
 
@@ -21,6 +21,10 @@ export function SubmissionWorkspace() {
   const [layers, setLayers] = useState<SubmissionLayer[]>([]);
   const [duplicateGroups, setDuplicateGroups] = useState<DuplicateGroup[]>([]);
   const [stagingPlan, setStagingPlan] = useState<StagingPlanItem[]>([]);
+  const [automation, setAutomation] = useState<AutomationRun | null>(null);
+  const [automationSummary, setAutomationSummary] = useState<AutomationSummary | null>(null);
+  const [autoAfterInspection, setAutoAfterInspection] = useState(false);
+  const [selectedExceptions, setSelectedExceptions] = useState<string[]>([]);
   const [selectedLayerId, setSelectedLayerId] = useState("");
   const [selectedLayer, setSelectedLayer] = useState<SubmissionLayer | null>(null);
   const [candidates, setCandidates] = useState<ClassificationCandidate[]>([]);
@@ -42,6 +46,8 @@ export function SubmissionWorkspace() {
       provider.getSubmissionLayers(submissionId, layerQuery()),
       provider.getDuplicateGroups(submissionId),
       provider.getStagingPlan(submissionId),
+      provider.getAutomatedReviewStatus(submissionId),
+      provider.getAutomatedReviewSummary(submissionId),
     ]);
     if (results[0].status === "fulfilled") setSubmission(results[0].value); else setMessage("Submission is unavailable.");
     if (results[1].status === "fulfilled") setEvents(results[1].value.events);
@@ -57,13 +63,45 @@ export function SubmissionWorkspace() {
     }
     if (results[4].status === "fulfilled") setDuplicateGroups(results[4].value.items);
     if (results[5].status === "fulfilled") setStagingPlan(results[5].value.items);
+    if (results[6].status === "fulfilled") setAutomation(results[6].value);
+    if (results[7].status === "fulfilled") setAutomationSummary(results[7].value);
     setLoading(false);
   }
 
   async function runInspection() {
     const result = await provider.startSourceInspection(submissionId);
+    if (autoAfterInspection) {
+      await runAutomation(false);
+      return;
+    }
     await load();
     setMessage(String(result.message ?? "Source inspection finished. Human approval is still required before staging."));
+  }
+
+  async function runAutomation(forceRecalculate: boolean) {
+    setActiveTab("Automation");
+    setMessage("Conservative automated review is running against stored inspection metadata.");
+    try {
+      let complete = false;
+      const body = { policy_mode: "conservative", force_recalculate: forceRecalculate, preserve_manual_overrides: true };
+      const request = (forceRecalculate
+        ? provider.rerunAutomatedReview(submissionId, body)
+        : provider.runAutomatedReview(submissionId, body)
+      ).finally(() => { complete = true; });
+      while (!complete) {
+        await new Promise((resolve) => window.setTimeout(resolve, 400));
+        if (!complete) {
+          const current = await provider.getAutomatedReviewStatus(submissionId).catch(() => null);
+          if (current) setAutomation(current);
+        }
+      }
+      const result = await request;
+      await load();
+      setMessage(result.status === "unchanged" ? "No source or rule changes detected." : "Automated review complete. Human staging approval remains required.");
+    } catch {
+      await load();
+      setMessage("Automated review could not complete. Inspection results remain intact and the run may be retried safely.");
+    }
   }
 
   async function approveLayer(layer: SubmissionLayer) {
@@ -90,6 +128,61 @@ export function SubmissionWorkspace() {
     await load();
     setSelectedLayerId(layer.layer_id);
     setMessage("Layer deferred for source-owner confirmation.");
+  }
+
+  async function applyExceptionAction(action: "approve" | "defer" | "reference" | "exclude" | "confirm_owner" | "acknowledge_owner") {
+    const selected = (automationSummary?.layers ?? []).filter((layer) => selectedExceptions.includes(layer.layer_id));
+    if (!selected.length || !window.confirm(`Apply ${label(action)} to ${selected.length} selected exception(s)?`)) return;
+    const references = new Set(["shared_reference", "environmental_regulatory", "planning_reference"]);
+    let updated = 0;
+    for (const layer of selected) {
+      const approved = {
+        approved_utility_system: layer.approved_utility_system,
+        approved_network_group: layer.approved_network_group,
+        approved_asset_category: layer.approved_asset_category,
+        approved_asset_subcategory: layer.approved_asset_subcategory,
+        approved_operational_role: layer.approved_operational_role,
+        approved_lifecycle_representation: layer.approved_lifecycle_representation,
+        approved_owner_or_jurisdiction: layer.owner_candidate,
+      };
+      if (action === "reference" && !references.has(String(layer.approved_utility_system ?? ""))) continue;
+      if (action === "acknowledge_owner" && layer.taxonomy_status !== "approved") continue;
+      const payload: Record<string, unknown> = {
+        reviewer: isDemoMode ? "demo_reviewer" : "local_reviewer",
+        review_notes: `Human exception action: ${label(action)}.`,
+      };
+      if (action === "approve" || action === "reference" || action === "acknowledge_owner") {
+        Object.assign(payload, approved, {
+          workflow_status: action === "reference" ? "reference_approved" : "classification_approved",
+          classification_decision: "manual_override",
+          owner_decision: action === "acknowledge_owner" ? "acknowledge_provisional" : "",
+        });
+      } else if (action === "exclude") {
+        Object.assign(payload, { workflow_status: "excluded", classification_decision: "excluded" });
+      } else {
+        Object.assign(payload, {
+          workflow_status: "deferred",
+          classification_decision: "deferred",
+          data_owner_confirmation_required: action === "confirm_owner",
+        });
+      }
+      await provider.reviewSubmissionLayer(submissionId, layer.layer_id, payload);
+      updated += 1;
+    }
+    setSelectedExceptions([]);
+    await runAutomation(true);
+    setActiveTab("Review Exceptions");
+    setMessage(`${updated} human exception decision(s) recorded. Final staging approval remains separate.`);
+  }
+
+  function downloadAutomationSummary() {
+    if (!automationSummary) return;
+    const url = URL.createObjectURL(new Blob([JSON.stringify(automationSummary, null, 2)], { type: "application/json" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${submissionId}-safe-automation-summary.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
   }
 
   async function resolveDuplicate(group: DuplicateGroup, status: string) {
@@ -146,6 +239,7 @@ export function SubmissionWorkspace() {
   }, [provider, selectedLayerId, submissionId]);
 
   const filteredLayers = useMemo(() => layers.filter((layer) => matchesLayer(layer, filters)), [layers, filters]);
+  const approvedLayers = filteredLayers.filter((layer) => ["approved", "classification_approved", "reference_approved"].includes(layer.classification_status));
   const needsReview = filteredLayers.filter((layer) => !["approved", "classification_approved", "reference_approved", "excluded"].includes(layer.classification_status) || layer.duplicate_status === "potential_duplicate" || layer.coordinate_status !== "coordinate_ready");
   const coordinateReview = filteredLayers.filter((layer) => !["coordinate_ready", "mixed_source_spatial_references"].includes(layer.coordinate_status));
   const approvedPlanItems = stagingPlan.filter((item) => item.approved_for_staging);
@@ -174,10 +268,11 @@ export function SubmissionWorkspace() {
       {message ? <p className={styles.muted}>{message}</p> : null}
 
       <section className={ws.grid12}>
-        <div className={ws.span3}><MetricTile labelText="Inspection" value={label(inspection?.inspection_status ?? submission.inventory_status)} detail="Inspection copy only." /></div>
-        <div className={ws.span3}><MetricTile labelText="Child layers" value={compactNumber(inspection?.child_layer_count ?? layers.length)} detail="Independently classified." /></div>
-        <div className={ws.span3}><MetricTile labelText="Needs review" value={compactNumber(needsReview.length)} detail="Taxonomy, duplicate, owner, or coordinate review." /></div>
-        <div className={ws.span3}><MetricTile labelText="Approved staging" value={compactNumber(approvedPlanItems.length)} detail="Explicit plan approvals only." /></div>
+        <div className={ws.span4}><MetricTile labelText="Inspection" value={label(inspection?.inspection_status ?? submission.inventory_status)} detail="Inspection copy only." /></div>
+        <div className={ws.span4}><MetricTile labelText="Automated review" value={label(automation?.status ?? "not_started")} detail="Conservative policy." /></div>
+        <div className={ws.span4}><MetricTile labelText="Human exceptions" value={compactNumber(automationSummary?.exception_count ?? needsReview.length)} detail="Only unresolved review gates." /></div>
+        <div className={ws.span4}><MetricTile labelText="Staging ready" value={compactNumber(automation?.staging_ready)} detail="Readiness, not approval." /></div>
+        <div className={ws.span4}><MetricTile labelText="Final approval" value={compactNumber(approvedPlanItems.length)} detail="Explicit human approvals only." /></div>
       </section>
 
       <div className={styles.tabBar} role="tablist" aria-label="Submission workspace">
@@ -188,7 +283,10 @@ export function SubmissionWorkspace() {
         ))}
       </div>
 
-      {activeTab === "Overview" ? <Overview submission={submission} inspection={inspection} layers={layers} duplicateGroups={duplicateGroups} stagingPlan={stagingPlan} onInspect={runInspection} /> : null}
+      {activeTab === "Overview" ? <Overview submission={submission} inspection={inspection} layers={layers} duplicateGroups={duplicateGroups} stagingPlan={stagingPlan} automation={automation} autoAfterInspection={autoAfterInspection} onAutoAfterInspection={setAutoAfterInspection} onInspect={runInspection} onRunAutomation={() => runAutomation(false)} /> : null}
+      {activeTab === "Automation" ? <AutomationPanel run={automation} summary={automationSummary} onReviewExceptions={() => setActiveTab("Review Exceptions")} onApproved={() => setActiveTab("Approved Classifications")} onCoordinates={() => setActiveTab("Coordinate Review")} onDuplicates={() => setActiveTab("Duplicate Candidates")} onStaging={() => setActiveTab("Staging Plan")} onRerun={() => runAutomation(true)} onDownload={downloadAutomationSummary} /> : null}
+      {activeTab === "Review Exceptions" ? <ExceptionWorkspace summary={automationSummary} selected={selectedExceptions} onSelected={setSelectedExceptions} onAction={applyExceptionAction} /> : null}
+      {activeTab === "Approved Classifications" ? <LayerTable title="Approved Classifications" description="High-confidence or human-approved classifications available for staging-plan review." layers={approvedLayers} selectedLayerId={selectedLayerId} onSelect={setSelectedLayerId} /> : null}
       {activeTab === "Layers" ? <LayerReviewWorkspace layers={filteredLayers} selectedLayerId={selectedLayerId} selectedLayer={selectedLayer} candidates={candidates} filters={filters} onFilter={setFilters} onSelect={setSelectedLayerId} onApprove={approveLayer} onDefer={deferLayer} /> : null}
       {activeTab === "Needs Review" ? <LayerTable title="Needs Review" description="Layers routed to taxonomy, duplicate, coordinate, owner, sensitivity, or data-owner confirmation review." layers={needsReview} selectedLayerId={selectedLayerId} onSelect={setSelectedLayerId} /> : null}
       {activeTab === "Duplicate Candidates" ? <DuplicateGroups groups={duplicateGroups} onResolve={resolveDuplicate} /> : null}
@@ -199,8 +297,9 @@ export function SubmissionWorkspace() {
   );
 }
 
-function Overview({ submission, inspection, layers, duplicateGroups, stagingPlan, onInspect }: { submission: IntakeSubmission; inspection: SourceInspectionStatus | null; layers: SubmissionLayer[]; duplicateGroups: DuplicateGroup[]; stagingPlan: StagingPlanItem[]; onInspect: () => void }) {
+function Overview({ submission, inspection, layers, duplicateGroups, stagingPlan, automation, autoAfterInspection, onAutoAfterInspection, onInspect, onRunAutomation }: { submission: IntakeSubmission; inspection: SourceInspectionStatus | null; layers: SubmissionLayer[]; duplicateGroups: DuplicateGroup[]; stagingPlan: StagingPlanItem[]; automation: AutomationRun | null; autoAfterInspection: boolean; onAutoAfterInspection: (checked: boolean) => void; onInspect: () => void; onRunAutomation: () => void }) {
   const byRouting = countBy(layers, "routing_state");
+  const inspectionComplete = ["complete", "inspection_complete"].includes(inspection?.inspection_status ?? "");
   return (
     <section className={styles.layout}>
       <Panel title="Submission Identity" description="Safe metadata; no full local paths.">
@@ -224,15 +323,18 @@ function Overview({ submission, inspection, layers, duplicateGroups, stagingPlan
           <div><dt>Spatial references</dt><dd>{compactNumber(inspection?.spatial_reference_count ?? 0)}</dd></div>
           <div><dt>Duplicate groups</dt><dd>{compactNumber(duplicateGroups.length)}</dd></div>
           <div><dt>Staging plan items</dt><dd>{compactNumber(stagingPlan.length)}</dd></div>
+          <div><dt>Automated review</dt><dd><StageBadge value={automation?.status ?? "not_started"} /></dd></div>
           <div><dt>Routing summary</dt><dd>{Object.entries(byRouting).map(([key, value]) => `${label(key)}: ${value}`).join(" | ") || "Not inspected"}</dd></div>
           <div><dt>Warnings</dt><dd>{listText(inspection?.warnings)}</dd></div>
           <div><dt>Blockers</dt><dd>{listText(inspection?.blockers)}</dd></div>
         </dl>
         <div className={ws.buttonRow}>
           <button className={`${ws.button} ${ws.buttonPrimary}`} onClick={onInspect}>{submission.current_status === "inspection_blocked" ? "Retry Inspection" : "Run Source Inspection"}</button>
+          {inspectionComplete ? <button className={`${ws.button} ${ws.buttonPrimary}`} onClick={onRunAutomation}>Run Automated Review</button> : null}
           <Link className={ws.button} href="/data-sources?stage=raw">View Raw Stage</Link>
           <Link className={ws.button} href="/data-sources/upload">Upload Another Package</Link>
         </div>
+        <label><input type="checkbox" checked={autoAfterInspection} onChange={(event) => onAutoAfterInspection(event.target.checked)} /> Run automated review after source inspection</label>
       </Panel>
 
       <Panel title="Methodology" description="Layer Classification Rules">
@@ -243,6 +345,103 @@ function Overview({ submission, inspection, layers, duplicateGroups, stagingPlan
           <div><dt>Limitations</dt><dd>Duplicate detection does not select an authoritative source. Coordinate naming such as WGS84 is not proof of spatial reference.</dd></div>
         </dl>
       </Panel>
+    </section>
+  );
+}
+
+const automationStages = [
+  "validate_inspection", "apply_sensitivity", "normalize_names", "classify_layers",
+  "evaluate_coordinates", "detect_duplicates", "evaluate_ownership",
+  "calculate_staging_readiness", "generate_staging_preview", "write_summary",
+];
+
+function AutomationPanel({ run, summary, onReviewExceptions, onApproved, onCoordinates, onDuplicates, onStaging, onRerun, onDownload }: { run: AutomationRun | null; summary: AutomationSummary | null; onReviewExceptions: () => void; onApproved: () => void; onCoordinates: () => void; onDuplicates: () => void; onStaging: () => void; onRerun: () => void; onDownload: () => void }) {
+  if (!run || run.status === "not_started") {
+    return <Panel title="Automated Review" description="Run the conservative review after source inspection."><EmptyState title="Automation has not run" message="Return to Overview and select Run Automated Review." /></Panel>;
+  }
+  const actualStages = new Map((run.stages ?? []).map((stage) => [stage.stage_name, stage]));
+  return (
+    <section className={styles.uploadGrid}>
+      {isDemoMode ? <div className={styles.degradedBanner} role="status"><strong>PORTFOLIO DEMO</strong><span>Automation results are synthetic and reset with the demo session.</span></div> : null}
+      <Panel title="Automation Progress" description="Persisted stage states from the conservative review orchestrator.">
+        <div className={styles.candidateList}>
+          {automationStages.map((stage) => {
+            const actual = actualStages.get(stage);
+            return <div className={styles.fileItem} key={stage}><strong>{label(stage)}</strong><StageBadge value={actual?.status ?? (run.status === "running" ? "pending" : "not_run")} /><span className={styles.muted}>{actual ? `${compactNumber(actual.records_updated)} result(s) recorded` : "Awaiting execution"}</span></div>;
+          })}
+        </div>
+      </Panel>
+      <Panel title="Automation Receipt" description="Safe review metadata only; local paths and source records are excluded.">
+        <dl className={styles.metadataList}>
+          <div><dt>Automation run ID</dt><dd className="technical">{run.automation_run_id}</dd></div>
+          <div><dt>Status</dt><dd><StageBadge value={run.status} /></dd></div>
+          <div><dt>Rule version</dt><dd>{run.rule_version}</dd></div>
+          <div><dt>Policy</dt><dd>{label(run.policy_mode)}</dd></div>
+          <div><dt>Layers processed</dt><dd>{compactNumber(run.layers_processed)}</dd></div>
+          <div><dt>Taxonomy approved</dt><dd>{compactNumber(run.taxonomy_approved)}</dd></div>
+          <div><dt>Taxonomy deferred</dt><dd>{compactNumber(run.taxonomy_deferred)}</dd></div>
+          <div><dt>Coordinate blockers</dt><dd>{compactNumber(run.coordinate_blocked)}</dd></div>
+          <div><dt>Duplicate groups</dt><dd>{compactNumber(run.duplicate_groups)}</dd></div>
+          <div><dt>Sensitivity inherited</dt><dd>{compactNumber(run.sensitivity_inherited)}</dd></div>
+          <div><dt>Owner confirmation required</dt><dd>{compactNumber(run.owner_confirmation_required)}</dd></div>
+          <div><dt>Staging ready</dt><dd>{compactNumber(run.staging_ready)}</dd></div>
+          <div><dt>Staging blocked</dt><dd>{compactNumber(run.staging_blocked)}</dd></div>
+          <div><dt>Final staging approvals</dt><dd>0 created by automation</dd></div>
+          <div><dt>Next action</dt><dd>Open Review Exceptions, resolve remaining blockers, and approve selected staging-plan items.</dd></div>
+        </dl>
+        <div className={ws.buttonRow}>
+          <button className={`${ws.button} ${ws.buttonPrimary}`} onClick={onReviewExceptions}>Review Exceptions ({compactNumber(summary?.exception_count)})</button>
+          <button className={ws.button} onClick={onApproved}>View Approved Classifications</button>
+          <button className={ws.button} onClick={onCoordinates}>View Coordinate Issues</button>
+          <button className={ws.button} onClick={onDuplicates}>View Duplicate Groups</button>
+          <button className={ws.button} onClick={onStaging}>View Staging Preview</button>
+          <button className={ws.button} onClick={onRerun}>Rerun Automation</button>
+          <button className={ws.button} onClick={onDownload}>Download Safe Automation Summary</button>
+        </div>
+      </Panel>
+    </section>
+  );
+}
+
+function ExceptionWorkspace({ summary, selected, onSelected, onAction }: { summary: AutomationSummary | null; selected: string[]; onSelected: (ids: string[]) => void; onAction: (action: "approve" | "defer" | "reference" | "exclude" | "confirm_owner" | "acknowledge_owner") => void }) {
+  const groups = Object.entries(summary?.exceptions ?? {}).filter(([, items]) => items.length);
+  if (!groups.length) {
+    return <Panel title="Review Exceptions" description="Only unresolved human review gates appear here."><EmptyState title="No review exceptions" message="The current automation result has no unresolved exception layers." /></Panel>;
+  }
+  const toggle = (layerId: string, checked: boolean) => onSelected(checked ? Array.from(new Set([...selected, layerId])) : selected.filter((id) => id !== layerId));
+  return (
+    <section className={styles.guidedForm}>
+      <Panel title="Bulk Review" description={`${compactNumber(selected.length)} unique layer(s) selected. Coordinate definition and duplicate authority remain individual decisions.`}>
+        <div className={ws.buttonRow}>
+          <button className={ws.button} disabled={!selected.length} onClick={() => onAction("approve")}>Approve Recommended Taxonomy</button>
+          <button className={ws.button} disabled={!selected.length} onClick={() => onAction("defer")}>Defer</button>
+          <button className={ws.button} disabled={!selected.length} onClick={() => onAction("reference")}>Mark Reference</button>
+          <button className={ws.button} disabled={!selected.length} onClick={() => onAction("exclude")}>Mark Out of Scope</button>
+          <button className={ws.button} disabled={!selected.length} onClick={() => onAction("confirm_owner")}>Require Data-Owner Confirmation</button>
+          <button className={ws.button} disabled={!selected.length} onClick={() => onAction("acknowledge_owner")}>Acknowledge Provisional Owner</button>
+        </div>
+      </Panel>
+      {groups.map(([group, items]) => (
+        <Panel key={group} title={label(group)} description={`${compactNumber(items.length)} layer(s) require human intervention.`}>
+          <div className={ws.tableWrap}>
+            <table className={ws.table}>
+              <thead><tr><th>Select</th><th>Source Layer</th><th>Taxonomy</th><th>Coordinates</th><th>Duplicate</th><th>Owner</th><th>Readiness</th><th>Blockers</th></tr></thead>
+              <tbody>{items.map((item) => (
+                <tr key={`${group}-${item.layer_id}`}>
+                  <td><input aria-label={`Select ${item.source_layer_name}`} type="checkbox" checked={selected.includes(item.layer_id)} onChange={(event) => toggle(item.layer_id, event.target.checked)} /></td>
+                  <td>{item.source_layer_name}</td>
+                  <td><StatusBadge value={item.taxonomy_decision} /></td>
+                  <td><StatusBadge value={item.coordinate_status} /></td>
+                  <td><StatusBadge value={item.duplicate_status} /></td>
+                  <td><StatusBadge value={item.owner_status} /></td>
+                  <td><StageBadge value={item.staging_readiness} /></td>
+                  <td>{item.staging_blockers.join("; ") || "None recorded"}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </Panel>
+      ))}
     </section>
   );
 }

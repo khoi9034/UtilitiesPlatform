@@ -135,6 +135,7 @@ def initialize(connection: sqlite3.Connection) -> None:
             duplicate_decision TEXT,
             coordinate_decision TEXT,
             sensitivity_decision TEXT,
+            owner_decision TEXT,
             reviewer TEXT,
             review_notes TEXT,
             data_owner_confirmation_required INTEGER,
@@ -217,6 +218,9 @@ def initialize(connection: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_staging_plan_submission ON staging_plan_items(submission_id);
         """
     )
+    columns = {row[1] for row in connection.execute("PRAGMA table_info(layer_reviews)")}
+    if "owner_decision" not in columns:
+        connection.execute("ALTER TABLE layer_reviews ADD COLUMN owner_decision TEXT")
     connection.commit()
 
 
@@ -527,9 +531,9 @@ def add_layer_review(root: Path, submission_id: str, layer_id: str, payload: dic
                 review_id, layer_id, workflow_status, classification_decision, approved_utility_system,
                 approved_network_group, approved_asset_category, approved_asset_subcategory, approved_operational_role,
                 approved_lifecycle_representation, approved_owner_or_jurisdiction, duplicate_decision, coordinate_decision,
-                sensitivity_decision, reviewer, review_notes, data_owner_confirmation_required, engineering_review_required,
+                sensitivity_decision, owner_decision, reviewer, review_notes, data_owner_confirmation_required, engineering_review_required,
                 reviewed_at, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 review_id,
@@ -546,6 +550,7 @@ def add_layer_review(root: Path, submission_id: str, layer_id: str, payload: dic
                 review.get("duplicate_decision", ""),
                 review.get("coordinate_decision", ""),
                 review.get("sensitivity_decision", ""),
+                review.get("owner_decision", ""),
                 review.get("reviewer", ""),
                 review.get("review_notes", ""),
                 int(bool(review.get("data_owner_confirmation_required", False))),
@@ -680,7 +685,7 @@ def approval_gate_blocker(layer: dict[str, Any], item: dict[str, Any]) -> str:
         blockers.append("duplicate review unresolved")
     if layer.get("coordinate_status") not in {"coordinate_ready", "mixed_source_spatial_references"}:
         blockers.append("coordinate review required")
-    if layer.get("sensitivity_status") != "sensitivity_review_complete":
+    if layer.get("sensitivity_status") not in {"sensitivity_review_complete", "inherited_from_package"}:
         blockers.append("sensitivity review incomplete")
     if not item.get("proposed_target_name"):
         blockers.append("target name unavailable")

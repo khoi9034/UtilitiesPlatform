@@ -112,6 +112,21 @@ test.describe("portfolio demo mode", () => {
     await expect(page.getByText("Demo staging was simulated in sessionStorage.")).toBeVisible();
   });
 
+  test("runs synthetic automated review without backend requests", async ({ page }) => {
+    await page.goto(`${basePath}/data-sources/submission`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "Run Automated Review" }).click();
+    await expect(page.getByText("Automation Receipt")).toBeVisible();
+    await expect(page.getByText("Validate Inspection")).toBeVisible();
+    await expect(page.getByText("Automation results are synthetic and reset with the demo session.")).toBeVisible();
+    await expect(page.getByText("Source Review Automation V1", { exact: false })).toHaveCount(0);
+    await expect(page.getByText("0 created by automation")).toBeVisible();
+    await page.getByRole("button", { name: "View Approved Classifications" }).click();
+    await expect(page.getByRole("tab", { name: "Approved Classifications" })).toHaveAttribute("aria-selected", "true");
+    await page.getByRole("tab", { name: "Automation" }).click();
+    await page.getByRole("button", { name: /Review Exceptions/ }).click();
+    await expect(page.getByRole("heading", { name: "Owner Uncertainty" }).first()).toBeVisible();
+  });
+
   test("loads demo findings and keeps review decisions temporary", async ({ page }) => {
     await page.goto(`${basePath}/data-health`, { waitUntil: "domcontentloaded" });
     await expect(page.getByText("Representative sanitized network sample").first()).toBeVisible();

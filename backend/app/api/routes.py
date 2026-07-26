@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse
 
 from app.schemas.responses import (
     AssetSummaryResponse,
+    AutomatedReviewRequest,
     BatchIssueReviewUpdate,
     ComponentReviewUpdate,
     DatasetCatalogResponse,
@@ -22,6 +23,7 @@ from app.schemas.responses import (
 from app.services import wastewater_data_health_service as wastewater_health
 from app.services import intake_service
 from app.services import source_inspection
+from app.services import review_automation
 from app.services.upload_validation_service import UploadValidationError
 from app.services.data_storage_service import (
     catalog_summary,
@@ -297,6 +299,61 @@ def intake_submission_inspection_status(submission_id: str) -> dict[str, object]
     if not status:
         raise HTTPException(status_code=404, detail="Submission not found.")
     return status
+
+
+@router.post("/intake/submissions/{submission_id}/automated-review")
+def run_intake_submission_automated_review(
+    submission_id: str,
+    request: AutomatedReviewRequest = AutomatedReviewRequest(),
+) -> dict[str, object]:
+    try:
+        return review_automation.run_automated_review(submission_id, **request.model_dump())
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Submission not found.") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Automated review failed safely; inspection results remain intact.") from exc
+
+
+@router.post("/intake/submissions/{submission_id}/automated-review/rerun")
+def rerun_intake_submission_automated_review(
+    submission_id: str,
+    request: AutomatedReviewRequest = AutomatedReviewRequest(force_recalculate=True),
+) -> dict[str, object]:
+    try:
+        payload = request.model_dump()
+        payload["force_recalculate"] = True
+        return review_automation.run_automated_review(submission_id, **payload)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Submission not found.") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Automated review failed safely; inspection results remain intact.") from exc
+
+
+@router.get("/intake/submissions/{submission_id}/automated-review/status")
+def intake_submission_automated_review_status(submission_id: str) -> dict[str, object]:
+    return review_automation.status(submission_id)
+
+
+@router.get("/intake/submissions/{submission_id}/automated-review/runs")
+def intake_submission_automated_review_runs(submission_id: str) -> dict[str, object]:
+    return review_automation.runs(submission_id)
+
+
+@router.get("/intake/submissions/{submission_id}/automated-review/runs/{automation_run_id}")
+def intake_submission_automated_review_run(submission_id: str, automation_run_id: str) -> dict[str, object]:
+    run = review_automation.run_detail(submission_id, automation_run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Automation run not found.")
+    return run
+
+
+@router.get("/intake/submissions/{submission_id}/automated-review/summary")
+def intake_submission_automated_review_summary(submission_id: str) -> dict[str, object]:
+    return review_automation.summary(submission_id)
 
 
 @router.get("/intake/submissions/{submission_id}/layers")

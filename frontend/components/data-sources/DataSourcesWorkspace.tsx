@@ -255,6 +255,11 @@ function Inspector({ item, status, runs, onInspect }: { item?: DataSourceItem; s
         <div><dt>Type</dt><dd><StatusBadge value={item.is_test_data ? "test_data" : String(item.item_type ?? "registered_layer")} /></dd></div>
         <div><dt>Records</dt><dd>{recordDisplay(item)}</dd></div>
         {item.item_type === "source_package" ? <div><dt>Package contents</dt><dd>{compactNumber(item.child_layer_count)} child layers; {compactNumber(item.table_count)} tables</dd></div> : null}
+        {item.item_type === "source_package" ? <div><dt>Inspection</dt><dd><StatusBadge value={item.inspection_status ?? "not_started"} /></dd></div> : null}
+        {item.item_type === "source_package" ? <div><dt>Automated Review</dt><dd><StatusBadge value={item.automated_review_status ?? "not_started"} /></dd></div> : null}
+        {item.item_type === "source_package" ? <div><dt>Human Exceptions</dt><dd>{compactNumber(item.human_exception_count)}</dd></div> : null}
+        {item.item_type === "source_package" ? <div><dt>Staging Readiness</dt><dd>{compactNumber(item.staging_ready_count)}</dd></div> : null}
+        {item.item_type === "source_package" ? <div><dt>Final Approval</dt><dd>{compactNumber(item.final_staging_approval_count)}</dd></div> : null}
         <div><dt>Spatial reference</dt><dd>{safeText(item.coordinate_system)}</dd></div>
         <div><dt>Sensitivity</dt><dd><StatusBadge value={item.sensitivity_level} /></dd></div>
         <div><dt>Trust state</dt><dd>{Object.entries(trustState).map(([key, value]) => `${label(key)}: ${label(value)}`).join(" | ") || "Unavailable"}</dd></div>
@@ -278,7 +283,8 @@ function ItemAction({ item, onInspect }: { item: DataSourceItem; onInspect: (ite
   }
   if (item.raw_registered === false) return <Link className={ws.button} href={`/data-sources/submission?id=${encodeURIComponent(submissionId)}&tab=Events`}>View Intake Event</Link>;
   if (item.status === "inspection_blocked") return <button className={ws.button} onClick={(event) => { event.stopPropagation(); void onInspect(item); }}>Retry Inspection</button>;
-  if (item.status === "inspection_complete") return <Link className={ws.button} href={`/data-sources/submission?id=${encodeURIComponent(submissionId)}&tab=Layers`}>Review Child Layers</Link>;
+  if (item.status === "inspection_complete") return <Link className={ws.button} href={`/data-sources/submission?id=${encodeURIComponent(submissionId)}`}>Run Automated Review</Link>;
+  if (item.status === "automated_review_complete") return <Link className={ws.button} href={`/data-sources/submission?id=${encodeURIComponent(submissionId)}&tab=Review%20Exceptions`}>Review Exceptions</Link>;
   if (item.status === "inspection_running") return <span className={styles.muted}>Inspection running</span>;
   return <button className={ws.button} onClick={(event) => { event.stopPropagation(); void onInspect(item); }}>Run Source Inspection</button>;
 }

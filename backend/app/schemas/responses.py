@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel
 
 
@@ -162,3 +164,11 @@ class ComponentReviewUpdate(BaseModel):
     workflow_status: str | None = None
     reviewer: str | None = None
     reviewer_notes: str | None = None
+
+
+class AutomatedReviewRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    policy_mode: Literal["conservative"] = "conservative"
+    force_recalculate: bool = False
+    preserve_manual_overrides: bool = True

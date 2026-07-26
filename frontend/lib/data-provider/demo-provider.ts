@@ -34,8 +34,8 @@ import standardization from "../../demo-data/standardization.json";
 import trustPipeline from "../../demo-data/trust-pipeline.json";
 import network from "../../demo-data/network.json";
 import calibration from "../../demo-data/calibration.json";
-import { applyDemoDuplicateGroup, applyDemoLayerReview, applyDemoStagingPlanItem, applyDemoReview, batchUpdateDemoIssues, batchUpdateDemoLayers, createDemoIntakeSubmission, demoIntakeEvents, readDemoIntake, readDemoStagedOutputs, stageDemoApprovedLayers, updateDemoDuplicateGroup, updateDemoIntakeInventory, updateDemoIssue, updateDemoLayerReview, updateDemoStagingPlanItem } from "./demo-review-store";
-import type { CatalogResponse, ClassificationCandidate, ClassificationCandidatesResponse, DataSourceItem, DataSourceItemsResponse, DuplicateGroup, DuplicateGroupsResponse, IntakeCapabilities, IntakeEvent, IntakeSubmission, IntakeSubmissionResponse, IntakeSubmissionsResponse, InventorySummary, PlatformDataProvider, RunsResponse, SourceInspectionStatus, StageManifest, StagingPlanItem, StagingPlanResponse, StorageStatus, SubmissionLayer, SubmissionLayersResponse, TrustPipeline } from "./types";
+import { applyDemoDuplicateGroup, applyDemoLayerReview, applyDemoStagingPlanItem, applyDemoReview, batchUpdateDemoIssues, batchUpdateDemoLayers, createDemoIntakeSubmission, demoAutomatedReviewRuns, demoAutomatedReviewStatus, demoAutomatedReviewSummary, demoIntakeEvents, readDemoIntake, readDemoStagedOutputs, runDemoAutomatedReview, stageDemoApprovedLayers, updateDemoDuplicateGroup, updateDemoIntakeInventory, updateDemoIssue, updateDemoLayerReview, updateDemoStagingPlanItem } from "./demo-review-store";
+import type { AutomationRun, AutomationSummary, CatalogResponse, ClassificationCandidate, ClassificationCandidatesResponse, DataSourceItem, DataSourceItemsResponse, DuplicateGroup, DuplicateGroupsResponse, IntakeCapabilities, IntakeEvent, IntakeSubmission, IntakeSubmissionResponse, IntakeSubmissionsResponse, InventorySummary, PlatformDataProvider, RunsResponse, SourceInspectionStatus, StageManifest, StagingPlanItem, StagingPlanResponse, StorageStatus, SubmissionLayer, SubmissionLayersResponse, TrustPipeline } from "./types";
 
 const demoIssues = issues.items as unknown as Issue[];
 
@@ -99,6 +99,11 @@ export class DemoDataProvider implements PlatformDataProvider {
     if (pathname.endsWith("/inspect")) {
       const submissionId = decodeURIComponent(pathname.split("/").at(-2) ?? "");
       return clone(demoInspectionStatus(submissionId)) as T;
+    }
+    if (pathname.endsWith("/automated-review") || pathname.endsWith("/automated-review/rerun")) {
+      const submissionId = decodeURIComponent(pathname.split("/")[4] ?? "");
+      const force = pathname.endsWith("/rerun") || Boolean((body as Record<string, unknown> | undefined)?.force_recalculate);
+      return clone(runDemoAutomatedReview(submissionId, demoSubmissionLayers(submissionId), demoDuplicateGroups(submissionId).items, force)) as T;
     }
     if (pathname.endsWith("/staging-plan")) {
       const submissionId = decodeURIComponent(pathname.split("/").at(-2) ?? "");
@@ -181,6 +186,11 @@ export class DemoDataProvider implements PlatformDataProvider {
   getIntakeInventoryStatus(submissionId: string) { return this.get<Record<string, unknown>>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/inventory-status`); }
   startSourceInspection(submissionId: string) { return this.post<Record<string, unknown>>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/inspect`); }
   getSourceInspectionStatus(submissionId: string) { return this.get<SourceInspectionStatus>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/inspection-status`); }
+  runAutomatedReview(submissionId: string, body: Record<string, unknown> = {}) { return this.post<AutomationRun>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/automated-review`, body); }
+  rerunAutomatedReview(submissionId: string, body: Record<string, unknown> = {}) { return this.post<AutomationRun>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/automated-review/rerun`, body); }
+  getAutomatedReviewStatus(submissionId: string) { return this.get<AutomationRun>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/automated-review/status`); }
+  getAutomatedReviewRuns(submissionId: string) { return this.get<{ items: AutomationRun[]; message: string }>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/automated-review/runs`); }
+  getAutomatedReviewSummary(submissionId: string) { return this.get<AutomationSummary>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/automated-review/summary`); }
   getSubmissionLayers(submissionId: string, path?: string) { return this.get<SubmissionLayersResponse>(path ?? `/api/intake/submissions/${encodeURIComponent(submissionId)}/layers`); }
   getSubmissionLayer(submissionId: string, layerId: string) { return this.get<SubmissionLayer>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/layers/${encodeURIComponent(layerId)}`); }
   getLayerClassificationCandidates(submissionId: string, layerId: string) { return this.get<ClassificationCandidatesResponse>(`/api/intake/submissions/${encodeURIComponent(submissionId)}/layers/${encodeURIComponent(layerId)}/candidates`); }
@@ -251,6 +261,9 @@ function pageDemoSubmissions(params: URLSearchParams): IntakeSubmissionsResponse
 function demoSubmissionPath(pathname: string, params: URLSearchParams) {
   const parts = pathname.split("/");
   const submissionId = decodeURIComponent(parts[4] ?? "");
+  if (pathname.endsWith("/automated-review/status")) return demoAutomatedReviewStatus(submissionId);
+  if (pathname.endsWith("/automated-review/runs")) return demoAutomatedReviewRuns(submissionId);
+  if (pathname.endsWith("/automated-review/summary")) return demoAutomatedReviewSummary(submissionId);
   if (pathname.endsWith("/inspection-status")) return demoInspectionStatus(submissionId);
   if (pathname.endsWith("/layers")) return pageDemoLayers(submissionId, params);
   if (pathname.includes("/layers/") && pathname.endsWith("/candidates")) {
@@ -380,27 +393,36 @@ function demoStageManifest(): StageManifest {
     })),
     ...readDemoStagedOutputs(),
   ] as DataSourceItem[];
-  const submissionItems = allDemoSubmissions().map((submission) => ({
-    item_id: `submission:${submission.submission_id}`,
-    name: submission.submission_name,
-    stage: "raw",
-    utility_system: submission.utility_system,
-    network_group: "pending_inventory",
-    asset_category: "pending_inventory",
-    asset_subcategory: "pending_inventory",
-    source_format: submission.source_format,
-    sensitivity_level: submission.sensitivity_level,
-    status: submission.current_status,
-    inventory_status: submission.inventory_status,
-    classification_status: submission.classification_status,
-    staging_status: submission.staging_status,
-    geometry_type: "synthetic",
-    record_count: "synthetic",
-    next_required_action: submission.next_required_action,
-    lineage: submission.lineage,
-    trust_state: {},
-    blockers: submission.blockers,
-  })) as DataSourceItem[];
+  const submissionItems = allDemoSubmissions().map((submission) => {
+    const automation = demoAutomatedReviewStatus(submission.submission_id);
+    const automated = automation.status !== "not_started";
+    return {
+      item_id: `submission:${submission.submission_id}`,
+      name: submission.submission_name,
+      stage: "raw",
+      utility_system: submission.utility_system,
+      network_group: "pending_inventory",
+      asset_category: "pending_inventory",
+      asset_subcategory: "pending_inventory",
+      source_format: submission.source_format,
+      sensitivity_level: submission.sensitivity_level,
+      status: automated ? "automated_review_complete" : submission.current_status,
+      inventory_status: submission.inventory_status,
+      classification_status: automated ? "automation_complete" : submission.classification_status,
+      staging_status: submission.staging_status,
+      geometry_type: "synthetic",
+      record_count: "synthetic",
+      inspection_status: "complete",
+      automated_review_status: automation.status,
+      human_exception_count: automated ? demoAutomatedReviewSummary(submission.submission_id).exception_count : 0,
+      staging_ready_count: automation.staging_ready,
+      final_staging_approval_count: 0,
+      next_required_action: automated ? "Open Review Exceptions, resolve blockers, and approve selected staging-plan items." : submission.next_required_action,
+      lineage: [...(Array.isArray(submission.lineage) ? submission.lineage : []), ...(automated ? ["Synthetic automated review"] : [])],
+      trust_state: {},
+      blockers: submission.blockers,
+    };
+  }) as DataSourceItem[];
   const items = [...submissionItems, ...fixtureItems];
   const counts = {
     raw: items.filter((item) => item.stage === "raw").length,
