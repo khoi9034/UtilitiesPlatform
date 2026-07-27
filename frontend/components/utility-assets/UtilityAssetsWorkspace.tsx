@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { getDataProvider, isDemoMode } from "../../lib/data-provider/provider";
 import { label } from "../../lib/formatters";
-import type { ConnectivityFinding } from "../../lib/connectivity-qa";
+import type { ConnectivityFinding, ConnectivityIssueGroup } from "../../lib/connectivity-qa";
 import type { AssetRelationship, CanonicalMapping, CanonicalizationPlan, UtilityAsset } from "../../lib/utility-assets";
 import { getUtilityVertical, utilityViewPath, type UtilityVerticalConfig, type UtilityWorkspaceView } from "../../lib/utility-verticals";
 import { EmptyState, LoadingSkeleton, MetricTile, OfflineState, PageHeader, Panel, StatusBadge, workspaceStyles as ws } from "../ui/Primitives";
@@ -69,6 +69,7 @@ export function UtilityAssetsWorkspace({
   const [relationships, setRelationships] = useState<AssetRelationship[]>([]);
   const [lineage, setLineage] = useState<Record<string, unknown> | null>(null);
   const [assetFindings, setAssetFindings] = useState<ConnectivityFinding[]>([]);
+  const [assetIssueGroups, setAssetIssueGroups] = useState<ConnectivityIssueGroup[]>([]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [filters, setFilters] = useState<AssetFiltersState>({
@@ -108,9 +109,13 @@ export function UtilityAssetsWorkspace({
       setSelectedAsset(asset);
       setRelationships(relationData.items);
       setLineage(lineageData);
-      return provider.get<{ items: ConnectivityFinding[] }>(`/api/connectivity-qa/${asset.utility_vertical}/findings?asset_id=${encodeURIComponent(asset.asset_id)}&limit=500`, controller.signal);
-    }).then((findingData) => {
+      return Promise.all([
+        provider.get<{ items: ConnectivityFinding[] }>(`/api/connectivity-qa/${asset.utility_vertical}/findings?asset_id=${encodeURIComponent(asset.asset_id)}&limit=500`, controller.signal),
+        provider.get<{ items: ConnectivityIssueGroup[] }>(`/api/connectivity-qa/${asset.utility_vertical}/issue-groups?asset_id=${encodeURIComponent(asset.asset_id)}&limit=500`, controller.signal),
+      ]);
+    }).then(([findingData, groupData]) => {
       setAssetFindings(findingData.items);
+      setAssetIssueGroups(groupData.items);
     }).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Asset detail unavailable."));
     return () => controller.abort();
   }, [provider, selectedAssetId]);
@@ -138,7 +143,7 @@ export function UtilityAssetsWorkspace({
 
   if (error && !data) return <div className={ws.workspace}><PageHeader eyebrow="Utility Assets" title="Canonical Utility Asset Model" subtitle="Shared electric and telecom asset foundation." /><OfflineState service="Canonical utility asset service" /></div>;
   if (!data || !taxonomy) return <div className={ws.workspace}><LoadingSkeleton /><LoadingSkeleton /></div>;
-  if (detailAssetId) return <AssetDetail asset={selectedAsset} relationships={relationships} lineage={lineage} findings={assetFindings} backHref={verticalConfig ? utilityViewPath(verticalConfig, "assets") : routeBase} />;
+  if (detailAssetId) return <AssetDetail asset={selectedAsset} relationships={relationships} lineage={lineage} findings={assetFindings} issueGroups={assetIssueGroups} backHref={verticalConfig ? utilityViewPath(verticalConfig, "assets") : routeBase} />;
 
   async function planAction(plan: CanonicalizationPlan, action: "approve" | "create-assets" | "defer") {
     setMessage("");
@@ -382,7 +387,7 @@ function Plan({ plan, onAction, onSaveMappings }: { plan: CanonicalizationPlan; 
   );
 }
 
-function AssetDetail({ asset, relationships, lineage, findings, backHref }: { asset: UtilityAsset | null; relationships: AssetRelationship[]; lineage: Record<string, unknown> | null; findings: ConnectivityFinding[]; backHref: string }) {
+function AssetDetail({ asset, relationships, lineage, findings, issueGroups, backHref }: { asset: UtilityAsset | null; relationships: AssetRelationship[]; lineage: Record<string, unknown> | null; findings: ConnectivityFinding[]; issueGroups: ConnectivityIssueGroup[]; backHref: string }) {
   if (!asset) return <div className={ws.workspace}><LoadingSkeleton /></div>;
   const source = (lineage?.source ?? {}) as Record<string, unknown>;
   const history = (lineage?.history ?? []) as Array<Record<string, unknown>>;
@@ -390,6 +395,8 @@ function AssetDetail({ asset, relationships, lineage, findings, backHref }: { as
   const severityRank: Record<string, number> = { critical: 4, error: 3, warning: 2, info: 1 };
   const highestSeverity = findings.reduce((highest, finding) => severityRank[finding.severity] > severityRank[highest] ? finding.severity : highest, "none");
   const blocking = findings.filter((finding) => finding.blocking).length;
+  const highestPriority = ["immediate", "high", "normal", "low", "informational"].find((priority) => issueGroups.some((group) => group.display_priority === priority)) ?? "none";
+  const highestTraceImpact = ["stops_trace", "limits_trace", "introduces_ambiguity", "advisory", "no_trace_effect"].find((impact) => issueGroups.some((group) => group.trace_impact === impact)) ?? "not_evaluated";
   return (
     <div className={ws.workspace}>
       <PageHeader eyebrow={isDemoMode ? "PORTFOLIO DEMO ASSET" : "Canonical Asset"} title={asset.canonical_name} subtitle={`${label(asset.utility_vertical)} / ${label(asset.asset_class)} / ${label(asset.asset_subtype)}`} />
@@ -397,11 +404,12 @@ function AssetDetail({ asset, relationships, lineage, findings, backHref }: { as
       {isDemoMode ? <div className={styles.demoNotice}>All utility assets, relationships, and canonicalization results in this demo are synthetic and reset with the demo session.</div> : null}
       <div className={ws.grid12}>
         <div className={ws.span6}><KeyValues title="Identity" values={{ "Asset ID": asset.asset_id, "Canonical name": asset.canonical_name, "Vertical": label(asset.utility_vertical), "Class": label(asset.asset_class), "Subtype": label(asset.asset_subtype), "Lifecycle": label(asset.lifecycle_status), "Operational": label(asset.operational_status) }} /></div>
-        <div className={ws.span6}><KeyValues title="QA and review" values={{ "Asset QA status": label(asset.qa_status), "Asset review status": label(asset.review_status), "Connectivity findings": findings.length, "Highest severity": label(highestSeverity), "Blocking findings": blocking, "Latest connectivity run": findings[0]?.qa_run_id || "Not evaluated" }} /></div>
+        <div className={ws.span6}><KeyValues title="QA and review" values={{ "Asset QA status": label(asset.qa_status), "Asset review status": label(asset.review_status), "Actionable issue groups": issueGroups.length, "Technical findings": findings.length, "Highest severity": label(highestSeverity), "Highest priority": label(highestPriority), "Trace impact": label(highestTraceImpact), "Blocking findings": blocking, "Latest connectivity run": findings[0]?.qa_run_id || "Not evaluated" }} /></div>
       </div>
       <Panel title="Connectivity QA" description="Findings are candidates from explicit canonical relationships; no source geometry is changed.">
         <div className={styles.contextActions}>
           <Link className={ws.button} href={utilityViewPath(verticalConfig, "connectivity-qa")}>Open Connectivity QA</Link>
+          {issueGroups.slice(0, 3).map((group) => <span key={group.issue_group_id}><strong>{group.primary_rule_code}</strong> {label(group.display_priority)} / {label(group.trace_impact)} / {group.technical_finding_count} finding{group.technical_finding_count === 1 ? "" : "s"}</span>)}
           {findings.slice(0, 4).map((finding) => <span key={finding.finding_id}><strong>{finding.rule_code}</strong> {label(finding.severity)} / {label(finding.review_status)}</span>)}
         </div>
       </Panel>
@@ -413,7 +421,8 @@ function AssetDetail({ asset, relationships, lineage, findings, backHref }: { as
       <Panel title="Relationships" description="Provisional and inferred connections are not authoritative.">
         {relationships.length ? <div className={ws.tableWrap}><table className={ws.table}><thead><tr><th>Type</th><th>Connected asset</th><th>Direction</th><th>Confidence</th><th>Evidence</th><th>QA</th></tr></thead><tbody>{relationships.map((item) => {
           const relationshipFindings = findings.filter((finding) => finding.relationship_id === item.relationship_id);
-          return <tr key={item.relationship_id}><td>{label(item.relationship_type)}</td><td>{item.connected_asset_name}<small className={styles.assetId}>{label(item.connected_asset_class)}</small></td><td>{label(item.direction)}</td><td>{label(item.confidence)}</td><td>{item.provisional ? "Provisional" : "Source relationship"} / {label(item.source)}</td><td>{relationshipFindings.length ? `${relationshipFindings.length} finding${relationshipFindings.length === 1 ? "" : "s"} / ${relationshipFindings.some((finding) => finding.blocking) ? "blocking" : "review"}` : "No active findings"}</td></tr>;
+          const relationshipGroups = issueGroups.filter((group) => group.affected_relationship_ids.includes(item.relationship_id));
+          return <tr key={item.relationship_id}><td>{label(item.relationship_type)}</td><td>{item.connected_asset_name}<small className={styles.assetId}>{label(item.connected_asset_class)}</small></td><td>{label(item.direction)}</td><td>{label(item.confidence)}</td><td>{item.provisional ? "Provisional" : "Source relationship"} / {label(item.source)}</td><td>{relationshipGroups.length ? `${relationshipGroups.length} group${relationshipGroups.length === 1 ? "" : "s"} / ${label(relationshipGroups[0].trace_impact)} / ${relationshipGroups[0].primary_rule_code}` : relationshipFindings.length ? `${relationshipFindings.length} technical finding${relationshipFindings.length === 1 ? "" : "s"}` : "No active findings"}</td></tr>;
         })}</tbody></table></div> : <EmptyState title="No relationships" message="No safe canonical relationship is registered for this asset." />}
       </Panel>
       <Panel title="Immutable history">{history.length ? <ol className={styles.history}>{history.map((item, index) => <li key={`${item.action}-${index}`}><strong>{label(String(item.action ?? "event"))}</strong><span>{String(item.created_at ?? "")} / {String(item.actor ?? item.actor_type ?? "system")}</span></li>)}</ol> : <EmptyState title="No history events" message="No canonical history event is available." />}</Panel>

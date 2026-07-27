@@ -6,7 +6,7 @@ from typing import Any
 from app.services.utility_assets.domain import LIFECYCLE_STATES, stable_fingerprint, stable_id
 
 MODEL_VERSION = "canonical-connectivity-graph-v1"
-RULE_VERSION = "connectivity-qa-rules-v1"
+RULE_VERSION = "connectivity-qa-rules-v2"
 PROFILES = {
     "electric_distribution": "electric_distribution_v1",
     "telecom_fiber": "telecom_fiber_v1",
@@ -67,8 +67,8 @@ ELECTRIC_RULES = (
     _rule("ELEC-006", "Voltage mismatch", "electric_distribution", "error", True, "asset", "Nominal and operating voltage conflict on the same asset.", "Confirm voltage values and units.", "Voltage transformations and regulator behavior are not traced."),
     _rule("ELEC-007", "Underground conductor missing conduit", "electric_distribution", "warning", False, "asset", "An underground conductor has no conduit identifier or routed-through relationship.", "Confirm direct-buried status or associate approved conduit evidence.", "Direct-buried construction can be an expected condition."),
     _rule("ELEC-008", "Equipment missing structure association", "electric_distribution", "warning", False, "asset", "Electric equipment has no structure identifier or mounted-on relationship.", "Confirm the supporting pole, vault, or structure.", "Pad-mounted equipment may not require a separate structure asset."),
-    _rule("ELEC-009", "Feeder inconsistency across relationship", "electric_distribution", "error", True, "relationship", "Related electric assets carry conflicting feeder identifiers.", "Review feeder boundaries and normally open points.", "Tie points can legitimately connect feeder contexts."),
-    _rule("ELEC-010", "Circuit inconsistency across relationship", "electric_distribution", "warning", False, "relationship", "Related electric assets carry conflicting circuit identifiers.", "Confirm circuit assignment and boundary equipment.", "Circuit identifiers may differ across source systems."),
+    _rule("ELEC-009", "Feeder inconsistency across relationship", "electric_distribution", "error", True, "relationship", "Related operational electric assets carry conflicting feeder identifiers.", "Review feeder boundaries and normally open points.", "Only active operational network classes and connectivity or membership relationships are evaluated; tie points can legitimately connect feeder contexts."),
+    _rule("ELEC-010", "Circuit inconsistency across relationship", "electric_distribution", "warning", False, "relationship", "Related operational electric assets carry conflicting circuit identifiers.", "Confirm circuit assignment and boundary equipment.", "Only active operational network classes and connectivity or membership relationships are evaluated; circuit identifiers may differ across source systems."),
     _rule("ELEC-011", "Invalid relationship direction", "electric_distribution", "warning", False, "relationship", "An electric relationship uses an unsupported direction value.", "Confirm source direction and map it to the canonical allowlist.", "Direction does not establish authoritative electrical flow."),
     _rule("ELEC-012", "Normally open device", "electric_distribution", "info", False, "asset", "A switch or device is marked normally open.", "Retain as operational context and verify before future tracing.", "This is an informational condition, not a defect."),
     _rule("ELEC-013", "Protective device type missing", "electric_distribution", "warning", False, "asset", "A protective device lacks its canonical device type.", "Confirm protection type and ratings from approved records.", "Protection coordination is outside V1."),
@@ -278,8 +278,14 @@ def evaluate_rule(rule: dict[str, Any], graph: dict[str, Any]) -> list[dict[str,
         field = "feeder_id" if code == "ELEC-009" else "circuit_id"
         for rel in relationships:
             left, right = nodes.get(rel.get("from_asset_id")), nodes.get(rel.get("to_asset_id"))
+            if not left or not right or rel.get("relationship_type") not in _electric_membership_relationships():
+                continue
+            if left.get("asset_class") not in _electric_membership_assets() or right.get("asset_class") not in _electric_membership_assets():
+                continue
+            if _active_or_retired(left) == "retired" or _active_or_retired(right) == "retired":
+                continue
             left_value, right_value = _attr(left, field), _attr(right, field)
-            if left and right and left_value and right_value and left_value != right_value:
+            if left_value and right_value and left_value != right_value:
                 add(left, f"Related assets have different {field.replace('_', ' ')} values.", related=right, relationship=rel, evidence={f"from_{field}": left_value, f"to_{field}": right_value})
     elif code == "ELEC-011":
         for rel in relationships:
@@ -402,6 +408,21 @@ def _class_assets(assets: list[dict[str, Any]], classes: set[str]) -> list[dict[
 
 def _electric_conductors() -> set[str]:
     return {"overhead_conductor", "underground_conductor", "secondary_conductor"}
+
+
+def _electric_membership_assets() -> set[str]:
+    return {
+        "substation", "feeder", "feeder_breaker", "switch", "fuse", "recloser",
+        "transformer", "overhead_conductor", "underground_conductor",
+        "secondary_conductor", "service_point", "junction",
+    }
+
+
+def _electric_membership_relationships() -> set[str]:
+    return {
+        "connects_to", "upstream_of", "downstream_of", "protected_by", "feeds",
+        "belongs_to_feeder", "belongs_to_circuit",
+    }
 
 
 def _active_or_retired(asset: dict[str, Any]) -> str:

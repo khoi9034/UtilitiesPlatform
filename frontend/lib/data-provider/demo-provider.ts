@@ -40,11 +40,17 @@ import { createDemoCanonicalAssets, demoAssets, demoPlans, demoRelationships, el
 import type { CanonicalizationPlan } from "../utility-assets";
 import {
   connectivityRules,
+  demoConnectivityCalibrationRuns,
   demoConnectivityFinding,
   demoConnectivityFindings,
+  demoConnectivityIssueGroup,
+  demoConnectivityIssueGroups,
   demoConnectivityRuns,
+  ensureDemoConnectivityCalibration,
   ensureDemoConnectivityRun,
+  reviewDemoConnectivityIssueGroup,
   reviewDemoConnectivityFinding,
+  runDemoConnectivityCalibration,
   runDemoConnectivityQa,
 } from "../connectivity-qa";
 import type { UtilityAsset } from "../utility-assets";
@@ -62,7 +68,7 @@ export class DemoDataProvider implements PlatformDataProvider {
     if (pathname === "/api/connectivity-qa/rules") {
       return clone({
         model_version: "canonical-connectivity-graph-v1",
-        rule_version: "connectivity-qa-rules-v1",
+        rule_version: "connectivity-qa-rules-v2",
         profiles: {
           electric_distribution: { profile_name: "electric_distribution_v1", rules: connectivityRules("electric_distribution") },
           telecom_fiber: { profile_name: "telecom_fiber_v1", rules: connectivityRules("telecom_fiber") },
@@ -71,11 +77,24 @@ export class DemoDataProvider implements PlatformDataProvider {
     }
     if (pathname.startsWith("/api/connectivity-qa/rules/")) {
       const vertical = demoConnectivityVertical(pathname.split("/").pop());
-      return clone({ utility_vertical: vertical, profile_name: vertical === "electric_distribution" ? "electric_distribution_v1" : "telecom_fiber_v1", model_version: "canonical-connectivity-graph-v1", rule_version: "connectivity-qa-rules-v1", items: connectivityRules(vertical) }) as T;
+      return clone({ utility_vertical: vertical, profile_name: vertical === "electric_distribution" ? "electric_distribution_v1" : "telecom_fiber_v1", model_version: "canonical-connectivity-graph-v1", rule_version: "connectivity-qa-rules-v2", items: connectivityRules(vertical) }) as T;
     }
     if (pathname.startsWith("/api/connectivity-qa/")) {
       const parts = pathname.split("/");
       const vertical = demoConnectivityVertical(parts[3]);
+      if (parts[4] === "calibration" && parts[5] === "status") return clone(ensureDemoConnectivityCalibration(vertical)) as T;
+      if (parts[4] === "calibration" && parts[5] === "runs" && parts[6]) {
+        const run = demoConnectivityCalibrationRuns(vertical).find((item) => item.calibration_run_id === decodeURIComponent(parts[6]));
+        if (!run) throw new Error("Synthetic calibration run not found.");
+        return clone(run) as T;
+      }
+      if (parts[4] === "calibration" && parts[5] === "runs") {
+        const items = demoConnectivityCalibrationRuns(vertical);
+        return clone({ items, pagination: { total: items.length, limit: 50, offset: 0, has_more: false } }) as T;
+      }
+      if (parts[4] === "calibrated-summary") return clone(ensureDemoConnectivityCalibration(vertical).summary) as T;
+      if (parts[4] === "issue-groups" && parts[5]) return clone(demoConnectivityIssueGroup(vertical, decodeURIComponent(parts[5]))) as T;
+      if (parts[4] === "issue-groups") return clone(demoConnectivityIssueGroups(vertical, params)) as T;
       if (parts[4] === "status") return clone(ensureDemoConnectivityRun(vertical)) as T;
       if (parts[4] === "summary") return clone(ensureDemoConnectivityRun(vertical).summary) as T;
       if (parts[4] === "runs" && parts[5]) {
@@ -142,6 +161,13 @@ export class DemoDataProvider implements PlatformDataProvider {
     if (pathname.startsWith("/api/connectivity-qa/")) {
       const parts = pathname.split("/");
       const vertical = demoConnectivityVertical(parts[3]);
+      if (parts[4] === "runs" && parts[5] && parts[6] === "calibrate") {
+        const options = body as Record<string, unknown> | undefined;
+        return clone(runDemoConnectivityCalibration(vertical, decodeURIComponent(parts[5]), Boolean(options?.force_recalculate), options?.preserve_review_decisions !== false)) as T;
+      }
+      if (parts[4] === "issue-groups" && parts[5] && parts[6]) {
+        return clone(reviewDemoConnectivityIssueGroup(vertical, decodeURIComponent(parts[5]), parts[6], body as Record<string, unknown> || {})) as T;
+      }
       if (parts[4] === "runs") return clone(runDemoConnectivityQa(vertical, Boolean((body as Record<string, unknown> | undefined)?.force_recalculate))) as T;
       if (parts[4] === "findings" && parts[5] && parts[6]) {
         return clone(reviewDemoConnectivityFinding(vertical, decodeURIComponent(parts[5]), parts[6], body as Record<string, unknown> || {})) as T;

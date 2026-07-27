@@ -1,0 +1,110 @@
+{
+  "manifest_version": "connectivity-synthetic-expectations-v1",
+  "description": "Synthetic scenarios used to validate deterministic Connectivity QA and calibration behavior. This manifest does not drive the rule engine.",
+  "electric_distribution": {
+    "intentional_scenarios": [
+      {
+        "scenario_code": "E-SYN-DISCONNECTED-CONDUCTOR",
+        "expected_rule_codes": ["ELEC-001", "ELEC-002"],
+        "expected_primary_issue_family": "conductor_connectivity",
+        "minimum_raw_findings": 1,
+        "expected_action_category": "repair_connectivity"
+      },
+      {
+        "scenario_code": "E-SYN-MISSING-ENDPOINT",
+        "expected_rule_codes": ["ELEC-002"],
+        "expected_primary_issue_family": "conductor_connectivity",
+        "minimum_raw_findings": 1,
+        "expected_action_category": "repair_connectivity"
+      },
+      {
+        "scenario_code": "E-SYN-MISSING-FEEDER",
+        "expected_rule_codes": ["ELEC-003"],
+        "expected_primary_issue_family": "feeder_assignment",
+        "minimum_raw_findings": 1,
+        "expected_action_category": "confirm_feeder"
+      },
+      {
+        "scenario_code": "E-SYN-INVALID-PHASE",
+        "expected_rule_codes": ["ELEC-005"],
+        "expected_primary_issue_family": "phase_compatibility",
+        "minimum_raw_findings": 1,
+        "expected_action_category": "confirm_phase"
+      },
+      {
+        "scenario_code": "E-SYN-MISSING-CONDUIT",
+        "expected_rule_codes": ["ELEC-007"],
+        "expected_primary_issue_family": "containment_gap",
+        "minimum_raw_findings": 1,
+        "expected_action_category": "confirm_conduit"
+      },
+      {
+        "scenario_code": "E-SYN-NORMALLY-OPEN",
+        "expected_rule_codes": ["ELEC-012"],
+        "expected_primary_issue_family": "operational_state",
+        "minimum_raw_findings": 1,
+        "expected_action_category": "retain_operational_context"
+      },
+      {
+        "scenario_code": "E-SYN-PROVISIONAL-RELATIONSHIP",
+        "expected_rule_codes": ["SHARED-004"],
+        "expected_primary_issue_family": "provisional_evidence",
+        "minimum_raw_findings": 1,
+        "expected_action_category": "confirm_relationship"
+      },
+      {
+        "scenario_code": "E-SYN-RETIRED-ACTIVE-RELATIONSHIP",
+        "expected_rule_codes": ["SHARED-005", "ELEC-014"],
+        "expected_primary_issue_family": "lifecycle_conflict",
+        "minimum_raw_findings": 1,
+        "expected_action_category": "confirm_lifecycle"
+      }
+    ]
+  },
+  "telecom_fiber": {
+    "intentional_scenarios": [
+      {
+        "scenario_code": "T-SYN-MISSING-CABLE-ENDPOINT",
+        "expected_rule_codes": ["TEL-001"],
+        "expected_primary_issue_family": "cable_endpoint",
+        "minimum_raw_findings": 1,
+        "expected_action_category": "repair_connectivity"
+      },
+      {
+        "scenario_code": "T-SYN-STRAND-OVERLAP",
+        "expected_rule_codes": ["TEL-003"],
+        "expected_primary_issue_family": "strand_allocation",
+        "minimum_raw_findings": 1,
+        "expected_action_category": "review_strand_allocation"
+      },
+      {
+        "scenario_code": "T-SYN-CAPACITY-INCONSISTENCY",
+        "expected_rule_codes": ["TEL-005"],
+        "expected_primary_issue_family": "capacity_consistency",
+        "minimum_raw_findings": 1,
+        "expected_action_category": "reconcile_capacity"
+      },
+      {
+        "scenario_code": "T-SYN-PROVISIONAL-SPLICE",
+        "expected_rule_codes": ["SHARED-004", "TEL-014"],
+        "expected_primary_issue_family": "provisional_evidence",
+        "minimum_raw_findings": 1,
+        "expected_action_category": "confirm_relationship"
+      },
+      {
+        "scenario_code": "T-SYN-PROPOSED-ROUTE-GAP",
+        "expected_rule_codes": ["TEL-012"],
+        "expected_primary_issue_family": "proposed_construction",
+        "minimum_raw_findings": 1,
+        "expected_action_category": "complete_design"
+      },
+      {
+        "scenario_code": "T-SYN-RETIRED-CABLE-ACTIVE-NETWORK",
+        "expected_rule_codes": ["SHARED-005", "TEL-013"],
+        "expected_primary_issue_family": "lifecycle_conflict",
+        "minimum_raw_findings": 1,
+        "expected_action_category": "confirm_lifecycle"
+      }
+    ]
+  }
+}

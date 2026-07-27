@@ -86,6 +86,11 @@ test.describe("enterprise shell", () => {
     await expect(page.getByRole("heading", { name: "Electric Connectivity QA" })).toBeVisible();
     await page.getByRole("button", { name: "Run Connectivity QA" }).click();
     await expect(page.getByText(/Connectivity QA completed|Unchanged graph detected/)).toBeVisible();
+    await expect(page.getByRole("button", { name: /ELEC-001/ }).first()).toBeVisible();
+    await page.getByRole("button", { name: /ELEC-001/ }).first().click();
+    await expect(page.getByRole("heading", { name: "Root problem" })).toBeVisible();
+    await expect(page.getByText("Stops Trace", { exact: true }).first()).toBeVisible();
+    await page.getByRole("button", { name: "All Technical Findings" }).click();
     await page.getByLabel("QA rule").selectOption("ELEC-001");
     const finding = page.getByRole("button", { name: /ELEC-001/ }).first();
     await expect(finding).toBeVisible();

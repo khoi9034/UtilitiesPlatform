@@ -55,6 +55,12 @@
   gap: var(--space-3);
 }
 
+.calibratedMetrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
 .demoNotice,
 .message,
 .error {
@@ -166,6 +172,7 @@
 }
 
 .filters,
+.groupFilters,
 .reviewForm {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -173,6 +180,7 @@
 }
 
 .filters label,
+.groupFilters label,
 .reviewForm label {
   display: grid;
   gap: var(--space-2);
@@ -183,6 +191,7 @@
 }
 
 .filters select,
+.groupFilters select,
 .reviewForm input,
 .reviewForm textarea {
   width: 100%;
@@ -193,6 +202,125 @@
   color: var(--color-text-primary);
   background: var(--color-surface-2);
   font: inherit;
+}
+
+.groupFilters {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.groupCards {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.groupCard {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  border: 1px solid var(--color-border-subtle);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-xs);
+  padding: var(--space-4);
+  color: var(--color-text-primary);
+  text-align: left;
+  background: var(--color-surface-1);
+  cursor: pointer;
+}
+
+.groupCard:hover,
+.groupCard[aria-pressed="true"] {
+  border-color: var(--color-accent);
+  background: var(--color-surface-selected);
+}
+
+.groupCard:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.groupCard p,
+.groupAction,
+.memberList p,
+.vendorDisclaimer {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.groupCardTop,
+.groupCard > span:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.priorityLabel {
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.groupFacts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.groupFacts div {
+  min-width: 0;
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: var(--space-2);
+}
+
+.groupFacts dt {
+  color: var(--color-text-tertiary);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.groupFacts dd {
+  margin: var(--space-1) 0 0;
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.groupAction {
+  padding: var(--space-2);
+  border-left: 2px solid var(--color-warning);
+}
+
+.memberList {
+  display: grid;
+  gap: 1px;
+  background: var(--color-border-subtle);
+}
+
+.memberList > div {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  background: var(--color-surface-1);
+}
+
+.memberList span {
+  color: var(--color-accent);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.memberList small {
+  color: var(--color-text-tertiary);
+}
+
+.vendorDisclaimer {
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: var(--space-3);
+  font-size: 0.78rem;
 }
 
 .findingLayout {
@@ -343,11 +471,16 @@
   .metrics {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  .calibratedMetrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 760px) {
   .pipeline,
-  .filters {
+  .filters,
+  .groupFilters {
     grid-template-columns: 1fr;
   }
 
@@ -378,10 +511,16 @@
   .metrics {
     grid-template-columns: 1fr 1fr;
   }
+
+  .calibratedMetrics {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 430px) {
-  .metrics {
+  .metrics,
+  .calibratedMetrics,
+  .groupFacts {
     grid-template-columns: 1fr;
   }
 }

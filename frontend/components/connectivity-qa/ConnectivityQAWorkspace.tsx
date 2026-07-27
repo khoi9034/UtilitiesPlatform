@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ConnectivityFinding, ConnectivityRule, ConnectivityRun } from "../../lib/connectivity-qa";
+import type {
+  ConnectivityCalibrationRun,
+  ConnectivityFinding,
+  ConnectivityIssueGroup,
+  ConnectivityIssueGroupDetail,
+  ConnectivityRule,
+  ConnectivityRun,
+} from "../../lib/connectivity-qa";
 import { getDataProvider, isDemoMode } from "../../lib/data-provider/provider";
 import { label } from "../../lib/formatters";
 import type { UtilityVerticalConfig } from "../../lib/utility-verticals";
@@ -16,7 +23,14 @@ type FindingsResponse = {
 };
 type RuleResponse = { items: ConnectivityRule[]; profile_name: string; model_version: string; rule_version: string };
 type RunResponse = { items: ConnectivityRun[]; pagination: { total: number } };
+type CalibrationRunResponse = { items: ConnectivityCalibrationRun[]; pagination: { total: number } };
+type GroupResponse = {
+  items: ConnectivityIssueGroup[];
+  pagination: { total: number; limit: number; offset: number; has_more: boolean };
+  calibration_run_id?: string;
+};
 type GroupField = "severity" | "rule_code" | "asset_id" | "relationship_id" | "review_status" | "blocking";
+type Section = "groups" | "findings" | "passed" | "history" | "rules";
 
 export function ConnectivityQAWorkspace({
   config,
@@ -29,9 +43,14 @@ export function ConnectivityQAWorkspace({
   const [rules, setRules] = useState<ConnectivityRule[]>([]);
   const [findings, setFindings] = useState<ConnectivityFinding[]>([]);
   const [runs, setRuns] = useState<ConnectivityRun[]>([]);
+  const [calibration, setCalibration] = useState<ConnectivityCalibrationRun | null>(null);
+  const [calibrationRuns, setCalibrationRuns] = useState<ConnectivityCalibrationRun[]>([]);
+  const [issueGroups, setIssueGroups] = useState<ConnectivityIssueGroup[]>([]);
+  const [groupDetail, setGroupDetail] = useState<ConnectivityIssueGroupDetail | null>(null);
   const [detail, setDetail] = useState<(ConnectivityFinding & { rule?: ConnectivityRule; graph_context?: { assets?: Array<Record<string, unknown>>; relationship?: Record<string, unknown> | null }; history?: Array<Record<string, unknown>> }) | null>(null);
-  const [section, setSection] = useState<"findings" | "rules" | "history">("findings");
+  const [section, setSection] = useState<Section>("groups");
   const [filters, setFilters] = useState({ severity: "", blocking: "", review_status: "", rule_code: "", asset_class: "", group: "severity" as GroupField });
+  const [groupFilters, setGroupFilters] = useState({ issue_family: "", display_priority: "", trace_impact: "", review_status: "" });
   const [page, setPage] = useState(0);
   const [reviewer, setReviewer] = useState(isDemoMode ? "Demo Reviewer" : "Local Reviewer");
   const [comment, setComment] = useState("");
@@ -41,16 +60,22 @@ export function ConnectivityQAWorkspace({
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const [status, ruleData, findingData, runData] = await Promise.all([
+    const [status, ruleData, findingData, runData, calibrationStatus, groupData, calibrationRunData] = await Promise.all([
       provider.get<ConnectivityRun | { status: string; message: string }>(`/api/connectivity-qa/${vertical}/status`),
       provider.get<RuleResponse>(`/api/connectivity-qa/rules/${vertical}`),
       provider.get<FindingsResponse>(`/api/connectivity-qa/${vertical}/findings?limit=500`),
       provider.get<RunResponse>(`/api/connectivity-qa/${vertical}/runs?limit=50`),
+      provider.get<ConnectivityCalibrationRun | { status: string; message: string }>(`/api/connectivity-qa/${vertical}/calibration/status`),
+      provider.get<GroupResponse>(`/api/connectivity-qa/${vertical}/issue-groups?limit=500`),
+      provider.get<CalibrationRunResponse>(`/api/connectivity-qa/${vertical}/calibration/runs?limit=50`),
     ]);
     setRun("qa_run_id" in status ? status : null);
     setRules(ruleData.items);
     setFindings(findingData.items);
     setRuns(runData.items);
+    setCalibration("calibration_run_id" in calibrationStatus ? calibrationStatus : null);
+    setIssueGroups(groupData.items);
+    setCalibrationRuns(calibrationRunData.items);
     setLoading(false);
   }, [provider, vertical]);
 
@@ -80,17 +105,76 @@ export function ConnectivityQAWorkspace({
   }, [filters.group, visible]);
   const assetClasses = [...new Set(findings.map((item) => item.asset_class).filter(Boolean))].sort();
   const summary = run?.summary;
+  const calibratedSummary = calibration?.summary;
+  const filteredGroups = useMemo(() => issueGroups.filter((group) =>
+    (!groupFilters.issue_family || group.issue_family === groupFilters.issue_family)
+    && (!groupFilters.display_priority || group.display_priority === groupFilters.display_priority)
+    && (!groupFilters.trace_impact || group.trace_impact === groupFilters.trace_impact)
+    && (!groupFilters.review_status || group.review_status === groupFilters.review_status)
+  ), [groupFilters, issueGroups]);
+  const issueFamilies = [...new Set(issueGroups.map((item) => item.issue_family))].sort();
 
   async function execute(force: boolean) {
     setBusy(true);
     setError("");
     try {
       const result = await provider.post<ConnectivityRun>(`/api/connectivity-qa/${vertical}/runs`, { force_recalculate: force, actor: reviewer });
-      setMessage(result.reused ? "Unchanged graph detected; the existing immutable run was reused." : "Connectivity QA completed and persisted.");
+      await provider.post<ConnectivityCalibrationRun>(
+        `/api/connectivity-qa/${vertical}/runs/${encodeURIComponent(result.qa_run_id)}/calibrate`,
+        { preserve_review_decisions: true },
+      );
+      setMessage(result.reused ? "Unchanged graph detected; QA and calibration history were reused." : "Connectivity QA completed and findings were calibrated.");
       setDetail(null);
+      setGroupDetail(null);
       await load();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Connectivity QA run failed safely.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function calibrate(force: boolean) {
+    if (!run) return;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await provider.post<ConnectivityCalibrationRun>(
+        `/api/connectivity-qa/${vertical}/runs/${encodeURIComponent(run.qa_run_id)}/calibrate`,
+        { force_recalculate: force, preserve_review_decisions: true },
+      );
+      setMessage(result.reused ? "No QA findings or calibration rules changed." : "Actionable issue groups recalculated.");
+      setGroupDetail(null);
+      await load();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Connectivity QA calibration failed safely.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function openGroup(issueGroupId: string) {
+    try {
+      setGroupDetail(await provider.get<ConnectivityIssueGroupDetail>(`/api/connectivity-qa/${vertical}/issue-groups/${encodeURIComponent(issueGroupId)}`));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Actionable issue detail unavailable.");
+    }
+  }
+
+  async function reviewGroup(action: string) {
+    if (!groupDetail) return;
+    setBusy(true);
+    setError("");
+    try {
+      const updated = await provider.post<ConnectivityIssueGroupDetail>(
+        `/api/connectivity-qa/${vertical}/issue-groups/${encodeURIComponent(groupDetail.issue_group_id)}/${action}`,
+        { reviewer, comment },
+      );
+      setGroupDetail(updated);
+      setMessage(`Group review updated ${updated.member_finding_ids.length} technical finding${updated.member_finding_ids.length === 1 ? "" : "s"} without changing evidence.`);
+      await load();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Issue-group review failed safely.");
     } finally {
       setBusy(false);
     }
@@ -133,7 +217,18 @@ export function ConnectivityQAWorkspace({
       qa_run_id: run.qa_run_id,
       started_at: run.started_at,
       completed_at: run.completed_at,
-      summary,
+      calibration_run_id: calibration?.calibration_run_id ?? "",
+      calibration_rule_version: calibration?.calibration_rule_version ?? "",
+      raw_finding_count: summary.findings_count,
+      actionable_issue_group_count: calibratedSummary?.actionable_issue_groups ?? 0,
+      primary_blockers: calibratedSummary?.primary_blockers ?? 0,
+      consequence_findings: calibratedSummary?.consequence_findings ?? 0,
+      severity_distribution: calibratedSummary?.by_severity ?? summary.by_severity,
+      issue_family_distribution: calibratedSummary?.by_issue_family ?? {},
+      trace_impact_distribution: calibratedSummary?.by_trace_impact ?? {},
+      affected_safe_asset_ids: [...new Set(issueGroups.flatMap((group) => group.affected_asset_ids))],
+      review_statuses: calibratedSummary?.by_review_status ?? summary.by_review_status,
+      recommended_actions: [...new Set(issueGroups.map((group) => group.recommended_action))],
       rule_runs: run.rule_runs,
       safety: "Safe canonical summary only; no source paths, geometry, customer, or subscriber records.",
     };
@@ -150,7 +245,7 @@ export function ConnectivityQAWorkspace({
 
   return (
     <div className={styles.workspace}>
-      {isDemoMode ? <div className={styles.demoNotice} role="status"><strong>PORTFOLIO DEMO</strong> All utility assets, network findings, and review decisions in this demo are synthetic and reset with the demo session.</div> : null}
+      {isDemoMode ? <div className={styles.demoNotice} role="status"><strong>PORTFOLIO DEMO</strong> All utility assets, QA findings, issue groups, and review decisions in this demo are synthetic and reset with the demo session.</div> : null}
       <header className={styles.header}>
         <div>
           <span>{config.shortTitle} network readiness</span>
@@ -160,7 +255,8 @@ export function ConnectivityQAWorkspace({
         <div className={ws.buttonRow}>
           <button className={ws.button} type="button" disabled={busy} onClick={() => execute(false)}><calcite-icon icon="play" scale="s" aria-hidden="true" />Run Connectivity QA</button>
           <button className={ws.button} type="button" disabled={busy} onClick={() => execute(true)}><calcite-icon icon="refresh" scale="s" aria-hidden="true" />Force Re-run</button>
-          <button className={ws.button} type="button" disabled={!summary} onClick={downloadSummary}><calcite-icon icon="download" scale="s" aria-hidden="true" />Download summary</button>
+          <button className={ws.button} type="button" disabled={busy || !run} onClick={() => calibrate(false)}><calcite-icon icon="organization" scale="s" aria-hidden="true" />Calibrate findings</button>
+          <button className={ws.button} type="button" disabled={!summary} onClick={downloadSummary}><calcite-icon icon="download" scale="s" aria-hidden="true" />Download safe summary</button>
         </div>
       </header>
 
@@ -171,15 +267,18 @@ export function ConnectivityQAWorkspace({
         <StatusBadge value={run?.status ?? "not_started"} tone={run?.status === "succeeded" ? "success" : "warning"} />
         <span>Profile <strong>{run?.profile_name ?? (vertical === "electric_distribution" ? "electric_distribution_v1" : "telecom_fiber_v1")}</strong></span>
         <span>Latest run <strong>{run?.completed_at ? new Date(run.completed_at).toLocaleString() : "Not run"}</strong></span>
-        <span>Rule version <strong>{run?.rule_version ?? "connectivity-qa-rules-v1"}</strong></span>
+        <span>Rule version <strong>{run?.rule_version ?? "connectivity-qa-rules-v2"}</strong></span>
+        <span>Calibration <strong>{calibration?.calibration_rule_version ?? "Not run"}</strong></span>
       </div>
 
-      <div className={styles.metrics}>
-        <MetricTile labelText="Assets evaluated" value={String(run?.asset_count ?? 0)} detail="Canonical assets only" />
-        <MetricTile labelText="Relationships" value={String(run?.relationship_count ?? 0)} detail="Explicit stored relationships" />
-        <MetricTile labelText="Findings" value={String(summary?.findings_count ?? 0)} detail={`${summary?.by_review_status?.open ?? 0} open`} />
-        <MetricTile labelText="Blocking" value={String(summary?.blocking_findings_count ?? 0)} detail="Requires review before future traces" />
-        <MetricTile labelText="Rules executed" value={String(summary?.rules_executed ?? 0)} detail={`${summary?.rules_skipped ?? 0} skipped`} />
+      <div className={styles.calibratedMetrics}>
+        <MetricTile labelText="Actionable issues" value={String(calibratedSummary?.actionable_issue_groups ?? 0)} detail="Probable root problems" />
+        <MetricTile labelText="Primary blockers" value={String(calibratedSummary?.primary_blockers ?? 0)} detail="Technical blocking preserved" />
+        <MetricTile labelText="Trace-stopping" value={String(calibratedSummary?.trace_stopping_groups ?? 0)} detail="Future trace readiness" />
+        <MetricTile labelText="Technical findings" value={String(summary?.findings_count ?? 0)} detail="Immutable raw evidence" />
+        <MetricTile labelText="Consequences" value={String(calibratedSummary?.consequence_findings ?? 0)} detail="Shown under primary causes" />
+        <MetricTile labelText="Affected assets" value={String(calibratedSummary?.affected_assets ?? 0)} detail="Safe canonical identifiers" />
+        <MetricTile labelText="Reviewed groups" value={String((calibratedSummary?.actionable_issue_groups ?? 0) - (calibratedSummary?.unresolved_primary_groups ?? 0))} detail="Human decisions recorded" />
       </div>
 
       <Panel title="Evaluation pipeline" description="Each state reflects persisted run data; no timed progress is simulated.">
@@ -193,8 +292,34 @@ export function ConnectivityQAWorkspace({
       </Panel>
 
       <nav className={styles.sectionNav} aria-label="Connectivity QA views">
-        {(["findings", "rules", "history"] as const).map((item) => <button key={item} type="button" aria-current={section === item ? "page" : undefined} onClick={() => setSection(item)}>{item === "history" ? "Run History" : label(item)}</button>)}
+        {([
+          ["groups", "Actionable Issues"],
+          ["findings", "All Technical Findings"],
+          ["passed", "Passed Rules"],
+          ["history", "Run History"],
+          ["rules", "Rule Catalog"],
+        ] as Array<[Section, string]>).map(([item, text]) => <button key={item} type="button" aria-current={section === item ? "page" : undefined} onClick={() => setSection(item)}>{text}</button>)}
       </nav>
+
+      {section === "groups" ? (
+        <IssueGroupExplorer
+          groups={filteredGroups}
+          allGroups={issueGroups}
+          detail={groupDetail}
+          families={issueFamilies}
+          filters={groupFilters}
+          reviewer={reviewer}
+          comment={comment}
+          busy={busy}
+          config={config}
+          onFilters={setGroupFilters}
+          onOpen={openGroup}
+          onReviewer={setReviewer}
+          onComment={setComment}
+          onReview={reviewGroup}
+          onCalibrate={() => calibrate(false)}
+        />
+      ) : null}
 
       {section === "findings" ? (
         <>
@@ -236,8 +361,9 @@ export function ConnectivityQAWorkspace({
         </>
       ) : null}
 
+      {section === "passed" ? <RuleCatalog rules={rules.filter((rule) => run?.rule_runs.find((item) => item.rule_code === rule.rule_code)?.status === "passed")} run={run} /> : null}
       {section === "rules" ? <RuleCatalog rules={rules} run={run} /> : null}
-      {section === "history" ? <RunHistory runs={runs} /> : null}
+      {section === "history" ? <RunHistory runs={runs} calibrationRuns={calibrationRuns} /> : null}
 
       <Panel title="Operational boundary" description="Connectivity QA is a readiness check, not a vendor network model.">
         <ul className={styles.limitations}>{(summary?.limitations ?? [
@@ -247,6 +373,168 @@ export function ConnectivityQAWorkspace({
         ]).map((item) => <li key={item}>{item}</li>)}</ul>
       </Panel>
     </div>
+  );
+}
+
+function IssueGroupExplorer({
+  groups,
+  allGroups,
+  detail,
+  families,
+  filters,
+  reviewer,
+  comment,
+  busy,
+  config,
+  onFilters,
+  onOpen,
+  onReviewer,
+  onComment,
+  onReview,
+  onCalibrate,
+}: {
+  groups: ConnectivityIssueGroup[];
+  allGroups: ConnectivityIssueGroup[];
+  detail: ConnectivityIssueGroupDetail | null;
+  families: string[];
+  filters: { issue_family: string; display_priority: string; trace_impact: string; review_status: string };
+  reviewer: string;
+  comment: string;
+  busy: boolean;
+  config: UtilityVerticalConfig;
+  onFilters: (value: { issue_family: string; display_priority: string; trace_impact: string; review_status: string }) => void;
+  onOpen: (issueGroupId: string) => void;
+  onReviewer: (value: string) => void;
+  onComment: (value: string) => void;
+  onReview: (action: string) => void;
+  onCalibrate: () => void;
+}) {
+  if (!allGroups.length) {
+    return <Panel title="Actionable issue queue" description="Calibration has not been run for the latest technical findings."><EmptyState title="No actionable issue groups yet" message="Group the existing technical findings by deterministic root-cause evidence." /><button className={ws.button} type="button" onClick={onCalibrate}>Calibrate findings</button></Panel>;
+  }
+  return (
+    <>
+      <Panel
+        title="Actionable issue queue"
+        description={`Related findings are grouped by probable root cause so ${config.shortTitle.toLowerCase()} operators can address the underlying condition first.`}
+      >
+        <div className={styles.groupFilters}>
+          <label>Issue family<select value={filters.issue_family} onChange={(event) => onFilters({ ...filters, issue_family: event.target.value })}><option value="">All families</option>{families.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select></label>
+          <label>Priority<select value={filters.display_priority} onChange={(event) => onFilters({ ...filters, display_priority: event.target.value })}><option value="">All priorities</option>{["immediate", "high", "normal", "low", "informational"].map((item) => <option key={item}>{item}</option>)}</select></label>
+          <label>Trace impact<select value={filters.trace_impact} onChange={(event) => onFilters({ ...filters, trace_impact: event.target.value })}><option value="">All impacts</option>{["stops_trace", "limits_trace", "introduces_ambiguity", "advisory", "no_trace_effect"].map((item) => <option key={item}>{item}</option>)}</select></label>
+          <label>Review status<select value={filters.review_status} onChange={(event) => onFilters({ ...filters, review_status: event.target.value })}><option value="">All statuses</option>{["open", "mixed", "acknowledged", "deferred", "accepted_risk", "false_positive"].map((item) => <option key={item}>{item}</option>)}</select></label>
+        </div>
+      </Panel>
+      {!groups.length ? <EmptyState title="No actionable issues match" message="Clear one or more filters to restore the queue." /> : (
+        <div className={styles.findingLayout}>
+          <div className={styles.groupCards}>
+            {groups.map((group) => (
+              <button
+                className={styles.groupCard}
+                type="button"
+                key={group.issue_group_id}
+                aria-pressed={detail?.issue_group_id === group.issue_group_id}
+                onClick={() => onOpen(group.issue_group_id)}
+              >
+                <div className={styles.groupCardTop}>
+                  <span className={styles.priorityLabel}>{label(group.display_priority)} priority</span>
+                  <SeverityBadge value={group.highest_severity} />
+                </div>
+                <strong>{group.group_title}</strong>
+                <p>{group.group_summary}</p>
+                <dl className={styles.groupFacts}>
+                  <div><dt>Primary issue</dt><dd>{group.primary_rule_code}</dd></div>
+                  <div><dt>Related consequences</dt><dd>{Math.max(0, group.technical_finding_count - 1)}</dd></div>
+                  <div><dt>Affected assets</dt><dd>{group.affected_asset_ids.length}</dd></div>
+                  <div><dt>Trace impact</dt><dd>{label(group.trace_impact)}</dd></div>
+                </dl>
+                <span className={styles.groupAction}>{group.recommended_action}</span>
+                <span><StatusBadge value={group.review_status} /> {group.effective_blocking ? "Technical blocker" : "Advisory"}</span>
+              </button>
+            ))}
+          </div>
+          <IssueGroupDetail
+            detail={detail}
+            config={config}
+            reviewer={reviewer}
+            comment={comment}
+            busy={busy}
+            onReviewer={onReviewer}
+            onComment={onComment}
+            onReview={onReview}
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
+function IssueGroupDetail({
+  detail,
+  config,
+  reviewer,
+  comment,
+  busy,
+  onReviewer,
+  onComment,
+  onReview,
+}: {
+  detail: ConnectivityIssueGroupDetail | null;
+  config: UtilityVerticalConfig;
+  reviewer: string;
+  comment: string;
+  busy: boolean;
+  onReviewer: (value: string) => void;
+  onComment: (value: string) => void;
+  onReview: (action: string) => void;
+}) {
+  if (!detail) return <Panel title="Issue-group detail" description="Select an actionable issue to inspect its preserved evidence."><EmptyState title="No issue selected" message="Choose an issue group from the queue." /></Panel>;
+  const primary = detail.members.find((item) => item.finding_id === detail.primary_finding_id);
+  return (
+    <aside className={styles.detail}>
+      <Panel title="Root problem" description={`${detail.primary_rule_code} · ${label(detail.issue_family)} · ${label(detail.display_priority)} priority`}>
+        <dl className={styles.detailGrid}>
+          <div><dt>Expected condition</dt><dd>Complete, internally consistent canonical relationships for future interpretation.</dd></div>
+          <div><dt>Actual condition</dt><dd>{primary?.explanation ?? detail.group_summary}</dd></div>
+          <div><dt>Why it matters</dt><dd>{detail.trace_impact_reason}</dd></div>
+          <div><dt>Recommended action</dt><dd>{detail.recommended_action}</dd></div>
+          <div><dt>Root-cause confidence</dt><dd>{label(detail.root_cause_confidence)}</dd></div>
+          <div><dt>Technical blocking</dt><dd>{detail.effective_blocking ? "Yes" : "No"}</dd></div>
+        </dl>
+        {detail.affected_asset_ids[0] ? <Link className={ws.button} href={`${config.routeBase}/assets?asset_id=${encodeURIComponent(detail.affected_asset_ids[0])}`}>Open primary asset</Link> : null}
+      </Panel>
+      <Panel title="Related technical findings" description="Every original rule result remains inspectable.">
+        <div className={styles.memberList}>
+          {detail.members.map((member) => <div key={member.finding_id}><span>{label(member.finding_role)}</span><strong>{member.rule_code} · {member.short_title}</strong><small>{label(member.severity)} / {member.blocking ? "blocking" : "non-blocking"}</small><p>{member.grouping_reason}</p></div>)}
+        </div>
+      </Panel>
+      <Panel title="Network context" description="Logical relationship view - not an engineering diagram.">
+        <pre className={styles.json}>{JSON.stringify(detail.graph_context, null, 2)}</pre>
+      </Panel>
+      <Panel title="Trace readiness" description="Preparation metadata only; no trace is executed.">
+        <dl className={styles.detailGrid}>
+          <div><dt>Impact</dt><dd>{label(detail.trace_impact)}</dd></div>
+          <div><dt>Future behavior</dt><dd>{detail.trace_impact === "stops_trace" ? "Stop at this evidence boundary." : detail.trace_impact === "limits_trace" ? "Warn and stop at confirmed evidence." : "Continue provisionally with a warning."}</dd></div>
+          <div><dt>Vendor mapping</dt><dd>{label(detail.external_rule_mapping_status)}</dd></div>
+          <div><dt>Conceptual hints</dt><dd>{detail.vendor_equivalent_hints.map(label).join(", ")}</dd></div>
+        </dl>
+        <p className={styles.vendorDisclaimer}>Vendor-equivalent hints describe general utility GIS concepts only. They do not represent direct ArcFM, Smallworld, Esri Utility Network, or proprietary telecom-system integration.</p>
+      </Panel>
+      <Panel title="Group review" description="Group actions update only listed member review states and append immutable history.">
+        <p>Group status: <StatusBadge value={detail.review_status} /> · Member states remain visible above.</p>
+        <div className={styles.reviewForm}>
+          <label>Reviewer<input value={reviewer} onChange={(event) => onReviewer(event.target.value)} /></label>
+          <label>Rationale<textarea rows={3} value={comment} onChange={(event) => onComment(event.target.value)} placeholder="Required for defer, accepted risk, and false positive" /></label>
+        </div>
+        <div className={styles.reviewButtons}>
+          <button className={ws.button} type="button" disabled={busy} onClick={() => onReview("acknowledge")}>Acknowledge group</button>
+          <button className={ws.button} type="button" disabled={busy || !comment.trim()} onClick={() => onReview("defer")}>Defer group</button>
+          <button className={ws.button} type="button" disabled={busy || !comment.trim()} onClick={() => onReview("accept-risk")}>Accept risk</button>
+          <button className={ws.button} type="button" disabled={busy || !comment.trim()} onClick={() => onReview("mark-false-positive")}>False positive</button>
+          <button className={ws.button} type="button" disabled={busy} onClick={() => onReview("reopen")}>Reopen</button>
+        </div>
+      </Panel>
+    </aside>
   );
 }
 
@@ -319,13 +607,20 @@ function RuleCatalog({ rules, run }: { rules: ConnectivityRule[]; run: Connectiv
   );
 }
 
-function RunHistory({ runs }: { runs: ConnectivityRun[] }) {
+function RunHistory({ runs, calibrationRuns }: { runs: ConnectivityRun[]; calibrationRuns: ConnectivityCalibrationRun[] }) {
   if (!runs.length) return <EmptyState title="No connectivity runs" message="Run the versioned profile to create immutable history." />;
   return (
+    <>
     <Panel title="Run history" description="Unchanged graphs reuse a prior run unless Force Re-run is explicit.">
       <div className={ws.tableWrap}><table className={ws.table}><thead><tr><th>Run</th><th>Status</th><th>Started</th><th>Assets</th><th>Relationships</th><th>Findings</th><th>Blocking</th><th>Forced</th></tr></thead>
         <tbody>{runs.map((run) => <tr key={run.qa_run_id}><td>{run.qa_run_id}</td><td><StatusBadge value={run.status} tone={run.status === "succeeded" ? "success" : "warning"} /></td><td>{new Date(run.started_at).toLocaleString()}</td><td>{run.asset_count}</td><td>{run.relationship_count}</td><td>{run.findings_count}</td><td>{run.blocking_findings_count}</td><td>{run.force_recalculate ? "Yes" : "No"}</td></tr>)}</tbody>
       </table></div>
     </Panel>
+    <Panel title="Calibration history" description="Forced recalculation preserves compatible group review decisions and supersedes changed memberships.">
+      <div className={ws.tableWrap}><table className={ws.table}><thead><tr><th>Calibration run</th><th>Status</th><th>QA run</th><th>Technical findings</th><th>Issue groups</th><th>Consequences</th><th>Completed</th></tr></thead>
+        <tbody>{calibrationRuns.map((run) => <tr key={run.calibration_run_id}><td>{run.calibration_run_id}</td><td><StatusBadge value={run.status} /></td><td>{run.qa_run_id}</td><td>{run.technical_findings_read}</td><td>{run.issue_groups_created}</td><td>{run.consequence_findings}</td><td>{new Date(run.completed_at).toLocaleString()}</td></tr>)}</tbody>
+      </table></div>
+    </Panel>
+    </>
   );
 }

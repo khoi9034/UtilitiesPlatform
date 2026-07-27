@@ -25,29 +25,34 @@ test.describe("portfolio demo mode", () => {
 
   test("runs synthetic connectivity QA and persists review decisions in sessionStorage", async ({ page }) => {
     await page.goto(`${basePath}/utilities/electric/connectivity-qa`, { waitUntil: "domcontentloaded" });
-    await expect(page.getByText("All utility assets, network findings, and review decisions in this demo are synthetic and reset with the demo session.")).toBeVisible();
+    await expect(page.getByText("All utility assets, QA findings, issue groups, and review decisions in this demo are synthetic and reset with the demo session.")).toBeVisible();
     await expect(page.getByRole("button", { name: /ELEC-001/ }).first()).toBeVisible();
-    await page.getByLabel("QA rule").selectOption("ELEC-001");
     await page.getByRole("button", { name: /ELEC-001/ }).first().click();
-    await page.getByLabel("Comment or rationale").fill("Expected synthetic training condition.");
+    await expect(page.getByText("Consequence", { exact: true }).first()).toBeVisible();
+    await page.getByLabel("Rationale").fill("Expected synthetic training condition.");
     await page.getByRole("button", { name: "Accept risk" }).click();
-    await expect(page.getByText("Review decision recorded in immutable history.")).toBeVisible();
+    await expect(page.getByText(/Group review updated/)).toBeVisible();
     expect(await page.evaluate(() => sessionStorage.getItem("utilities-platform-demo-connectivity-qa-v1"))).toContain("accepted_risk");
 
     await page.reload({ waitUntil: "domcontentloaded" });
-    await page.getByLabel("QA rule").selectOption("ELEC-001");
     await page.getByRole("button", { name: /ELEC-001/ }).first().click();
-    await expect(page.locator("dl").getByText("Accepted Risk", { exact: true })).toBeVisible();
+    await expect(page.getByText("Accepted Risk", { exact: true }).first()).toBeVisible();
+    await page.getByRole("button", { name: "All Technical Findings" }).click();
+    await page.getByLabel("QA rule").selectOption("ELEC-001");
+    await expect(page.getByRole("button", { name: /ELEC-001/ }).first()).toBeVisible();
     const [download] = await Promise.all([
       page.waitForEvent("download"),
-      page.getByRole("button", { name: "Download summary" }).click(),
+      page.getByRole("button", { name: "Download safe summary" }).click(),
     ]);
     expect(download.suggestedFilename()).toBe("electric-connectivity-qa-summary.json");
 
     await page.goto(`${basePath}/utilities/telecom/connectivity-qa`, { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("button", { name: /TEL-014/ }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /SHARED-004/ }).first()).toBeVisible();
+    await page.getByRole("button", { name: "All Technical Findings" }).click();
     await page.getByLabel("QA rule").selectOption("TEL-001");
     await expect(page.getByRole("button", { name: /TEL-001/ }).first()).toBeVisible();
+    await page.getByRole("button", { name: "Reset Demo Session" }).click();
+    expect(await page.evaluate(() => sessionStorage.getItem("utilities-platform-demo-connectivity-qa-v1"))).toBeNull();
   });
 
   test("shows sanitized data-source stages", async ({ page }) => {

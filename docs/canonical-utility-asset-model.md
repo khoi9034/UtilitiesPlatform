@@ -75,3 +75,7 @@ Static demo assets are generated from committed deterministic synthetic definiti
 ## Future Adapters
 
 Future ArcFM, Smallworld, and telecom inventory adapters should translate through canonical plans and relationship evidence. They must preserve source identifiers, enforce source fingerprints, and keep vendor-specific schemas outside the shared domain. Connectivity QA now evaluates explicit relationships as review candidates, but no relationship should be treated as authoritative topology. See `docs/connectivity-qa-engine.md`.
+
+Connectivity QA Calibration adds vendor-neutral issue groups after technical finding generation. Canonical rule categories, conceptual external mapping statuses, and vendor-equivalent hints prepare an adapter boundary without importing proprietary libraries, schemas, object classes, rule IDs, versioning behavior, or interfaces.
+
+UtilitiesPlatform currently uses its own vendor-neutral canonical asset and relationship model. Future licensed-system integrations will require organization-specific adapters and mappings. Current vendor-equivalent hints are conceptual only.

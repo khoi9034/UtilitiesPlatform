@@ -8,6 +8,7 @@ from typing import Any
 from app.services import intake_registry_service
 from app.services.utility_assets import service as utility_assets
 
+from . import calibration
 from .rules import (
     MODEL_VERSION,
     PROFILES,
@@ -117,6 +118,7 @@ class ConnectivityQaService:
             );
             """
         )
+        calibration.initialize(connection)
         connection.commit()
 
     def rules(self, vertical: str | None = None) -> dict[str, Any]:
@@ -290,6 +292,52 @@ class ConnectivityQaService:
         latest = self.status(vertical)
         return latest.get("summary", latest)
 
+    def calibrate(self, vertical: str, qa_run_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        self._vertical(vertical)
+        with self.connect() as connection:
+            return calibration.calibrate(connection, vertical, qa_run_id, payload)
+
+    def calibration_status(self, vertical: str) -> dict[str, Any]:
+        self._vertical(vertical)
+        with self.connect() as connection:
+            return calibration.calibration_status(connection, vertical)
+
+    def calibration_runs(self, vertical: str, limit: int = 50, offset: int = 0) -> dict[str, Any]:
+        self._vertical(vertical)
+        with self.connect() as connection:
+            return calibration.calibration_runs(connection, vertical, limit, offset)
+
+    def calibration_run(self, vertical: str, calibration_run_id: str) -> dict[str, Any]:
+        self._vertical(vertical)
+        with self.connect() as connection:
+            return calibration.calibration_run(connection, vertical, calibration_run_id)
+
+    def issue_groups(self, vertical: str, filters: dict[str, Any]) -> dict[str, Any]:
+        self._vertical(vertical)
+        with self.connect() as connection:
+            return calibration.issue_groups(connection, vertical, filters)
+
+    def issue_group(self, vertical: str, issue_group_id: str) -> dict[str, Any]:
+        self._vertical(vertical)
+        with self.connect() as connection:
+            return calibration.issue_group(connection, vertical, issue_group_id)
+
+    def review_issue_group(
+        self,
+        vertical: str,
+        issue_group_id: str,
+        action: str,
+        payload: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        self._vertical(vertical)
+        with self.connect() as connection:
+            return calibration.review_issue_group(connection, vertical, issue_group_id, action, payload)
+
+    def calibrated_summary(self, vertical: str) -> dict[str, Any]:
+        self._vertical(vertical)
+        with self.connect() as connection:
+            return calibration.calibrated_summary(connection, vertical)
+
     def findings(self, vertical: str, filters: dict[str, Any]) -> dict[str, Any]:
         self._vertical(vertical)
         with self.connect() as connection:
@@ -399,6 +447,13 @@ class ConnectivityQaService:
             connection.execute(
                 "UPDATE connectivity_qa_runs SET summary_json = ? WHERE qa_run_id = ?",
                 (_dump(summary), row["qa_run_id"]),
+            )
+            calibration.synchronize_member_review(
+                connection,
+                row["qa_run_id"],
+                finding_id,
+                reviewer,
+                comment,
             )
             connection.commit()
         return self.finding(vertical, finding_id)

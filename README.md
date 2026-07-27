@@ -371,6 +371,27 @@ Local mode persists QA records in the existing external application registry. St
 
 This engine does not trace networks, infer authoritative electrical flow, repair topology, alter source or staged geometry, publish services, or implement ArcFM, GE Smallworld, Esri Utility Network, or a telecom inventory product. See `docs/connectivity-qa-engine.md`.
 
+### Connectivity QA Calibration and Root-Cause Triage V1
+
+The QA workspace now separates immutable technical evidence from actionable issue groups. Deterministic calibration groups findings that share explicit asset or relationship evidence and an allowlisted dependency, while preserving every original finding.
+
+The default **Actionable Issues** view prioritizes probable root causes, trace impact, affected assets, and the next corrective action. **All Technical Findings** retains the complete raw result set. Technical severity and blocking are never silently downgraded; workflow priority and trace impact are stored separately.
+
+Run QA and calibration through the interface, or call:
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -ContentType "application/json" `
+  -Body '{"force_recalculate":false,"preserve_review_decisions":true}' `
+  http://127.0.0.1:8001/api/connectivity-qa/electric_distribution/runs/<qa_run_id>/calibrate
+```
+
+The public demo performs the same synthetic grouping in `sessionStorage`, supports group review and safe summary export, and makes no backend requests. The expectation manifest is `config/qa_rules/connectivity_synthetic_expectations_v1.json`.
+
+Electric QA rule V2 limits feeder and circuit membership checks to active operational network assets and connectivity or membership edges. This changes the deterministic Electric fixture from 172 to 113 raw findings (`ELEC-009`: 63 to 34; `ELEC-010`: 65 to 35) without changing any other rule, technical severity, or blocking setting. The V1 run remains immutable.
+
+UtilitiesPlatform currently uses its own vendor-neutral canonical asset and relationship model. Future licensed-system integrations will require organization-specific adapters and mappings. Current vendor-equivalent hints are conceptual only.
+
 ## Repository Structure
 
 ```text

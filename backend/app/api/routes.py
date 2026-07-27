@@ -54,6 +54,10 @@ def _connectivity_call(callback: Callable[..., dict[str, Any]], *args: object) -
         return callback(*args)
     except ConnectivityQaError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.get("/platform/status", response_model=PlatformStatusResponse)
@@ -189,6 +193,73 @@ def connectivity_qa_vertical_rules(utility_vertical: str) -> dict[str, object]:
 @router.post("/connectivity-qa/{utility_vertical}/runs")
 def run_connectivity_qa(utility_vertical: str, payload: dict[str, object] | None = None) -> dict[str, object]:
     return _connectivity_call(connectivity_qa.run, utility_vertical, payload)
+
+
+@router.post("/connectivity-qa/{utility_vertical}/runs/{qa_run_id}/calibrate")
+def calibrate_connectivity_qa(
+    utility_vertical: str,
+    qa_run_id: str,
+    payload: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return _connectivity_call(connectivity_qa.calibrate, utility_vertical, qa_run_id, payload)
+
+
+@router.get("/connectivity-qa/{utility_vertical}/calibration/status")
+def connectivity_qa_calibration_status(utility_vertical: str) -> dict[str, object]:
+    return _connectivity_call(connectivity_qa.calibration_status, utility_vertical)
+
+
+@router.get("/connectivity-qa/{utility_vertical}/calibration/runs")
+def connectivity_qa_calibration_runs(
+    utility_vertical: str,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+) -> dict[str, object]:
+    return _connectivity_call(connectivity_qa.calibration_runs, utility_vertical, limit, offset)
+
+
+@router.get("/connectivity-qa/{utility_vertical}/calibration/runs/{calibration_run_id}")
+def connectivity_qa_calibration_run(utility_vertical: str, calibration_run_id: str) -> dict[str, object]:
+    return _connectivity_call(connectivity_qa.calibration_run, utility_vertical, calibration_run_id)
+
+
+@router.get("/connectivity-qa/{utility_vertical}/issue-groups")
+def connectivity_qa_issue_groups(
+    utility_vertical: str,
+    issue_family: str | None = None,
+    severity: str | None = None,
+    effective_blocking: bool | None = None,
+    display_priority: str | None = None,
+    trace_impact: str | None = None,
+    review_status: str | None = None,
+    asset_id: str | None = None,
+    relationship_id: str | None = None,
+    primary_rule_code: str | None = None,
+    calibration_run_id: str | None = None,
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> dict[str, object]:
+    return _connectivity_call(connectivity_qa.issue_groups, utility_vertical, locals())
+
+
+@router.get("/connectivity-qa/{utility_vertical}/issue-groups/{issue_group_id}")
+def connectivity_qa_issue_group(utility_vertical: str, issue_group_id: str) -> dict[str, object]:
+    return _connectivity_call(connectivity_qa.issue_group, utility_vertical, issue_group_id)
+
+
+@router.post("/connectivity-qa/{utility_vertical}/issue-groups/{issue_group_id}/{action}")
+def review_connectivity_qa_issue_group(
+    utility_vertical: str,
+    issue_group_id: str,
+    action: str,
+    payload: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return _connectivity_call(connectivity_qa.review_issue_group, utility_vertical, issue_group_id, action, payload)
+
+
+@router.get("/connectivity-qa/{utility_vertical}/calibrated-summary")
+def connectivity_qa_calibrated_summary(utility_vertical: str) -> dict[str, object]:
+    return _connectivity_call(connectivity_qa.calibrated_summary, utility_vertical)
 
 
 @router.get("/connectivity-qa/{utility_vertical}/status")

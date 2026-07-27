@@ -59,6 +59,39 @@ def test_graph_preserves_direction_branches_and_parallel_relationships() -> None
     assert findings[0]["relationship_id"] == "r3"
 
 
+def test_membership_rules_only_evaluate_active_operational_network_edges() -> None:
+    def asset(asset_id: str, asset_class: str, feeder: str, lifecycle: str = "active") -> dict:
+        return {
+            "asset_id": asset_id,
+            "utility_vertical": "electric_distribution",
+            "asset_class": asset_class,
+            "lifecycle_status": lifecycle,
+            "canonical_attributes_json": {"feeder_id": feeder, "circuit_id": feeder},
+        }
+
+    assets = [
+        asset("conductor-a", "overhead_conductor", "F-1"),
+        asset("conductor-b", "overhead_conductor", "F-2"),
+        asset("pole", "pole", "F-2"),
+        asset("conduit", "conduit", "F-2"),
+        asset("boundary", "reference_boundary", "F-2"),
+        asset("retired", "transformer", "F-2", "retired"),
+    ]
+    relationships = [
+        {"relationship_id": "operational", "from_asset_id": "conductor-a", "to_asset_id": "conductor-b", "relationship_type": "connects_to"},
+        {"relationship_id": "pole-edge", "from_asset_id": "conductor-a", "to_asset_id": "pole", "relationship_type": "connects_to"},
+        {"relationship_id": "containment", "from_asset_id": "conductor-a", "to_asset_id": "conduit", "relationship_type": "routed_through"},
+        {"relationship_id": "reference", "from_asset_id": "conductor-a", "to_asset_id": "boundary", "relationship_type": "reference_for"},
+        {"relationship_id": "retired-edge", "from_asset_id": "conductor-a", "to_asset_id": "retired", "relationship_type": "connects_to"},
+    ]
+    graph = build_graph("electric_distribution", assets, assets, relationships)
+
+    for rule_code in ("ELEC-009", "ELEC-010"):
+        rule = next(item for item in rule_profile("electric_distribution") if item["rule_code"] == rule_code)
+        findings = evaluate_rule(rule, graph)
+        assert [item["relationship_id"] for item in findings] == ["operational"]
+
+
 def test_run_is_deterministic_reusable_and_forceable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     first = _run(tmp_path, monkeypatch)
     second = client.post("/api/connectivity-qa/electric_distribution/runs", json={"actor": "test reviewer"}).json()
