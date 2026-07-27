@@ -8,7 +8,9 @@ The frontend is a Next.js TypeScript application using the App Router, ESLint, C
 
 ## Backend
 
-The backend is a FastAPI application exposing health, platform status, data source, asset summary, and QA summary endpoints. Responses are Pydantic models and do not fabricate production data.
+The backend is a FastAPI application exposing intake, canonical asset, Connectivity QA, calibration, and read-only Network Trace APIs. The canonical asset registry, QA evidence, issue groups, and immutable trace records share one external application database while real GIS data remains outside Git.
+
+Network Trace reuses the canonical connectivity graph instead of maintaining a second topology. Vertical profiles provide Electric and Telecom semantics over one deterministic traversal engine. See `network-trace-engine.md`.
 
 ## PostGIS
 
@@ -30,9 +32,9 @@ CAD intake will validate submitted files, inventory layers, review coordinate sy
 
 Incoming data stays separate from staging and processed outputs. Production utility data must remain outside Git.
 
-## QA Engine
+## QA And Trace
 
-The planned QA engine will run checks for identifiers, required attributes, geometry, domains, proximity, connectivity, and source mapping issues.
+Connectivity QA records immutable technical candidates and calibration groups likely root causes without downgrading technical evidence. Network Trace consumes those calibrated trace impacts, honors lifecycle and operational state, and records bounded analytical paths. Neither engine repairs geometry or edits source, staged, standardized, or curated data.
 
 ## Review And Approval Workflow
 

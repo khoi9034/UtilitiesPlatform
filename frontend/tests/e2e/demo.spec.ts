@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const routes = ["/", "/utilities", "/utilities/electric", "/utilities/electric/assets", "/utilities/electric/connectivity-qa", "/utilities/telecom", "/utilities/telecom/assets", "/utilities/telecom/connectivity-qa", "/command-center", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/data-health", "/network-intelligence", "/cad-intake", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/projects", "/maintenance", "/methodology"];
+const routes = ["/", "/utilities", "/utilities/electric", "/utilities/electric/assets", "/utilities/electric/connectivity-qa", "/utilities/electric/network-trace", "/utilities/telecom", "/utilities/telecom/assets", "/utilities/telecom/connectivity-qa", "/utilities/telecom/network-trace", "/command-center", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/data-health", "/network-intelligence", "/cad-intake", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/projects", "/maintenance", "/methodology"];
 const basePath = process.env.DEMO_BASE_PATH ?? "";
 
 test.setTimeout(120_000);
@@ -53,6 +53,32 @@ test.describe("portfolio demo mode", () => {
     await expect(page.getByRole("button", { name: /TEL-001/ }).first()).toBeVisible();
     await page.getByRole("button", { name: "Reset Demo Session" }).click();
     expect(await page.evaluate(() => sessionStorage.getItem("utilities-platform-demo-connectivity-qa-v1"))).toBeNull();
+  });
+
+  test("runs and restores a browser-only synthetic network trace", async ({ page }) => {
+    await page.goto(`${basePath}/utilities/electric/network-trace`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("All utility assets, relationships, QA findings, and trace results in this demo are synthetic and reset with the demo session.")).toBeVisible();
+    await page.getByLabel("QA policy").selectOption("diagnostic");
+    await page.getByRole("button", { name: "Run Trace" }).click();
+    await expect(page.getByText("Trace result", { exact: true })).toBeVisible();
+    await expect(page.getByText("Logical relationship view", { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => sessionStorage.getItem("utilities-platform-demo-network-trace-v1"))).toContain("ELEC-TRACE-001");
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      page.getByRole("button", { name: "Download Safe Trace Receipt" }).click(),
+    ]);
+    expect(download.suggestedFilename()).toContain("safe-trace-receipt.json");
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByText("Trace result", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "View Ordered Path" }).click();
+    await expect(page.getByText("Ordered path", { exact: true })).toBeVisible();
+
+    await page.goto(`${basePath}/utilities/telecom/network-trace`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByLabel("Trace type")).toHaveValue("TEL-TRACE-001");
+    await expect(page.locator("body")).not.toContainText("C:\\");
+    await page.getByRole("button", { name: "Reset Demo Session" }).click();
+    expect(await page.evaluate(() => sessionStorage.getItem("utilities-platform-demo-network-trace-v1"))).toBeNull();
   });
 
   test("shows sanitized data-source stages", async ({ page }) => {

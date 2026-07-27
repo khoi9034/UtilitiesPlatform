@@ -1,0 +1,271 @@
+.workspace {
+  display: grid;
+  gap: 16px;
+}
+
+.title {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.title span,
+.title h2 {
+  display: block;
+  margin: 0;
+}
+
+.title span {
+  color: var(--text-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.title h2 {
+  font-size: 24px;
+}
+
+.disclaimer,
+.error {
+  border-left: 3px solid var(--accent);
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.disclaimer {
+  background: var(--surface-muted);
+  color: var(--text-muted);
+}
+
+.error {
+  background: #fff1f0;
+  border-color: #b42318;
+  color: #7a271a;
+}
+
+.setupGrid {
+  align-items: start;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr);
+}
+
+.form {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.form label,
+.advanced label {
+  color: var(--text-muted);
+  display: grid;
+  font-size: 12px;
+  gap: 5px;
+}
+
+.form input,
+.form select,
+.advanced input {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font: inherit;
+  min-height: 38px;
+  padding: 7px 9px;
+  width: 100%;
+}
+
+.advanced {
+  grid-column: 1 / -1;
+}
+
+.advanced summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.advanced > div {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding-top: 10px;
+}
+
+.readiness {
+  display: grid;
+  gap: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.readiness div,
+.resultSummary span {
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 9px 6px;
+}
+
+.readiness dt,
+.resultSummary strong {
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.readiness dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.resultSummary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin-bottom: 14px;
+}
+
+.resultSummary span {
+  overflow-wrap: anywhere;
+}
+
+.stages {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.stages li {
+  align-items: center;
+  display: flex;
+  font-size: 13px;
+  gap: 6px;
+}
+
+.logical {
+  display: grid;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.logicalPath {
+  align-items: center;
+  display: flex;
+  min-width: max-content;
+}
+
+.nodeGroup {
+  align-items: center;
+  display: flex;
+}
+
+.connector {
+  background: var(--border-strong);
+  display: block;
+  height: 2px;
+  width: 28px;
+}
+
+.node {
+  background: var(--surface);
+  border: 2px solid var(--border-strong);
+  color: var(--text);
+  display: grid;
+  gap: 2px;
+  min-height: 54px;
+  padding: 7px 9px;
+  text-decoration: none;
+  width: 152px;
+}
+
+.node strong,
+.node span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.startNode {
+  border-color: var(--accent);
+}
+
+.stoppedNode {
+  border-color: #b42318;
+}
+
+.pathStop {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-left: 10px;
+}
+
+.textEquivalent {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 12px 0 0;
+}
+
+.assetId {
+  color: var(--text-muted);
+  display: block;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.eventCount {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 10px 0 0;
+}
+
+.historyLink {
+  background: none;
+  border: 0;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  max-width: 220px;
+  overflow-wrap: anywhere;
+  padding: 0;
+  text-align: left;
+}
+
+.historyLink[aria-current="true"] {
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .setupGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .resultSummary,
+  .stages {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .title {
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .form,
+  .advanced > div,
+  .readiness,
+  .resultSummary,
+  .stages {
+    grid-template-columns: 1fr;
+  }
+}

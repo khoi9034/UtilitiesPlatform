@@ -141,4 +141,28 @@ def synthetic_relationships(assets: Iterable[dict[str, Any]]) -> list[dict[str, 
             "evidence_json": {"value_provenance": "synthetic", "intentional_review_candidate": "retired_to_active"},
             "created_at": left["created_at"],
         })
+    by_name = {row["canonical_name"]: row for row in rows}
+    for left_name, right_name in (
+        ("ELEC-SWITCH-002", "ELEC-OVERHEAD-CONDUCTOR-002"),
+        ("ELEC-OVERHEAD-CONDUCTOR-004", "ELEC-UNDERGROUND-CONDUCTOR-002"),
+        ("ELEC-SWITCH-002", "ELEC-FUSE-002"),
+        ("ELEC-TRANSFORMER-008", "ELEC-JUNCTION-002"),
+        ("ELEC-JUNCTION-002", "ELEC-SECONDARY-CONDUCTOR-002"),
+        ("ELEC-SECONDARY-CONDUCTOR-004", "ELEC-SERVICE-POINT-002"),
+        ("FIBER-FIBER-CABLE-002", "FIBER-SPLICE-CLOSURE-001"),
+        ("FIBER-FIBER-CABLE-002", "FIBER-SPLICE-CLOSURE-002"),
+    ):
+        left, right = by_name[left_name], by_name[right_name]
+        relationship_type = "feeds" if left["utility_vertical"] == "electric_distribution" else "connects_to"
+        relationships.append({
+            "relationship_id": stable_id("rel", left["asset_id"], right["asset_id"], relationship_type),
+            "from_asset_id": left["asset_id"], "to_asset_id": right["asset_id"],
+            "relationship_type": relationship_type, "direction": "forward", "confidence": "high",
+            "source": "synthetic_trace_fixture", "provisional": False, "confirmed_by": "",
+            "confirmed_at": "", "evidence_json": {
+                "value_provenance": "synthetic",
+                "purpose": "deterministic_network_trace_scenario",
+            },
+            "created_at": left["created_at"],
+        })
     return relationships

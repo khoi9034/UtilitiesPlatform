@@ -229,6 +229,33 @@ function makeDemoRelationships(assets: UtilityAsset[]): AssetRelationship[] {
       evidence_json: { synthetic: true, intentional_review_candidate: "retired_to_active" },
     });
   });
+  [
+    ["ELEC-SWITCH-002", "ELEC-OVERHEAD-CONDUCTOR-002"],
+    ["ELEC-OVERHEAD-CONDUCTOR-004", "ELEC-UNDERGROUND-CONDUCTOR-002"],
+    ["ELEC-SWITCH-002", "ELEC-FUSE-002"],
+    ["ELEC-TRANSFORMER-008", "ELEC-JUNCTION-002"],
+    ["ELEC-JUNCTION-002", "ELEC-SECONDARY-CONDUCTOR-002"],
+    ["ELEC-SECONDARY-CONDUCTOR-004", "ELEC-SERVICE-POINT-002"],
+    ["FIBER-FIBER-CABLE-002", "FIBER-SPLICE-CLOSURE-001"],
+    ["FIBER-FIBER-CABLE-002", "FIBER-SPLICE-CLOSURE-002"],
+  ].forEach(([fromName, toName], index) => {
+    const left = assets.find((asset) => asset.canonical_name === fromName);
+    const right = assets.find((asset) => asset.canonical_name === toName);
+    if (!left || !right) return;
+    relationships.push({
+      relationship_id: `demo-rel-trace-${index + 1}`,
+      from_asset_id: left.asset_id,
+      to_asset_id: right.asset_id,
+      relationship_type: left.utility_vertical === "electric_distribution" ? "feeds" : "connects_to",
+      direction: "forward",
+      confidence: "high",
+      source: "synthetic_trace_fixture",
+      provisional: false,
+      connected_asset_name: right.canonical_name,
+      connected_asset_class: right.asset_class,
+      evidence_json: { synthetic: true, purpose: "deterministic_network_trace_scenario" },
+    });
+  });
   return relationships;
 }
 
@@ -303,5 +330,6 @@ export function resetDemoUtilityAssets() {
     sessionStorage.removeItem(assetSessionKey);
     sessionStorage.removeItem(planSessionKey);
     sessionStorage.removeItem("utilities-platform-demo-connectivity-qa-v1");
+    sessionStorage.removeItem("utilities-platform-demo-network-trace-v1");
   }
 }

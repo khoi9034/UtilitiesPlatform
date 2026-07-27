@@ -1,0 +1,38 @@
+{
+  "version": "network-trace-synthetic-expectations-v1",
+  "notice": "All names identify deterministic synthetic assets. The engine resolves canonical evidence at runtime and does not hardcode returned paths.",
+  "relationship_additions": [
+    ["ELEC-SWITCH-002", "ELEC-OVERHEAD-CONDUCTOR-002"],
+    ["ELEC-OVERHEAD-CONDUCTOR-004", "ELEC-UNDERGROUND-CONDUCTOR-002"],
+    ["ELEC-SWITCH-002", "ELEC-FUSE-002"],
+    ["ELEC-TRANSFORMER-008", "ELEC-JUNCTION-002"],
+    ["ELEC-JUNCTION-002", "ELEC-SECONDARY-CONDUCTOR-002"],
+    ["ELEC-SECONDARY-CONDUCTOR-004", "ELEC-SERVICE-POINT-002"],
+    ["FIBER-FIBER-CABLE-002", "FIBER-SPLICE-CLOSURE-001"],
+    ["FIBER-FIBER-CABLE-002", "FIBER-SPLICE-CLOSURE-002"]
+  ],
+  "electric_distribution": [
+    {"scenario": "complete_downstream_feeder", "trace_type": "ELEC-TRACE-001", "start_name": "ELEC-FEEDER-001", "target_name": "ELEC-OVERHEAD-CONDUCTOR-003", "qa_policy": "diagnostic", "expected_outcomes": ["complete", "complete_with_warnings"]},
+    {"scenario": "upstream_to_source", "trace_type": "ELEC-TRACE-002", "start_name": "ELEC-TRANSFORMER-001", "qa_policy": "diagnostic", "expected_outcomes": ["complete", "complete_with_warnings", "ambiguous"]},
+    {"scenario": "open_switch_stop", "trace_type": "ELEC-TRACE-001", "start_name": "ELEC-FEEDER-001", "qa_policy": "diagnostic", "expected_outcomes": ["blocked", "complete_with_warnings", "ambiguous"]},
+    {"scenario": "missing_endpoint_block", "trace_type": "ELEC-TRACE-002", "start_name": "ELEC-OVERHEAD-CONDUCTOR-008", "expected_outcomes": ["blocked", "no_path"]},
+    {"scenario": "transformer_missing_feeder", "trace_type": "ELEC-TRACE-002", "start_name": "ELEC-TRANSFORMER-008", "expected_outcomes": ["blocked", "partial"]},
+    {"scenario": "underground_conduit_gap", "trace_type": "ELEC-TRACE-002", "start_name": "ELEC-UNDERGROUND-CONDUCTOR-003", "expected_outcomes": ["blocked", "partial", "complete_with_warnings"]},
+    {"scenario": "retired_active_conflict", "trace_type": "ELEC-TRACE-002", "start_name": "ELEC-OVERHEAD-CONDUCTOR-001", "expected_outcomes": ["blocked", "partial"]},
+    {"scenario": "provisional_relationship", "trace_type": "ELEC-TRACE-002", "start_name": "ELEC-TRANSFORMER-001", "qa_policy": "diagnostic", "expected_outcomes": ["complete_with_warnings", "ambiguous"]},
+    {"scenario": "feeder_membership_conflict", "trace_type": "ELEC-TRACE-006", "start_name": "ELEC-FEEDER-001", "expected_outcomes": ["blocked", "partial", "complete_with_warnings", "ambiguous"]},
+    {"scenario": "downstream_branch", "trace_type": "ELEC-TRACE-001", "start_name": "ELEC-FEEDER-BREAKER-001", "qa_policy": "diagnostic", "expected_outcomes": ["complete_with_warnings", "blocked", "ambiguous"]}
+  ],
+  "telecom_fiber": [
+    {"scenario": "complete_hub_to_terminal", "trace_type": "TEL-TRACE-001", "start_name": "FIBER-NETWORK-HUB-001", "target_name": "FIBER-TERMINAL-001", "qa_policy": "diagnostic", "provisional_relationship_policy": "exclude", "expected_outcomes": ["complete", "complete_with_warnings"]},
+    {"scenario": "terminal_upstream", "trace_type": "TEL-TRACE-002", "start_name": "FIBER-TERMINAL-001", "qa_policy": "diagnostic", "expected_outcomes": ["complete", "complete_with_warnings", "ambiguous"]},
+    {"scenario": "cable_missing_endpoint", "trace_type": "TEL-TRACE-003", "start_name": "FIBER-FIBER-CABLE-004", "expected_outcomes": ["blocked"]},
+    {"scenario": "provisional_splice", "trace_type": "TEL-TRACE-004", "start_name": "FIBER-SPLICE-CLOSURE-001", "qa_policy": "diagnostic", "expected_outcomes": ["complete_with_warnings", "ambiguous"]},
+    {"scenario": "strand_overlap", "trace_type": "TEL-TRACE-003", "start_name": "FIBER-FIBER-CABLE-001", "expected_outcomes": ["blocked", "partial"]},
+    {"scenario": "capacity_inconsistency", "trace_type": "TEL-TRACE-007", "start_name": "FIBER-SPLITTER-003", "expected_outcomes": ["blocked", "partial"]},
+    {"scenario": "proposed_construction_gap", "trace_type": "TEL-TRACE-008", "start_name": "FIBER-PROPOSED-CONSTRUCTION-SEGMENT-001", "lifecycle_mode": "include_proposed", "expected_outcomes": ["partial", "blocked"]},
+    {"scenario": "retired_cable_conflict", "trace_type": "TEL-TRACE-003", "start_name": "FIBER-FIBER-CABLE-003", "expected_outcomes": ["blocked"]},
+    {"scenario": "cabinet_branch", "trace_type": "TEL-TRACE-005", "start_name": "FIBER-FIBER-CABINET-001", "qa_policy": "diagnostic", "expected_outcomes": ["complete_with_warnings", "ambiguous"]},
+    {"scenario": "affected_network", "trace_type": "TEL-TRACE-006", "start_name": "FIBER-FIBER-CABLE-002", "qa_policy": "diagnostic", "expected_outcomes": ["complete_with_warnings", "partial", "ambiguous"]}
+  ]
+}

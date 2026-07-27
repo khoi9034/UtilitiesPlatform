@@ -39,6 +39,16 @@ type AssetFiltersState = {
   qa: string; review: string; owner: string; feederCircuit: string; telecomRoute: string;
   sourceLayer: string; search: string; provisional: boolean;
 };
+type AssetTraceReadiness = {
+  eligible_trace_types: Array<{ trace_type: string; name: string; default_direction: string }>;
+  trace_ready: boolean;
+  blockers: Array<Record<string, string>>;
+  warnings: Array<Record<string, string>>;
+  provisional_relationships: number;
+  trace_count: number;
+  recent_traces: Array<Record<string, string>>;
+  relationship_trace_usage: Record<string, { traces_used: number; traces_stopped: number }>;
+};
 
 const tabs = ["Overview", "Electric Distribution", "Telecom/Fiber", "Asset Explorer", "Relationships", "Canonicalization Plans", "Data Quality Preview"] as const;
 type WorkspaceTab = (typeof tabs)[number];
@@ -70,6 +80,7 @@ export function UtilityAssetsWorkspace({
   const [lineage, setLineage] = useState<Record<string, unknown> | null>(null);
   const [assetFindings, setAssetFindings] = useState<ConnectivityFinding[]>([]);
   const [assetIssueGroups, setAssetIssueGroups] = useState<ConnectivityIssueGroup[]>([]);
+  const [traceReadiness, setTraceReadiness] = useState<AssetTraceReadiness | null>(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [filters, setFilters] = useState<AssetFiltersState>({
@@ -105,10 +116,12 @@ export function UtilityAssetsWorkspace({
       provider.get<UtilityAsset>(`/api/utility-assets/${encodeURIComponent(selectedAssetId)}`, controller.signal),
       provider.get<{ items: AssetRelationship[] }>(`/api/utility-assets/${encodeURIComponent(selectedAssetId)}/relationships`, controller.signal),
       provider.get<Record<string, unknown>>(`/api/utility-assets/${encodeURIComponent(selectedAssetId)}/lineage`, controller.signal),
-    ]).then(([asset, relationData, lineageData]) => {
+      provider.get<AssetTraceReadiness>(`/api/network-trace/assets/${encodeURIComponent(selectedAssetId)}/readiness`, controller.signal),
+    ]).then(([asset, relationData, lineageData, traceData]) => {
       setSelectedAsset(asset);
       setRelationships(relationData.items);
       setLineage(lineageData);
+      setTraceReadiness(traceData);
       return Promise.all([
         provider.get<{ items: ConnectivityFinding[] }>(`/api/connectivity-qa/${asset.utility_vertical}/findings?asset_id=${encodeURIComponent(asset.asset_id)}&limit=500`, controller.signal),
         provider.get<{ items: ConnectivityIssueGroup[] }>(`/api/connectivity-qa/${asset.utility_vertical}/issue-groups?asset_id=${encodeURIComponent(asset.asset_id)}&limit=500`, controller.signal),
@@ -143,7 +156,7 @@ export function UtilityAssetsWorkspace({
 
   if (error && !data) return <div className={ws.workspace}><PageHeader eyebrow="Utility Assets" title="Canonical Utility Asset Model" subtitle="Shared electric and telecom asset foundation." /><OfflineState service="Canonical utility asset service" /></div>;
   if (!data || !taxonomy) return <div className={ws.workspace}><LoadingSkeleton /><LoadingSkeleton /></div>;
-  if (detailAssetId) return <AssetDetail asset={selectedAsset} relationships={relationships} lineage={lineage} findings={assetFindings} issueGroups={assetIssueGroups} backHref={verticalConfig ? utilityViewPath(verticalConfig, "assets") : routeBase} />;
+  if (detailAssetId) return <AssetDetail asset={selectedAsset} relationships={relationships} lineage={lineage} findings={assetFindings} issueGroups={assetIssueGroups} traceReadiness={traceReadiness} backHref={verticalConfig ? utilityViewPath(verticalConfig, "assets") : routeBase} />;
 
   async function planAction(plan: CanonicalizationPlan, action: "approve" | "create-assets" | "defer") {
     setMessage("");
@@ -229,6 +242,7 @@ function VerticalOverview({ config, items, plans }: { config: UtilityVerticalCon
     { view: "canonicalization" as const, label: "Canonicalization Plans", description: "Review mappings, approvals, and explicit asset creation." },
     { view: "data-quality" as const, label: `${config.shortTitle} Data Quality`, description: "Inspect stored asset-quality candidates." },
     { view: "connectivity-qa" as const, label: "Connectivity QA", description: "Run versioned relationship checks and review network findings." },
+    { view: "network-trace" as const, label: "Network Trace", description: "Run read-only analytical traversal over canonical relationships and calibrated QA evidence." },
     { view: "review-history" as const, label: "Review History", description: "Read immutable canonicalization plan events." },
   ];
   return (
@@ -387,7 +401,7 @@ function Plan({ plan, onAction, onSaveMappings }: { plan: CanonicalizationPlan; 
   );
 }
 
-function AssetDetail({ asset, relationships, lineage, findings, issueGroups, backHref }: { asset: UtilityAsset | null; relationships: AssetRelationship[]; lineage: Record<string, unknown> | null; findings: ConnectivityFinding[]; issueGroups: ConnectivityIssueGroup[]; backHref: string }) {
+function AssetDetail({ asset, relationships, lineage, findings, issueGroups, traceReadiness, backHref }: { asset: UtilityAsset | null; relationships: AssetRelationship[]; lineage: Record<string, unknown> | null; findings: ConnectivityFinding[]; issueGroups: ConnectivityIssueGroup[]; traceReadiness: AssetTraceReadiness | null; backHref: string }) {
   if (!asset) return <div className={ws.workspace}><LoadingSkeleton /></div>;
   const source = (lineage?.source ?? {}) as Record<string, unknown>;
   const history = (lineage?.history ?? []) as Array<Record<string, unknown>>;
@@ -401,7 +415,7 @@ function AssetDetail({ asset, relationships, lineage, findings, issueGroups, bac
     <div className={ws.workspace}>
       <PageHeader eyebrow={isDemoMode ? "PORTFOLIO DEMO ASSET" : "Canonical Asset"} title={asset.canonical_name} subtitle={`${label(asset.utility_vertical)} / ${label(asset.asset_class)} / ${label(asset.asset_subtype)}`} />
       <Link href={backHref} className={styles.backLink}>Back to {asset.utility_vertical === "electric_distribution" ? "Electric Assets" : "Telecom Assets"}</Link>
-      {isDemoMode ? <div className={styles.demoNotice}>All utility assets, relationships, and canonicalization results in this demo are synthetic and reset with the demo session.</div> : null}
+      {isDemoMode ? <div className={styles.demoNotice}>All utility assets, relationships, QA findings, and trace results in this demo are synthetic and reset with the demo session.</div> : null}
       <div className={ws.grid12}>
         <div className={ws.span6}><KeyValues title="Identity" values={{ "Asset ID": asset.asset_id, "Canonical name": asset.canonical_name, "Vertical": label(asset.utility_vertical), "Class": label(asset.asset_class), "Subtype": label(asset.asset_subtype), "Lifecycle": label(asset.lifecycle_status), "Operational": label(asset.operational_status) }} /></div>
         <div className={ws.span6}><KeyValues title="QA and review" values={{ "Asset QA status": label(asset.qa_status), "Asset review status": label(asset.review_status), "Actionable issue groups": issueGroups.length, "Technical findings": findings.length, "Highest severity": label(highestSeverity), "Highest priority": label(highestPriority), "Trace impact": label(highestTraceImpact), "Blocking findings": blocking, "Latest connectivity run": findings[0]?.qa_run_id || "Not evaluated" }} /></div>
@@ -413,16 +427,29 @@ function AssetDetail({ asset, relationships, lineage, findings, issueGroups, bac
           {findings.slice(0, 4).map((finding) => <span key={finding.finding_id}><strong>{finding.rule_code}</strong> {label(finding.severity)} / {label(finding.review_status)}</span>)}
         </div>
       </Panel>
+      <Panel title="Network Trace" description="Read-only analytical traversal readiness; no device state, relationship, or source evidence is changed.">
+        <div className={styles.contextActions}>
+          <Link className={ws.button} href={`${utilityViewPath(verticalConfig, "network-trace")}?start_asset_id=${encodeURIComponent(asset.asset_id)}`}>Start trace from this asset</Link>
+          <span><strong>Eligible trace types</strong> {traceReadiness?.eligible_trace_types.map((item) => item.name).join(", ") || "None"}</span>
+          <span><strong>Trace eligibility</strong> {traceReadiness?.trace_ready ? "Eligible" : "Not eligible"}</span>
+          <span><strong>Historical trace count</strong> {traceReadiness?.trace_count ?? 0}</span>
+          <span><strong>Highest trace warning</strong> {traceReadiness?.blockers[0]?.group_title || traceReadiness?.warnings[0]?.group_title || "None recorded"}</span>
+          <span><strong>Blocking issue groups</strong> {traceReadiness?.blockers.length ?? 0}</span>
+          <span><strong>Provisional relationships</strong> {traceReadiness?.provisional_relationships ?? 0}</span>
+        </div>
+      </Panel>
       <Panel title="Source lineage" description="Safe identifiers only; filesystem paths are never returned."><KeyGrid values={{ "Source system": source.source_system, "Source submission": source.source_submission_id, "Source layer": source.source_layer_id, "Source record": source.source_record_id, "Source fingerprint": source.source_fingerprint, "Canonicalization plan": lineage?.canonicalization_plan_id || "Synthetic seed", "Mapping rule": lineage?.mapping_rule_version || "synthetic-assets-v1" }} /></Panel>
       <div className={ws.grid12}>
         <div className={ws.span6}><JsonPanel title="Canonical attributes" value={asset.canonical_attributes_json ?? {}} provenance="Normalized or inferred values are labeled in evidence." /></div>
         <div className={ws.span6}><JsonPanel title="Source attributes" value={asset.source_attributes_json ?? {}} provenance="Original safe source evidence is preserved separately." /></div>
       </div>
       <Panel title="Relationships" description="Provisional and inferred connections are not authoritative.">
-        {relationships.length ? <div className={ws.tableWrap}><table className={ws.table}><thead><tr><th>Type</th><th>Connected asset</th><th>Direction</th><th>Confidence</th><th>Evidence</th><th>QA</th></tr></thead><tbody>{relationships.map((item) => {
+        {relationships.length ? <div className={ws.tableWrap}><table className={ws.table}><thead><tr><th>Type</th><th>Connected asset</th><th>Direction</th><th>Confidence</th><th>Evidence</th><th>QA</th><th>Trace use</th></tr></thead><tbody>{relationships.map((item) => {
           const relationshipFindings = findings.filter((finding) => finding.relationship_id === item.relationship_id);
           const relationshipGroups = issueGroups.filter((group) => group.affected_relationship_ids.includes(item.relationship_id));
-          return <tr key={item.relationship_id}><td>{label(item.relationship_type)}</td><td>{item.connected_asset_name}<small className={styles.assetId}>{label(item.connected_asset_class)}</small></td><td>{label(item.direction)}</td><td>{label(item.confidence)}</td><td>{item.provisional ? "Provisional" : "Source relationship"} / {label(item.source)}</td><td>{relationshipGroups.length ? `${relationshipGroups.length} group${relationshipGroups.length === 1 ? "" : "s"} / ${label(relationshipGroups[0].trace_impact)} / ${relationshipGroups[0].primary_rule_code}` : relationshipFindings.length ? `${relationshipFindings.length} technical finding${relationshipFindings.length === 1 ? "" : "s"}` : "No active findings"}</td></tr>;
+          const usage = traceReadiness?.relationship_trace_usage[item.relationship_id];
+          const traversable = ["feeds", "connects_to", "upstream_of", "downstream_of", "served_by", "protected_by", "spliced_to", "terminates_at"].includes(item.relationship_type);
+          return <tr key={item.relationship_id}><td>{label(item.relationship_type)}<small className={styles.assetId}>{traversable ? `${verticalConfig.shortTitle} operational profile` : "Context only"}</small></td><td>{item.connected_asset_name}<small className={styles.assetId}>{label(item.connected_asset_class)}</small></td><td>{label(item.direction)}</td><td>{label(item.confidence)}</td><td>{item.provisional ? "Provisional" : "Source relationship"} / {label(item.source)}</td><td>{relationshipGroups.length ? `${relationshipGroups.length} group${relationshipGroups.length === 1 ? "" : "s"} / ${label(relationshipGroups[0].trace_impact)} / ${relationshipGroups[0].primary_rule_code}` : relationshipFindings.length ? `${relationshipFindings.length} technical finding${relationshipFindings.length === 1 ? "" : "s"}` : "No active findings"}</td><td>{usage ? `${usage.traces_used} used / ${usage.traces_stopped} stopped` : "No trace use"}</td></tr>;
         })}</tbody></table></div> : <EmptyState title="No relationships" message="No safe canonical relationship is registered for this asset." />}
       </Panel>
       <Panel title="Immutable history">{history.length ? <ol className={styles.history}>{history.map((item, index) => <li key={`${item.action}-${index}`}><strong>{label(String(item.action ?? "event"))}</strong><span>{String(item.created_at ?? "")} / {String(item.actor ?? item.actor_type ?? "system")}</span></li>)}</ol> : <EmptyState title="No history events" message="No canonical history event is available." />}</Panel>

@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const routes = ["/", "/utilities", "/utilities/electric", "/utilities/electric/assets", "/utilities/electric/connectivity-qa", "/utilities/telecom", "/utilities/telecom/assets", "/utilities/telecom/connectivity-qa", "/command-center", "/data-health", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/network-intelligence", "/cad-intake", "/projects", "/maintenance", "/methodology"];
+const routes = ["/", "/utilities", "/utilities/electric", "/utilities/electric/assets", "/utilities/electric/connectivity-qa", "/utilities/electric/network-trace", "/utilities/telecom", "/utilities/telecom/assets", "/utilities/telecom/connectivity-qa", "/utilities/telecom/network-trace", "/command-center", "/data-health", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/network-intelligence", "/cad-intake", "/projects", "/maintenance", "/methodology"];
 const viewports = [
   { width: 1440, height: 900 },
   { width: 1280, height: 800 },
@@ -101,6 +101,18 @@ test.describe("enterprise shell", () => {
     await expect(page.getByText("Review decision recorded in immutable history.")).toBeVisible();
   });
 
+  test("runs a read-only electric trace through FastAPI", async ({ page }) => {
+    await page.goto("/utilities/electric/network-trace");
+    await expect(page.getByText("Electric Network Trace", { exact: true })).toBeVisible();
+    await page.getByLabel("QA policy").selectOption("diagnostic");
+    await page.getByRole("button", { name: "Run Trace" }).click();
+    await expect(page.getByText("Trace result", { exact: true })).toBeVisible();
+    await expect(page).toHaveURL(/trace_run_id=/);
+    await page.getByRole("button", { name: "View Ordered Path" }).click();
+    await expect(page.getByText("Ordered path", { exact: true })).toBeVisible();
+    await expect(page.locator("body")).not.toContainText("C:\\");
+  });
+
   test("compatibility explorer accepts vertical query filters", async ({ page }) => {
     await page.goto("/utility-assets?vertical=telecom_fiber");
     await expect(page.getByRole("tab", { name: "Telecom/Fiber" })).toHaveAttribute("aria-selected", "true");
@@ -112,6 +124,13 @@ test.describe("enterprise shell", () => {
     await page.goto("/utilities");
     const columns = await page.getByLabel("Utility workspaces").evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length);
     expect(columns).toBe(1);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
+    expect(overflow).toBe(false);
+  });
+
+  test("network trace has no mobile horizontal overflow", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/utilities/telecom/network-trace");
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
     expect(overflow).toBe(false);
   });

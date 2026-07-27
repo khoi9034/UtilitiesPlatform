@@ -178,7 +178,7 @@ class UtilityAssetService:
         connection.commit()
 
     def _seed_synthetic(self, connection: sqlite3.Connection) -> None:
-        seed_version = "synthetic-assets-v4-connectivity"
+        seed_version = "synthetic-assets-v5-network-trace"
         if connection.execute("SELECT 1 FROM utility_asset_seed_versions WHERE version = ?", (seed_version,)).fetchone():
             return
         assets = synthetic_assets()

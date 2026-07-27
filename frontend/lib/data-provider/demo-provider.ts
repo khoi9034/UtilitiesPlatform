@@ -54,6 +54,7 @@ import {
   runDemoConnectivityQa,
 } from "../connectivity-qa";
 import type { UtilityAsset } from "../utility-assets";
+import { demoTraceReadiness, demoTraceRun, demoTraceRuns, demoTraceTypes, runDemoTrace } from "../network-trace";
 
 const demoIssues = issues.items as unknown as Issue[];
 
@@ -65,6 +66,52 @@ export class DemoDataProvider implements PlatformDataProvider {
     const pathname = url.pathname;
     const params = url.searchParams;
     if (pathname === "/api/platform/command-center") return clone(commandCenter) as T;
+    if (pathname === "/api/network-trace/types") return clone(demoTraceTypes()) as T;
+    if (pathname.startsWith("/api/network-trace/types/")) {
+      return clone(demoTraceTypes(demoConnectivityVertical(pathname.split("/").pop()))) as T;
+    }
+    if (pathname.startsWith("/api/network-trace/assets/") && pathname.endsWith("/readiness")) {
+      return clone(demoTraceReadiness(decodeURIComponent(pathname.split("/")[4] ?? ""))) as T;
+    }
+    if (pathname.startsWith("/api/network-trace/")) {
+      const parts = pathname.split("/");
+      const vertical = demoConnectivityVertical(parts[3]);
+      if (parts[4] === "status") {
+        const latest = demoTraceRuns(vertical)[0];
+        return clone(latest ?? { utility_vertical: vertical, status: "not_started", message: "Network Trace has not been run for this utility vertical." }) as T;
+      }
+      if (parts[4] === "runs" && parts[5]) {
+        const run = demoTraceRun(decodeURIComponent(parts[5]));
+        if (parts[6] === "paths") return clone({ items: run.paths }) as T;
+        if (parts[6] === "steps") return clone({ items: run.paths.flatMap((item) => item.steps ?? []) }) as T;
+        if (parts[6] === "events") return clone({ items: run.events }) as T;
+        if (parts[6] === "safe-summary") {
+          const warnings = run.paths.flatMap((item) => item.warnings);
+          const blockers = run.paths.flatMap((item) => item.blockers);
+          return clone({
+            trace_run_id: run.trace_run_id, utility_vertical: run.utility_vertical, trace_type: run.trace_type,
+            trace_profile: run.trace_profile, trace_profile_version: "network-trace-profiles-v1",
+            trace_rule_version: run.trace_rule_version, input_fingerprint: "synthetic-canonical-graph-v1",
+            request_fingerprint: run.request_fingerprint, outcome: run.outcome, start_asset_id: run.start_asset_id,
+            target_asset_id: run.target_asset_id, direction: run.direction, completed_at: run.completed_at,
+            assets_visited: run.assets_visited, relationships_traversed: run.relationships_traversed,
+            path_count: run.paths_evaluated, branch_count: Math.max(0, run.paths_evaluated - 1),
+            warnings, blockers, provisional_segments: run.provisional_segments,
+            stopping_reasons: run.paths.map((item) => item.stopping_reason),
+            related_calibrated_issue_groups: [...new Set(run.paths.flatMap((item) => item.qa_issue_group_ids))],
+            ordered_safe_asset_ids: run.paths.map((item) => item.asset_ids),
+            ordered_relationship_ids: run.paths.map((item) => item.relationship_ids),
+            requested_options: run.request_options, started_at: run.started_at,
+            confidence: run.confidence, disclaimer: run.disclaimer,
+          }) as T;
+        }
+        return clone(run) as T;
+      }
+      if (parts[4] === "runs") {
+        const items = demoTraceRuns(vertical);
+        return clone({ items, pagination: { total: items.length, limit: 50, offset: 0, has_more: false } }) as T;
+      }
+    }
     if (pathname === "/api/connectivity-qa/rules") {
       return clone({
         model_version: "canonical-connectivity-graph-v1",
@@ -158,6 +205,10 @@ export class DemoDataProvider implements PlatformDataProvider {
 
   async post<T>(path: string, body?: BodyInit | Record<string, unknown>): Promise<T> {
     const pathname = new URL(path, "https://demo.local").pathname;
+    if (pathname.startsWith("/api/network-trace/") && pathname.endsWith("/runs")) {
+      const vertical = demoConnectivityVertical(pathname.split("/")[3]);
+      return clone(runDemoTrace(vertical, body as Record<string, unknown> || {})) as T;
+    }
     if (pathname.startsWith("/api/connectivity-qa/")) {
       const parts = pathname.split("/");
       const vertical = demoConnectivityVertical(parts[3]);

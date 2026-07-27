@@ -4,7 +4,7 @@
 
 Connectivity QA Engine V1 evaluates canonical Electric Distribution and Telecom/Fiber assets before future tracing, editing, and vendor integration. It identifies review candidates from safe canonical attributes and explicit stored relationships.
 
-It is not a network trace engine, ArcFM implementation, GE Smallworld implementation, Esri Utility Network, or telecom inventory system. It does not infer authoritative flow, snap or repair geometry, modify source or staged records, publish services, or call proprietary software.
+It does not itself traverse a requested path, implement ArcFM, GE Smallworld, Esri Utility Network, or a telecom inventory system. It does not infer authoritative flow, snap or repair geometry, modify source or staged records, publish services, or call proprietary software. Network Trace V1 consumes its immutable findings and calibrated trace-impact groups through the shared canonical graph; QA remains a separate evidence-producing stage.
 
 ## Shared Graph Model
 
@@ -139,4 +139,4 @@ Vendor-equivalent hints describe general utility GIS concepts only. They do not 
 
 UtilitiesPlatform currently uses its own vendor-neutral canonical asset and relationship model. Future licensed-system integrations will require organization-specific adapters and mappings. Current vendor-equivalent hints are conceptual only.
 
-The next product phase is Network Trace Engine V1 for Electric Distribution and Telecom/Fiber. That future engine can consume only reviewed canonical relationships and must honor operational states such as normally open devices without turning QA candidates into automatic edits.
+Network Trace Engine V1 is documented in `network-trace-engine.md`. It consumes explicit canonical relationships and calibrated issue groups, honors operational states such as normally open devices, and never turns a QA candidate into an automatic edit.

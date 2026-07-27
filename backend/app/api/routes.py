@@ -27,6 +27,7 @@ from app.services import intake_service
 from app.services import source_inspection
 from app.services import review_automation
 from app.services.connectivity_qa import ConnectivityQaError, service as connectivity_qa
+from app.services.network_trace import NetworkTraceError, service as network_trace
 from app.services.utility_assets import UtilityAssetError, service as utility_assets
 from app.services.upload_validation_service import UploadValidationError
 from app.services.data_storage_service import (
@@ -56,6 +57,15 @@ def _connectivity_call(callback: Callable[..., dict[str, Any]], *args: object) -
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+def _trace_call(callback: Callable[..., dict[str, Any]], *args: object) -> dict[str, Any]:
+    try:
+        return callback(*args)
+    except NetworkTraceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -315,6 +325,68 @@ def review_connectivity_qa_finding(
     payload: dict[str, object] | None = None,
 ) -> dict[str, object]:
     return _connectivity_call(connectivity_qa.review, utility_vertical, finding_id, action, payload)
+
+
+@router.get("/network-trace/types")
+def network_trace_types() -> dict[str, object]:
+    return _trace_call(network_trace.types)
+
+
+@router.get("/network-trace/types/{utility_vertical}")
+def network_trace_vertical_types(utility_vertical: str) -> dict[str, object]:
+    return _trace_call(network_trace.types, utility_vertical)
+
+
+@router.post("/network-trace/{utility_vertical}/runs")
+def create_network_trace_run(
+    utility_vertical: str,
+    payload: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return _trace_call(network_trace.run, utility_vertical, payload)
+
+
+@router.get("/network-trace/{utility_vertical}/status")
+def network_trace_status(utility_vertical: str) -> dict[str, object]:
+    return _trace_call(network_trace.status, utility_vertical)
+
+
+@router.get("/network-trace/{utility_vertical}/runs")
+def network_trace_runs(
+    utility_vertical: str,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+) -> dict[str, object]:
+    return _trace_call(network_trace.runs, utility_vertical, limit, offset)
+
+
+@router.get("/network-trace/{utility_vertical}/runs/{trace_run_id}")
+def network_trace_run(utility_vertical: str, trace_run_id: str) -> dict[str, object]:
+    return _trace_call(network_trace.run_detail, utility_vertical, trace_run_id)
+
+
+@router.get("/network-trace/{utility_vertical}/runs/{trace_run_id}/paths")
+def network_trace_paths(utility_vertical: str, trace_run_id: str) -> dict[str, object]:
+    return _trace_call(network_trace.paths, utility_vertical, trace_run_id)
+
+
+@router.get("/network-trace/{utility_vertical}/runs/{trace_run_id}/steps")
+def network_trace_steps(utility_vertical: str, trace_run_id: str) -> dict[str, object]:
+    return _trace_call(network_trace.steps, utility_vertical, trace_run_id)
+
+
+@router.get("/network-trace/{utility_vertical}/runs/{trace_run_id}/events")
+def network_trace_events(utility_vertical: str, trace_run_id: str) -> dict[str, object]:
+    return _trace_call(network_trace.events, utility_vertical, trace_run_id)
+
+
+@router.get("/network-trace/{utility_vertical}/runs/{trace_run_id}/safe-summary")
+def network_trace_safe_summary(utility_vertical: str, trace_run_id: str) -> dict[str, object]:
+    return _trace_call(network_trace.safe_summary, utility_vertical, trace_run_id)
+
+
+@router.get("/network-trace/assets/{asset_id}/readiness")
+def network_trace_asset_readiness(asset_id: str) -> dict[str, object]:
+    return _trace_call(network_trace.readiness, asset_id)
 
 
 @router.get("/storage/status", response_model=StorageStatusResponse)

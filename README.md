@@ -328,7 +328,6 @@ Local routes:
 Start both local services:
 
 ```powershell
-cd C:\Projects\UtilitiesPlatform
 powershell -ExecutionPolicy Bypass -File scripts\local\start-local-platform.ps1
 ```
 
@@ -391,6 +390,44 @@ The public demo performs the same synthetic grouping in `sessionStorage`, suppor
 Electric QA rule V2 limits feeder and circuit membership checks to active operational network assets and connectivity or membership edges. This changes the deterministic Electric fixture from 172 to 113 raw findings (`ELEC-009`: 63 to 34; `ELEC-010`: 65 to 35) without changing any other rule, technical severity, or blocking setting. The V1 run remains immutable.
 
 UtilitiesPlatform currently uses its own vendor-neutral canonical asset and relationship model. Future licensed-system integrations will require organization-specific adapters and mappings. Current vendor-equivalent hints are conceptual only.
+
+## Network Trace Engine V1
+
+Electric Distribution and Telecom/Fiber share one read-only analytical trace engine over the canonical graph and calibrated Connectivity QA evidence.
+
+- `http://localhost:3001/utilities/electric/network-trace`
+- `http://localhost:3001/utilities/telecom/network-trace`
+- FastAPI: `http://127.0.0.1:8001/docs`
+
+Start the local frontend and backend:
+
+```powershell
+cd C:\Projects\UtilitiesPlatform
+powershell -ExecutionPolicy Bypass -File scripts\local\start-local-platform.ps1
+```
+
+Example local trace:
+
+```powershell
+$body = @{
+  trace_type = "ELEC-TRACE-001"
+  start_asset_id = "<canonical-asset-id>"
+  lifecycle_mode = "active_only"
+  provisional_relationship_policy = "include_with_warning"
+  qa_policy = "conservative"
+  requested_by = "Local Operator"
+} | ConvertTo-Json
+
+Invoke-RestMethod -Method Post -ContentType "application/json" `
+  -Body $body `
+  http://127.0.0.1:8001/api/network-trace/electric_distribution/runs
+```
+
+The workspace provides readiness preview, bounded branching, logical and ordered path views, calibrated blockers, immutable history, asset and relationship trace context, and safe receipt download. Static demo mode runs the same synthetic workflow in `sessionStorage` with no backend request.
+
+UtilitiesPlatform Network Trace V1 performs read-only analytical traversal of the platform's vendor-neutral canonical asset and relationship model. It is not an operational ArcFM, Smallworld, Esri Utility Network, outage-management, engineering, or telecom-provisioning trace.
+
+See `docs/network-trace-engine.md`. The next product action is Proposed Edit Workspace V1; it is not implemented in this phase.
 
 ## Repository Structure
 
