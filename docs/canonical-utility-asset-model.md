@@ -74,4 +74,4 @@ Static demo assets are generated from committed deterministic synthetic definiti
 
 ## Future Adapters
 
-Future ArcFM, Smallworld, and telecom inventory adapters should translate through canonical plans and relationship evidence. They must preserve source identifiers, enforce source fingerprints, and keep vendor-specific schemas outside the shared domain. Connectivity QA is the next product phase; no relationship in V1 should be treated as authoritative topology.
+Future ArcFM, Smallworld, and telecom inventory adapters should translate through canonical plans and relationship evidence. They must preserve source identifiers, enforce source fingerprints, and keep vendor-specific schemas outside the shared domain. Connectivity QA now evaluates explicit relationships as review candidates, but no relationship should be treated as authoritative topology. See `docs/connectivity-qa-engine.md`.

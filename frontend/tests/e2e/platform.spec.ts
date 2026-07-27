@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const routes = ["/", "/utilities", "/utilities/electric", "/utilities/electric/assets", "/utilities/telecom", "/utilities/telecom/assets", "/command-center", "/data-health", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/network-intelligence", "/cad-intake", "/projects", "/maintenance", "/methodology"];
+const routes = ["/", "/utilities", "/utilities/electric", "/utilities/electric/assets", "/utilities/electric/connectivity-qa", "/utilities/telecom", "/utilities/telecom/assets", "/utilities/telecom/connectivity-qa", "/command-center", "/data-health", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/network-intelligence", "/cad-intake", "/projects", "/maintenance", "/methodology"];
 const viewports = [
   { width: 1440, height: 900 },
   { width: 1280, height: 800 },
@@ -79,6 +79,21 @@ test.describe("enterprise shell", () => {
     await expect(page).toHaveURL(/\/utilities\/electric$/);
     await page.getByRole("navigation", { name: "Switch utility workspace" }).getByRole("link", { name: "All utilities" }).click();
     await expect(page).toHaveURL(/\/utilities$/);
+  });
+
+  test("runs and reviews electric connectivity QA through FastAPI", async ({ page }) => {
+    await page.goto("/utilities/electric/connectivity-qa");
+    await expect(page.getByRole("heading", { name: "Electric Connectivity QA" })).toBeVisible();
+    await page.getByRole("button", { name: "Run Connectivity QA" }).click();
+    await expect(page.getByText(/Connectivity QA completed|Unchanged graph detected/)).toBeVisible();
+    await page.getByLabel("QA rule").selectOption("ELEC-001");
+    const finding = page.getByRole("button", { name: /ELEC-001/ }).first();
+    await expect(finding).toBeVisible();
+    await finding.click();
+    await expect(page.getByText("Logical graph context")).toBeVisible();
+    await page.getByLabel("Comment or rationale").fill("Synthetic local review.");
+    await page.getByRole("button", { name: "Accept risk" }).click();
+    await expect(page.getByText("Review decision recorded in immutable history.")).toBeVisible();
   });
 
   test("compatibility explorer accepts vertical query filters", async ({ page }) => {
@@ -174,6 +189,13 @@ test.describe("enterprise shell", () => {
     test(`Utility workspaces have no body horizontal overflow at ${viewport.width}`, async ({ page }) => {
       await page.setViewportSize(viewport);
       await page.goto("/utilities/electric/assets");
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
+      expect(overflow).toBe(false);
+    });
+
+    test(`Connectivity QA has no body horizontal overflow at ${viewport.width}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await page.goto("/utilities/telecom/connectivity-qa");
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
       expect(overflow).toBe(false);
     });

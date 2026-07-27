@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const routes = ["/", "/utilities", "/utilities/electric", "/utilities/electric/assets", "/utilities/telecom", "/utilities/telecom/assets", "/command-center", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/data-health", "/network-intelligence", "/cad-intake", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/projects", "/maintenance", "/methodology"];
+const routes = ["/", "/utilities", "/utilities/electric", "/utilities/electric/assets", "/utilities/electric/connectivity-qa", "/utilities/telecom", "/utilities/telecom/assets", "/utilities/telecom/connectivity-qa", "/command-center", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/data-health", "/network-intelligence", "/cad-intake", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/projects", "/maintenance", "/methodology"];
 const basePath = process.env.DEMO_BASE_PATH ?? "";
 
 test.setTimeout(120_000);
@@ -21,6 +21,33 @@ test.describe("portfolio demo mode", () => {
       await expect(page.locator("body")).not.toContainText("UtilitiesPlatform_Data");
       await expect(page.locator("body")).not.toContainText("Backend API is unavailable");
     }
+  });
+
+  test("runs synthetic connectivity QA and persists review decisions in sessionStorage", async ({ page }) => {
+    await page.goto(`${basePath}/utilities/electric/connectivity-qa`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("All utility assets, network findings, and review decisions in this demo are synthetic and reset with the demo session.")).toBeVisible();
+    await expect(page.getByRole("button", { name: /ELEC-001/ }).first()).toBeVisible();
+    await page.getByLabel("QA rule").selectOption("ELEC-001");
+    await page.getByRole("button", { name: /ELEC-001/ }).first().click();
+    await page.getByLabel("Comment or rationale").fill("Expected synthetic training condition.");
+    await page.getByRole("button", { name: "Accept risk" }).click();
+    await expect(page.getByText("Review decision recorded in immutable history.")).toBeVisible();
+    expect(await page.evaluate(() => sessionStorage.getItem("utilities-platform-demo-connectivity-qa-v1"))).toContain("accepted_risk");
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByLabel("QA rule").selectOption("ELEC-001");
+    await page.getByRole("button", { name: /ELEC-001/ }).first().click();
+    await expect(page.locator("dl").getByText("Accepted Risk", { exact: true })).toBeVisible();
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      page.getByRole("button", { name: "Download summary" }).click(),
+    ]);
+    expect(download.suggestedFilename()).toBe("electric-connectivity-qa-summary.json");
+
+    await page.goto(`${basePath}/utilities/telecom/connectivity-qa`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("button", { name: /TEL-014/ }).first()).toBeVisible();
+    await page.getByLabel("QA rule").selectOption("TEL-001");
+    await expect(page.getByRole("button", { name: /TEL-001/ }).first()).toBeVisible();
   });
 
   test("shows sanitized data-source stages", async ({ page }) => {

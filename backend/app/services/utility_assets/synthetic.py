@@ -61,7 +61,8 @@ def _asset(vertical: str, asset_class: str, index: int) -> dict[str, Any]:
             "route_id": f"ROUTE-{1 + index % 3}", "cable_id": source_id if asset_class == "fiber_cable" else "",
             "cable_type": "single_mode", "fiber_count": 144 if index % 2 else 288,
             "strand_start": 1, "strand_end": 144 if index % 2 else 288, "placement_type": "underground",
-            "from_structure_id": f"STRUCT-{index:02d}", "to_structure_id": "" if asset_class == "fiber_cable" and index == 4 else f"STRUCT-{index + 1:02d}",
+            "from_structure_id": f"STRUCT-{index:02d}",
+            "to_structure_id": "" if (asset_class == "fiber_cable" and index == 4) or asset_class == "proposed_construction_segment" else f"STRUCT-{index + 1:02d}",
             "total_capacity": 32, "used_capacity": 24, "reserved_capacity": 4,
             "available_capacity": 9 if asset_class == "terminal" and index == 6 else 4,
             "construction_status": "proposed" if asset_class == "proposed_construction_segment" else "installed",
@@ -107,7 +108,13 @@ def synthetic_relationships(assets: Iterable[dict[str, Any]]) -> list[dict[str, 
         for index, (left, right) in enumerate(zip(items, items[1:]), 1):
             if "ELEC-OVERHEAD-CONDUCTOR-008" in {left["canonical_name"], right["canonical_name"]}:
                 continue
-            provisional = (vertical == "electric_distribution" and index == 11) or (vertical == "telecom_fiber" and index == 18)
+            provisional = (
+                vertical == "electric_distribution" and index == 11
+            ) or (
+                vertical == "telecom_fiber"
+                and left["asset_class"] == "splice_closure"
+                and left["source_record_id"] == "1"
+            )
             source = "rule_inferred" if provisional else "source"
             relationships.append({
                 "relationship_id": stable_id("rel", left["asset_id"], right["asset_id"], relationship_type),

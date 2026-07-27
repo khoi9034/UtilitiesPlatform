@@ -100,8 +100,17 @@ export function demoAssets(): UtilityAsset[] {
   const base = [
     ...makeVertical("electric_distribution", electricCounts),
     ...makeVertical("telecom_fiber", telecomCounts),
+    ...readSession<UtilityAsset[]>(assetSessionKey, []),
   ];
-  return [...base, ...readSession<UtilityAsset[]>(assetSessionKey, [])];
+  const relationships = makeDemoRelationships(base);
+  return base.map((asset) => {
+    const related = relationships.filter((item) => item.from_asset_id === asset.asset_id || item.to_asset_id === asset.asset_id);
+    return {
+      ...asset,
+      relationship_count: related.length,
+      has_provisional_relationships: related.some((item) => item.provisional),
+    };
+  });
 }
 
 function makeVertical(vertical: UtilityAsset["utility_vertical"], counts: Record<string, number>): UtilityAsset[] {
@@ -144,7 +153,7 @@ function makeVertical(vertical: UtilityAsset["utility_vertical"], counts: Record
         source_attributes_json: { synthetic_source_id: name },
         canonical_attributes_json: vertical === "electric_distribution"
           ? { feeder_id: assetClass === "transformer" && index === 8 ? "" : `FEEDER-${1 + index % 2}`, phase: assetClass === "transformer" && index === 7 ? "AX" : "ABC", normally_open: normallyOpen, conduit_id: assetClass === "underground_conductor" && index === 3 ? "" : "CONDUIT-1" }
-          : { route_id: `ROUTE-${1 + index % 3}`, fiber_count: index % 2 ? 144 : 288, to_structure_id: assetClass === "fiber_cable" && index === 4 ? "" : `STRUCT-${index + 1}`, total_capacity: 32, used_capacity: 24, reserved_capacity: 4, available_capacity: assetClass === "terminal" && index === 6 ? 9 : 4 },
+          : { route_id: `ROUTE-${1 + index % 3}`, fiber_count: index % 2 ? 144 : 288, strand_start: 1, strand_end: index % 2 ? 144 : 288, placement_type: "underground", from_structure_id: `STRUCT-${index}`, to_structure_id: (assetClass === "fiber_cable" && index === 4) || assetClass === "proposed_construction_segment" ? "" : `STRUCT-${index + 1}`, total_capacity: 32, used_capacity: 24, reserved_capacity: 4, available_capacity: assetClass === "terminal" && index === 6 ? 9 : 4 },
         evidence_json: { value_provenance: "synthetic", rule_version: "synthetic-assets-v1" },
         geometry_summary_json: { geometry_type: "safe_summary_only" },
         relationship_count: vertical === "electric_distribution" && assetClass === "overhead_conductor" && index === 8 ? 0 : index === count ? 1 : 2,
@@ -157,24 +166,70 @@ function makeVertical(vertical: UtilityAsset["utility_vertical"], counts: Record
 
 export function demoRelationships(assetId: string): AssetRelationship[] {
   const assets = demoAssets();
-  const index = Math.max(0, assets.findIndex((asset) => asset.asset_id === assetId));
-  const source = assets[index];
-  if (!source) return [];
-  if (source.relationship_count === 0) return [];
-  const neighbor = assets[(index + 1) % assets.length];
-  return [{
-    relationship_id: `demo-rel-${index}`,
-    from_asset_id: source.asset_id,
-    to_asset_id: neighbor.asset_id,
-    relationship_type: source.utility_vertical === "electric_distribution" ? "feeds" : "connects_to",
-    direction: "forward",
-    confidence: source.has_provisional_relationships ? "medium" : "high",
-    source: source.has_provisional_relationships ? "rule_inferred" : "source",
-    provisional: source.has_provisional_relationships,
-    connected_asset_name: neighbor.canonical_name,
-    connected_asset_class: neighbor.asset_class,
-    evidence_json: { synthetic: true },
-  }];
+  const byId = new Map(assets.map((asset) => [asset.asset_id, asset]));
+  return demoAllRelationships().filter((item) => item.from_asset_id === assetId || item.to_asset_id === assetId).map((item) => {
+    const neighbor = byId.get(item.from_asset_id === assetId ? item.to_asset_id : item.from_asset_id)!;
+    return { ...item, connected_asset_name: neighbor.canonical_name, connected_asset_class: neighbor.asset_class };
+  });
+}
+
+export function demoAllRelationships(): AssetRelationship[] {
+  const assets = [
+    ...makeVertical("electric_distribution", electricCounts),
+    ...makeVertical("telecom_fiber", telecomCounts),
+    ...readSession<UtilityAsset[]>(assetSessionKey, []),
+  ];
+  return makeDemoRelationships(assets);
+}
+
+function makeDemoRelationships(assets: UtilityAsset[]): AssetRelationship[] {
+  const relationships: AssetRelationship[] = [];
+  for (const vertical of ["electric_distribution", "telecom_fiber"] as const) {
+    const items = assets.filter((asset) => asset.utility_vertical === vertical);
+    items.slice(0, -1).forEach((left, index) => {
+      const right = items[index + 1];
+      if ([left, right].some((asset) => asset.canonical_name === "ELEC-OVERHEAD-CONDUCTOR-008")) return;
+      const provisional = vertical === "electric_distribution"
+        ? index + 1 === 11
+        : left.asset_class === "splice_closure" && left.source_record_id === "1";
+      relationships.push({
+        relationship_id: `demo-rel-${vertical}-${index + 1}`,
+        from_asset_id: left.asset_id,
+        to_asset_id: right.asset_id,
+        relationship_type: vertical === "electric_distribution" ? "feeds" : "connects_to",
+        direction: "forward",
+        confidence: provisional ? "medium" : "high",
+        source: provisional ? "rule_inferred" : "source",
+        provisional,
+        connected_asset_name: right.canonical_name,
+        connected_asset_class: right.asset_class,
+        evidence_json: { synthetic: true },
+      });
+    });
+  }
+  const pairs = [
+    ["ELEC-ATTACHMENT-002", "ELEC-OVERHEAD-CONDUCTOR-001", "reference_for"],
+    ["FIBER-FIBER-CABLE-003", "FIBER-TERMINAL-001", "terminates_at"],
+  ];
+  pairs.forEach(([fromName, toName, relationshipType], index) => {
+    const left = assets.find((asset) => asset.canonical_name === fromName);
+    const right = assets.find((asset) => asset.canonical_name === toName);
+    if (!left || !right) return;
+    relationships.push({
+      relationship_id: `demo-rel-retired-${index + 1}`,
+      from_asset_id: left.asset_id,
+      to_asset_id: right.asset_id,
+      relationship_type: relationshipType,
+      direction: "forward",
+      confidence: "high",
+      source: "source",
+      provisional: false,
+      connected_asset_name: right.canonical_name,
+      connected_asset_class: right.asset_class,
+      evidence_json: { synthetic: true, intentional_review_candidate: "retired_to_active" },
+    });
+  });
+  return relationships;
 }
 
 export function demoPlans(): CanonicalizationPlan[] {
@@ -247,5 +302,6 @@ export function resetDemoUtilityAssets() {
   if (typeof sessionStorage !== "undefined") {
     sessionStorage.removeItem(assetSessionKey);
     sessionStorage.removeItem(planSessionKey);
+    sessionStorage.removeItem("utilities-platform-demo-connectivity-qa-v1");
   }
 }

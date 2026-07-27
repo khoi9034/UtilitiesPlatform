@@ -33,6 +33,7 @@
   "supported_modules": [
     "command-center",
     "asset-inventory",
+    "connectivity-qa",
     "data-health",
     "network-intelligence",
     "cad-intake",

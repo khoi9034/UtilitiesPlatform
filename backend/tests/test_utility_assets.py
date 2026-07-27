@@ -42,8 +42,10 @@ def test_shared_domain_and_synthetic_registry(tmp_path: Path, monkeypatch) -> No
 
     electric_detail = client.get(f"/api/utility-assets/{next(item['asset_id'] for item in electric if item['canonical_name'] == 'ELEC-TRANSFORMER-007')}").json()
     telecom_detail = client.get(f"/api/utility-assets/{next(item['asset_id'] for item in telecom if item['canonical_name'] == 'FIBER-FIBER-CABLE-004')}").json()
+    proposed_detail = client.get(f"/api/utility-assets/{next(item['asset_id'] for item in telecom if item['asset_class'] == 'proposed_construction_segment')}").json()
     assert electric_detail["canonical_attributes_json"]["phase"] == "AX"
     assert telecom_detail["canonical_attributes_json"]["to_structure_id"] == ""
+    assert proposed_detail["canonical_attributes_json"]["to_structure_id"] == ""
 
 
 def test_safe_asset_detail_relationships_and_lineage(tmp_path: Path, monkeypatch) -> None:

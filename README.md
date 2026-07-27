@@ -353,6 +353,24 @@ Both workspaces use the same canonical asset core, source-governance registry, l
 
 The static portfolio demo follows the same routes using synthetic assets and `sessionStorage` only. It does not call the local FastAPI backend or include real utility infrastructure.
 
+## Connectivity QA Engine V1
+
+Electric Distribution and Telecom/Fiber now share one versioned connectivity-readiness engine over canonical assets and explicit stored relationships. It runs 8 shared rules plus 15 electric or 16 telecom rules, preserves deterministic run and finding fingerprints, isolates rule failures, supports human review with immutable history, and exports a safe JSON summary.
+
+- `http://localhost:3001/utilities/electric/connectivity-qa`
+- `http://localhost:3001/utilities/telecom/connectivity-qa`
+
+Start both services, open either route, and select **Run Connectivity QA**:
+
+```powershell
+cd C:\Projects\UtilitiesPlatform
+powershell -ExecutionPolicy Bypass -File scripts\local\start-local-platform.ps1
+```
+
+Local mode persists QA records in the existing external application registry. Static demo mode derives the same synthetic scenarios in the browser, uses `sessionStorage` for run and review state, and makes no backend requests.
+
+This engine does not trace networks, infer authoritative electrical flow, repair topology, alter source or staged geometry, publish services, or implement ArcFM, GE Smallworld, Esri Utility Network, or a telecom inventory product. See `docs/connectivity-qa-engine.md`.
+
 ## Repository Structure
 
 ```text

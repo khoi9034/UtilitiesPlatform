@@ -10,8 +10,10 @@ ROUTES = [
     "utilities/index.html",
     "utilities/electric/index.html",
     "utilities/electric/assets/index.html",
+    "utilities/electric/connectivity-qa/index.html",
     "utilities/telecom/index.html",
     "utilities/telecom/assets/index.html",
+    "utilities/telecom/connectivity-qa/index.html",
     "command-center/index.html",
     "utility-assets/index.html",
     "asset-inventory/index.html",
@@ -31,6 +33,7 @@ ROUTES = [
 SUPPORTED_MODULES = [
     "command-center",
     "asset-inventory",
+    "connectivity-qa",
     "data-health",
     "network-intelligence",
     "cad-intake",

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+import threading
 import uuid
 from pathlib import Path
 from typing import Any
@@ -12,6 +13,8 @@ from app.services.source_inspection import registry as inspection_registry
 
 from .domain import RULE_VERSION, stable_fingerprint, stable_id, taxonomy, validate_mapping, validate_vertical_and_class
 from .synthetic import synthetic_assets, synthetic_relationships
+
+_INITIALIZE_LOCK = threading.Lock()
 
 
 class UtilityAssetError(ValueError):
@@ -26,9 +29,12 @@ class UtilityAssetService:
 
     def connect(self) -> sqlite3.Connection:
         connection = intake_registry_service.connect(self.root())
-        inspection_registry.initialize(connection)
-        self._initialize(connection)
-        self._seed_synthetic(connection)
+        connection.execute("PRAGMA busy_timeout = 30000")
+        # ponytail: process-local lock is enough for the local single-worker app; use migrations for multi-worker deployment.
+        with _INITIALIZE_LOCK:
+            inspection_registry.initialize(connection)
+            self._initialize(connection)
+            self._seed_synthetic(connection)
         return connection
 
     def _initialize(self, connection: sqlite3.Connection) -> None:
@@ -172,13 +178,19 @@ class UtilityAssetService:
         connection.commit()
 
     def _seed_synthetic(self, connection: sqlite3.Connection) -> None:
-        seed_version = "synthetic-assets-v2"
+        seed_version = "synthetic-assets-v4-connectivity"
         if connection.execute("SELECT 1 FROM utility_asset_seed_versions WHERE version = ?", (seed_version,)).fetchone():
             return
         assets = synthetic_assets()
         for asset in assets:
             if self._insert_asset(connection, asset):
                 self._add_asset_history(connection, asset["asset_id"], "synthetic_asset_seeded", {"source": seed_version})
+            else:
+                connection.execute(
+                    """UPDATE canonical_utility_assets SET canonical_attributes_json = ?, updated_at = ?
+                    WHERE asset_id = ? AND is_synthetic = 1""",
+                    (_dump(asset.get("canonical_attributes_json", {})), asset["updated_at"], asset["asset_id"]),
+                )
         connection.execute(
             """DELETE FROM utility_asset_relationships
             WHERE from_asset_id IN (SELECT asset_id FROM canonical_utility_assets WHERE is_synthetic = 1)

@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { isDemoMode } from "../../lib/data-provider/provider";
 import { getUtilityVertical, utilityVerticals, utilityViewPath, type UtilityVerticalConfig, type UtilityVerticalId, type UtilityWorkspaceView } from "../../lib/utility-verticals";
 import { UtilityAssetsWorkspace } from "../utility-assets/UtilityAssetsWorkspace";
+import { ConnectivityQAWorkspace } from "../connectivity-qa/ConnectivityQAWorkspace";
 import styles from "./utility-workspaces.module.css";
 
 export function UtilitiesLanding() {
@@ -83,12 +84,16 @@ export function UtilityVerticalWorkspace({ verticalId, view }: { verticalId: Uti
           </Link>
         ))}
       </nav>
-      <UtilityAssetsWorkspace
-        detailAssetId={assetId}
-        routeBase={vertical.routeBase}
-        vertical={vertical.canonicalValue}
-        view={view}
-      />
+      {view === "connectivity-qa" ? (
+        <ConnectivityQAWorkspace config={vertical} />
+      ) : (
+        <UtilityAssetsWorkspace
+          detailAssetId={assetId}
+          routeBase={vertical.routeBase}
+          vertical={vertical.canonicalValue}
+          view={view}
+        />
+      )}
     </div>
   );
 }

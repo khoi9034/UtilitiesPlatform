@@ -1,5 +1,7 @@
 import logging
 import os
+from collections.abc import Callable
+from typing import Any
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse
@@ -24,6 +26,7 @@ from app.services import wastewater_data_health_service as wastewater_health
 from app.services import intake_service
 from app.services import source_inspection
 from app.services import review_automation
+from app.services.connectivity_qa import ConnectivityQaError, service as connectivity_qa
 from app.services.utility_assets import UtilityAssetError, service as utility_assets
 from app.services.upload_validation_service import UploadValidationError
 from app.services.data_storage_service import (
@@ -44,6 +47,13 @@ router = APIRouter(prefix="/api")
 logger = logging.getLogger(__name__)
 
 NO_DATABASE_MESSAGE = "No production utility database has been connected."
+
+
+def _connectivity_call(callback: Callable[..., dict[str, Any]], *args: object) -> dict[str, Any]:
+    try:
+        return callback(*args)
+    except ConnectivityQaError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
 
 @router.get("/platform/status", response_model=PlatformStatusResponse)
@@ -164,6 +174,76 @@ def canonical_utility_asset_lineage(asset_id: str) -> dict[str, object]:
         return utility_assets.lineage(asset_id)
     except UtilityAssetError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+
+@router.get("/connectivity-qa/rules")
+def connectivity_qa_rules() -> dict[str, object]:
+    return connectivity_qa.rules()
+
+
+@router.get("/connectivity-qa/rules/{utility_vertical}")
+def connectivity_qa_vertical_rules(utility_vertical: str) -> dict[str, object]:
+    return _connectivity_call(connectivity_qa.rules, utility_vertical)
+
+
+@router.post("/connectivity-qa/{utility_vertical}/runs")
+def run_connectivity_qa(utility_vertical: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _connectivity_call(connectivity_qa.run, utility_vertical, payload)
+
+
+@router.get("/connectivity-qa/{utility_vertical}/status")
+def connectivity_qa_status(utility_vertical: str) -> dict[str, object]:
+    return _connectivity_call(connectivity_qa.status, utility_vertical)
+
+
+@router.get("/connectivity-qa/{utility_vertical}/runs")
+def connectivity_qa_runs(
+    utility_vertical: str,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+) -> dict[str, object]:
+    return _connectivity_call(connectivity_qa.runs, utility_vertical, limit, offset)
+
+
+@router.get("/connectivity-qa/{utility_vertical}/runs/{qa_run_id}")
+def connectivity_qa_run(utility_vertical: str, qa_run_id: str) -> dict[str, object]:
+    return _connectivity_call(connectivity_qa.run_detail, utility_vertical, qa_run_id)
+
+
+@router.get("/connectivity-qa/{utility_vertical}/summary")
+def connectivity_qa_summary(utility_vertical: str) -> dict[str, object]:
+    return _connectivity_call(connectivity_qa.summary, utility_vertical)
+
+
+@router.get("/connectivity-qa/{utility_vertical}/findings")
+def connectivity_qa_findings(
+    utility_vertical: str,
+    qa_run_id: str | None = None,
+    severity: str | None = None,
+    blocking: bool | None = None,
+    review_status: str | None = None,
+    rule_code: str | None = None,
+    asset_class: str | None = None,
+    asset_id: str | None = None,
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> dict[str, object]:
+    return _connectivity_call(connectivity_qa.findings, utility_vertical, locals())
+
+
+@router.get("/connectivity-qa/{utility_vertical}/findings/{finding_id}")
+def connectivity_qa_finding(utility_vertical: str, finding_id: str) -> dict[str, object]:
+    return _connectivity_call(connectivity_qa.finding, utility_vertical, finding_id)
+
+
+@router.post("/connectivity-qa/{utility_vertical}/findings/{finding_id}/{action}")
+def review_connectivity_qa_finding(
+    utility_vertical: str,
+    finding_id: str,
+    action: str,
+    payload: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return _connectivity_call(connectivity_qa.review, utility_vertical, finding_id, action, payload)
 
 
 @router.get("/storage/status", response_model=StorageStatusResponse)

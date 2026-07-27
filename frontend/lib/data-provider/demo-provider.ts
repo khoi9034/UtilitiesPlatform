@@ -38,6 +38,16 @@ import { applyDemoDuplicateGroup, applyDemoLayerReview, applyDemoStagingPlanItem
 import type { AutomationRun, AutomationSummary, CatalogResponse, ClassificationCandidate, ClassificationCandidatesResponse, DataSourceItem, DataSourceItemsResponse, DuplicateGroup, DuplicateGroupsResponse, IntakeCapabilities, IntakeEvent, IntakeSubmission, IntakeSubmissionResponse, IntakeSubmissionsResponse, InventorySummary, PlatformDataProvider, RunsResponse, SourceInspectionStatus, StageManifest, StagingPlanItem, StagingPlanResponse, StorageStatus, SubmissionLayer, SubmissionLayersResponse, TrustPipeline } from "./types";
 import { createDemoCanonicalAssets, demoAssets, demoPlans, demoRelationships, electricCounts, telecomCounts, updateDemoPlan } from "../utility-assets";
 import type { CanonicalizationPlan } from "../utility-assets";
+import {
+  connectivityRules,
+  demoConnectivityFinding,
+  demoConnectivityFindings,
+  demoConnectivityRuns,
+  ensureDemoConnectivityRun,
+  reviewDemoConnectivityFinding,
+  runDemoConnectivityQa,
+} from "../connectivity-qa";
+import type { UtilityAsset } from "../utility-assets";
 
 const demoIssues = issues.items as unknown as Issue[];
 
@@ -49,6 +59,37 @@ export class DemoDataProvider implements PlatformDataProvider {
     const pathname = url.pathname;
     const params = url.searchParams;
     if (pathname === "/api/platform/command-center") return clone(commandCenter) as T;
+    if (pathname === "/api/connectivity-qa/rules") {
+      return clone({
+        model_version: "canonical-connectivity-graph-v1",
+        rule_version: "connectivity-qa-rules-v1",
+        profiles: {
+          electric_distribution: { profile_name: "electric_distribution_v1", rules: connectivityRules("electric_distribution") },
+          telecom_fiber: { profile_name: "telecom_fiber_v1", rules: connectivityRules("telecom_fiber") },
+        },
+      }) as T;
+    }
+    if (pathname.startsWith("/api/connectivity-qa/rules/")) {
+      const vertical = demoConnectivityVertical(pathname.split("/").pop());
+      return clone({ utility_vertical: vertical, profile_name: vertical === "electric_distribution" ? "electric_distribution_v1" : "telecom_fiber_v1", model_version: "canonical-connectivity-graph-v1", rule_version: "connectivity-qa-rules-v1", items: connectivityRules(vertical) }) as T;
+    }
+    if (pathname.startsWith("/api/connectivity-qa/")) {
+      const parts = pathname.split("/");
+      const vertical = demoConnectivityVertical(parts[3]);
+      if (parts[4] === "status") return clone(ensureDemoConnectivityRun(vertical)) as T;
+      if (parts[4] === "summary") return clone(ensureDemoConnectivityRun(vertical).summary) as T;
+      if (parts[4] === "runs" && parts[5]) {
+        const run = demoConnectivityRuns(vertical).find((item) => item.qa_run_id === decodeURIComponent(parts[5]));
+        if (!run) throw new Error("Synthetic connectivity run not found.");
+        return clone(run) as T;
+      }
+      if (parts[4] === "runs") {
+        const items = demoConnectivityRuns(vertical);
+        return clone({ items, pagination: { total: items.length, limit: 50, offset: 0, has_more: false } }) as T;
+      }
+      if (parts[4] === "findings" && parts[5]) return clone(demoConnectivityFinding(vertical, decodeURIComponent(parts[5]))) as T;
+      if (parts[4] === "findings") return clone(demoConnectivityFindings(vertical, params)) as T;
+    }
     if (pathname === "/api/utility-assets/taxonomy") return clone(demoAssetTaxonomy()) as T;
     if (pathname.startsWith("/api/utility-assets/taxonomy/")) {
       const vertical = pathname.split("/").pop() ?? "";
@@ -98,6 +139,14 @@ export class DemoDataProvider implements PlatformDataProvider {
 
   async post<T>(path: string, body?: BodyInit | Record<string, unknown>): Promise<T> {
     const pathname = new URL(path, "https://demo.local").pathname;
+    if (pathname.startsWith("/api/connectivity-qa/")) {
+      const parts = pathname.split("/");
+      const vertical = demoConnectivityVertical(parts[3]);
+      if (parts[4] === "runs") return clone(runDemoConnectivityQa(vertical, Boolean((body as Record<string, unknown> | undefined)?.force_recalculate))) as T;
+      if (parts[4] === "findings" && parts[5] && parts[6]) {
+        return clone(reviewDemoConnectivityFinding(vertical, decodeURIComponent(parts[5]), parts[6], body as Record<string, unknown> || {})) as T;
+      }
+    }
     if (pathname === "/api/intake/submissions") {
       const submission = createDemoIntakeSubmission(body as FormData);
       return clone({ submissions: [submission], message: "Demo mode does not upload or inspect your file. The workflow is simulated using synthetic results." }) as T;
@@ -246,6 +295,11 @@ export class DemoDataProvider implements PlatformDataProvider {
   getDataSourceItem(itemId: string) { return this.get<DataSourceItem>(`/api/data-sources/items/${encodeURIComponent(itemId)}`); }
   getDataSourceLineage(itemId: string) { return this.get<Record<string, unknown>>(`/api/data-sources/items/${encodeURIComponent(itemId)}/lineage`); }
   getDataSourceDiagnostics() { return this.get<Record<string, unknown>>("/api/data-sources/diagnostics"); }
+}
+
+function demoConnectivityVertical(value: string | undefined): UtilityAsset["utility_vertical"] {
+  if (value === "electric_distribution" || value === "telecom_fiber") return value;
+  throw new Error("Unsupported synthetic utility vertical.");
 }
 
 function allIssues(): Issue[] {

@@ -250,7 +250,8 @@
 }
 
 .workspaceNav {
-  overflow-x: auto;
+  flex-wrap: wrap;
+  overflow-x: visible;
   border-bottom: 1px solid var(--color-border-subtle);
   scrollbar-width: none;
 }
@@ -313,6 +314,11 @@
   .switcher a {
     flex: 1;
     justify-content: center;
+  }
+
+  .workspaceNav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
   }
 }
 
