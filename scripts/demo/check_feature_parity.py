@@ -7,6 +7,13 @@ from pathlib import Path
 
 ROUTES = [
     "index.html",
+    "utilities/index.html",
+    "utilities/electric/index.html",
+    "utilities/electric/assets/index.html",
+    "utilities/telecom/index.html",
+    "utilities/telecom/assets/index.html",
+    "command-center/index.html",
+    "utility-assets/index.html",
     "asset-inventory/index.html",
     "data-health/index.html",
     "network-intelligence/index.html",

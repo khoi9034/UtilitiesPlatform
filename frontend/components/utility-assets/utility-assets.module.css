@@ -212,6 +212,77 @@
   font-size: 12px;
 }
 
+.toolGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.toolLink {
+  position: relative;
+  min-height: 116px;
+  display: grid;
+  gap: 7px;
+  align-content: start;
+  padding: 14px 42px 14px 14px;
+  border-left: 3px solid var(--utility-accent, var(--color-accent));
+  background: var(--color-surface-2);
+}
+
+.toolLink span {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.toolLink calcite-icon {
+  position: absolute;
+  right: 14px;
+  top: 16px;
+  color: var(--utility-accent, var(--color-accent));
+}
+
+.focusList,
+.plannedList {
+  display: grid;
+  gap: 9px;
+}
+
+.focusList {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 0;
+  list-style: none;
+}
+
+.focusList li {
+  padding: 9px 10px;
+  border-left: 2px solid var(--utility-accent, var(--color-accent));
+  background: var(--color-surface-2);
+  color: var(--color-text-secondary);
+}
+
+.plannedList span {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.plannedList em {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.contextActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 @media (max-width: 900px) {
   .tabs {
     display: flex;
@@ -225,12 +296,21 @@
   .flow {
     grid-template-columns: 1fr;
   }
+
+  .toolGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 600px) {
   .filters,
   .keyGrid,
   .planReadiness {
+    grid-template-columns: 1fr;
+  }
+
+  .toolGrid,
+  .focusList {
     grid-template-columns: 1fr;
   }
 }

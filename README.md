@@ -336,6 +336,23 @@ The local workspace uses FastAPI and the external application registry. The publ
 
 See `docs/canonical-utility-asset-model.md`.
 
+## Electric and Telecom Workspaces
+
+UtilitiesPlatform now opens with a route-based utility selection experience shared by two operational workspaces:
+
+- `http://localhost:3001/utilities` - choose a utility environment
+- `http://localhost:3001/utilities/electric` - Electric Distribution overview
+- `http://localhost:3001/utilities/electric/assets` - electric asset explorer
+- `http://localhost:3001/utilities/telecom` - Telecom/Fiber overview
+- `http://localhost:3001/utilities/telecom/assets` - telecom asset explorer
+- `http://localhost:3001/command-center` - existing aggregate Command Center
+
+Electric Distribution uses Pike-relevant concepts such as feeders, protective devices, transformers, poles, conductors, and conduit. Telecom/Fiber uses TDS-relevant concepts such as routes, cables, cabinets, splice closures, terminals, and capacity. These are vendor-neutral career-readiness workspaces; UtilitiesPlatform is not affiliated with Pike, TDS Telecom, Esri, Schneider Electric, or GE.
+
+Both workspaces use the same canonical asset core, source-governance registry, lineage model, approval controls, and audit principles. Future ArcFM, GE Smallworld, Esri Utility Network, and telecom inventory integrations are adapter targets rather than copied interfaces. Utility selection is encoded in the URL, so direct links and refreshes retain context.
+
+The static portfolio demo follows the same routes using synthetic assets and `sessionStorage` only. It does not call the local FastAPI backend or include real utility infrastructure.
+
 ## Repository Structure
 
 ```text

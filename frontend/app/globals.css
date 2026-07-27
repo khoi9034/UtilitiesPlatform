@@ -19,6 +19,10 @@
   --color-warning: #ffc15e;
   --color-danger: #ff6f7f;
   --color-info: #79aaff;
+  --electric-accent: #e7a93f;
+  --electric-accent-strong: #bd7418;
+  --telecom-accent: #38c4d8;
+  --telecom-accent-strong: #168aa2;
   --color-map-overlay: rgba(7, 16, 25, 0.9);
   --shadow-panel: 0 18px 52px rgba(0, 0, 0, 0.34);
   --shadow-focus: 0 0 0 3px rgba(67, 214, 255, 0.3);
@@ -86,6 +90,10 @@
   --color-warning: #9d6200;
   --color-danger: #b73546;
   --color-info: #356fc8;
+  --electric-accent: #a85b00;
+  --electric-accent-strong: #7a3f00;
+  --telecom-accent: #007b91;
+  --telecom-accent-strong: #005d70;
   --color-map-overlay: rgba(255, 255, 255, 0.93);
   --shadow-panel: 0 14px 36px rgba(22, 46, 61, 0.12);
 }

@@ -2,8 +2,10 @@ import { expect, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const routes = ["/", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/data-health", "/network-intelligence", "/cad-intake", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/projects", "/maintenance", "/methodology"];
+const routes = ["/", "/utilities", "/utilities/electric", "/utilities/electric/assets", "/utilities/telecom", "/utilities/telecom/assets", "/command-center", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/data-health", "/network-intelligence", "/cad-intake", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/projects", "/maintenance", "/methodology"];
 const basePath = process.env.DEMO_BASE_PATH ?? "";
+
+test.setTimeout(120_000);
 
 test.describe("portfolio demo mode", () => {
   test.beforeEach(async ({ page }) => {
@@ -155,6 +157,20 @@ test.describe("portfolio demo mode", () => {
     await page.getByRole("button", { name: "Create canonical assets" }).first().click();
     await expect(page.getByText(/Creation simulation complete: 3 assets created/)).toBeVisible();
     expect(await page.evaluate(() => sessionStorage.getItem("utilities-platform-demo-canonical-assets-v1"))).toContain("DEMO-ELECTRIC-PLAN");
+  });
+
+  test("selects synthetic vertical workspaces without API requests", async ({ page }) => {
+    await page.goto(`${basePath}/utilities`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("link", { name: "Open Electric Distribution workspace" }).click();
+    await expect(page).toHaveURL(new RegExp(`${basePath}/utilities/electric/?$`));
+    await expect(page.getByText("71", { exact: true }).first()).toBeVisible();
+    await page.getByRole("navigation", { name: "Electric Distribution workspace" }).getByRole("link", { name: "Electric Assets", exact: true }).click();
+    await expect(page.getByText("ELEC-SUBSTATION-001", { exact: true })).toBeVisible();
+    await expect(page.getByText("FIBER-NETWORK-HUB-001", { exact: true })).toHaveCount(0);
+    await page.getByRole("navigation", { name: "Switch utility workspace" }).getByRole("link", { name: "Telecom" }).click();
+    await expect(page).toHaveURL(new RegExp(`${basePath}/utilities/telecom/?$`));
+    await expect(page.getByText("43", { exact: true }).first()).toBeVisible();
+    await expect(page.locator("body")).not.toContainText("C:\\");
   });
 
   test("shows synthetic asset detail and relationship evidence", async ({ page }) => {

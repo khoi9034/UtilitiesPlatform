@@ -376,6 +376,18 @@
     flex-wrap: wrap;
   }
 
+  .iconButton,
+  .commandButton,
+  .themeButton,
+  .demoReset {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .utilitySelector select {
+    height: 44px;
+  }
+
   .runStamp,
   .utilitySelector span,
   .demoReset,

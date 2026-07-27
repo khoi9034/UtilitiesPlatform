@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const routes = ["/", "/data-health", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/network-intelligence", "/cad-intake", "/projects", "/maintenance", "/methodology"];
+const routes = ["/", "/utilities", "/utilities/electric", "/utilities/electric/assets", "/utilities/telecom", "/utilities/telecom/assets", "/command-center", "/data-health", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/network-intelligence", "/cad-intake", "/projects", "/maintenance", "/methodology"];
 const viewports = [
   { width: 1440, height: 900 },
   { width: 1280, height: 800 },
@@ -45,6 +45,55 @@ test.describe("enterprise shell", () => {
     await expect(page.getByText("ELEC-SUBSTATION-001", { exact: true })).toBeVisible();
     await page.getByRole("tab", { name: "Telecom/Fiber" }).click();
     await expect(page.getByText("FIBER-NETWORK-HUB-001", { exact: true })).toBeVisible();
+  });
+
+  test("selects a route-based utility workspace", async ({ page }) => {
+    await page.goto("/utilities");
+    const electric = page.getByRole("link", { name: "Open Electric Distribution workspace" });
+    const telecom = page.getByRole("link", { name: "Open Telecom/Fiber workspace" });
+    await expect(electric).toHaveAttribute("href", "/utilities/electric");
+    await expect(telecom).toHaveAttribute("href", "/utilities/telecom");
+    await electric.focus();
+    await expect(electric).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/\/utilities\/electric$/);
+    await expect(page.getByRole("heading", { name: "Electric Distribution" })).toBeVisible();
+    await expect(page.getByText("71", { exact: true }).first()).toBeVisible();
+  });
+
+  test("keeps electric explorer and detail in electric context", async ({ page }) => {
+    await page.goto("/utilities/electric/assets");
+    await expect(page.getByText("ELEC-SUBSTATION-001", { exact: true })).toBeVisible();
+    await expect(page.getByText("FIBER-NETWORK-HUB-001", { exact: true })).toHaveCount(0);
+    await page.getByRole("link", { name: "ELEC-SUBSTATION-001" }).click();
+    await expect(page).toHaveURL(/\/utilities\/electric\/assets\?asset_id=/);
+    await expect(page.getByRole("link", { name: "Back to Electric Assets" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Electric Distribution workspace" })).toBeVisible();
+  });
+
+  test("keeps telecom explorer filtered and switches utilities", async ({ page }) => {
+    await page.goto("/utilities/telecom/assets");
+    await expect(page.getByText("FIBER-NETWORK-HUB-001", { exact: true })).toBeVisible();
+    await expect(page.getByText("ELEC-SUBSTATION-001", { exact: true })).toHaveCount(0);
+    await page.getByRole("navigation", { name: "Switch utility workspace" }).getByRole("link", { name: "Electric" }).click();
+    await expect(page).toHaveURL(/\/utilities\/electric$/);
+    await page.getByRole("navigation", { name: "Switch utility workspace" }).getByRole("link", { name: "All utilities" }).click();
+    await expect(page).toHaveURL(/\/utilities$/);
+  });
+
+  test("compatibility explorer accepts vertical query filters", async ({ page }) => {
+    await page.goto("/utility-assets?vertical=telecom_fiber");
+    await expect(page.getByRole("tab", { name: "Telecom/Fiber" })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByText("FIBER-NETWORK-HUB-001", { exact: true })).toBeVisible();
+  });
+
+  test("utility cards stack on mobile", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/utilities");
+    const columns = await page.getByLabel("Utility workspaces").evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length);
+    expect(columns).toBe(1);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
+    expect(overflow).toBe(false);
   });
 
   test("upload workflow keeps metadata before local package selection", async ({ page }) => {
@@ -118,6 +167,13 @@ test.describe("enterprise shell", () => {
     test(`Utility Assets has no body horizontal overflow at ${viewport.width}`, async ({ page }) => {
       await page.setViewportSize(viewport);
       await page.goto("/utility-assets");
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
+      expect(overflow).toBe(false);
+    });
+
+    test(`Utility workspaces have no body horizontal overflow at ${viewport.width}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await page.goto("/utilities/electric/assets");
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
       expect(overflow).toBe(false);
     });

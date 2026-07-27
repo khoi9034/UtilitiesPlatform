@@ -1,5 +1,5 @@
-import { CommandCenter } from "../components/command-center/CommandCenter";
+import { UtilitiesLanding } from "../components/utility-workspaces/UtilityWorkspaces";
 
 export default function Home() {
-  return <CommandCenter />;
+  return <UtilitiesLanding />;
 }

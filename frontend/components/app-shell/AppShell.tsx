@@ -8,6 +8,7 @@ import { isDemoMode } from "../../lib/data-provider/provider";
 import { resetDemoSession } from "../../lib/data-provider/demo-review-store";
 import { resetDemoUtilityAssets } from "../../lib/utility-assets";
 import { activeNavigationItem, navigationItems } from "../../lib/navigation";
+import { getUtilityVertical, utilityVerticalFromPath, utilityVerticals } from "../../lib/utility-verticals";
 import { utilitySystems } from "../../lib/utility-systems";
 import { label, shortDate } from "../../lib/formatters";
 import styles from "./app-shell.module.css";
@@ -22,6 +23,7 @@ export function AppShell({ children }: PropsWithChildren) {
   const pathname = usePathname();
   const router = useRouter();
   const active = activeNavigationItem(pathname);
+  const verticalWorkspace = utilityVerticalFromPath(pathname);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [theme, setTheme] = useState<ThemeChoice>("dark");
@@ -153,12 +155,15 @@ export function AppShell({ children }: PropsWithChildren) {
             <strong>{active.label}</strong>
           </div>
           <label className={styles.utilitySelector}>
-            <span>Utility</span>
-            <select defaultValue="wastewater" aria-label="Utility system selector">
-              {utilitySystems.map((system) => (
-                <option key={system.id} value={system.id} disabled={!system.enabled}>
-                  {system.label} - {system.status}
-                </option>
+            <span>Workspace</span>
+            <select
+              value={verticalWorkspace?.id ?? ""}
+              aria-label="Utility workspace selector"
+              onChange={(event) => router.push(event.target.value ? getUtilityVertical(event.target.value)!.routeBase : "/utilities")}
+            >
+              <option value="">Choose utility</option>
+              {utilityVerticals.map((vertical) => (
+                <option key={vertical.id} value={vertical.id}>{vertical.title}</option>
               ))}
             </select>
           </label>

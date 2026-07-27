@@ -8,7 +8,26 @@ const frontendRoot = join(here, "..");
 const repoRoot = join(frontendRoot, "..");
 const demoDeployTarget = process.env.DEMO_DEPLOY_TARGET ?? "github-pages";
 const demoBasePath = demoDeployTarget === "vercel" ? "" : "/UtilitiesPlatform";
-const routes = ["index.html", "asset-inventory/index.html", "data-health/index.html", "network-intelligence/index.html", "cad-intake/index.html", "trust-pipeline/index.html", "data-sources/index.html", "data-sources/inventory/index.html", "projects/index.html", "maintenance/index.html", "methodology/index.html"];
+const routes = [
+  "index.html",
+  "utilities/index.html",
+  "utilities/electric/index.html",
+  "utilities/electric/assets/index.html",
+  "utilities/telecom/index.html",
+  "utilities/telecom/assets/index.html",
+  "command-center/index.html",
+  "utility-assets/index.html",
+  "asset-inventory/index.html",
+  "data-health/index.html",
+  "network-intelligence/index.html",
+  "cad-intake/index.html",
+  "trust-pipeline/index.html",
+  "data-sources/index.html",
+  "data-sources/inventory/index.html",
+  "projects/index.html",
+  "maintenance/index.html",
+  "methodology/index.html",
+];
 
 run(process.execPath, [join(here, "build-demo.mjs")], frontendRoot);
 run("python", [join(repoRoot, "scripts", "demo", "validate_demo_data.py"), "--demo-root", join(frontendRoot, "demo-data")], repoRoot);
