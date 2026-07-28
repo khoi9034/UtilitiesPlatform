@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { UtilityVerticalWorkspace } from "../../../../components/utility-workspaces/UtilityWorkspaces";
 import { getUtilityVertical, type UtilityVerticalId, type UtilityWorkspaceView } from "../../../../lib/utility-verticals";
 
-const views: UtilityWorkspaceView[] = ["overview", "assets", "relationships", "source-data", "canonicalization", "data-quality", "connectivity-qa", "network-trace", "proposed-edits", "review-history"];
+const views: UtilityWorkspaceView[] = ["overview", "assets", "relationships", "source-data", "canonicalization", "data-quality", "connectivity-qa", "network-trace", "proposed-edits", "work-orders", "review-history"];
 
 export function generateStaticParams() {
   return ["electric", "telecom"].flatMap((vertical) => [

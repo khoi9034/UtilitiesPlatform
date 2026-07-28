@@ -466,7 +466,23 @@ The workspace creates ordered allowlisted operations, validates a fixed baseline
 
 UtilitiesPlatform Proposed Edit Workspace V1 creates isolated vendor-neutral change plans and evaluates them against temporary network overlays. Approval confirms the plan for future implementation review; it does not modify an operational utility GIS, execute switching, allocate telecom capacity, or apply changes to ArcFM, Smallworld, Esri Utility Network, or another proprietary system.
 
-See `docs/proposed-edit-workspace.md`. The exact next product action is Work Order and Job Package V1; it is not started in this phase.
+See `docs/proposed-edit-workspace.md`.
+
+## Work Order and Job Package V1
+
+Approved synthetic Proposed Edits can now become structured Electric or Telecom job packages:
+
+- `http://localhost:3001/utilities/electric/work-orders`
+- `http://localhost:3001/utilities/telecom/work-orders`
+- `http://127.0.0.1:8001/api/work-orders/types`
+
+The shared workflow stores independent design, field, GIS implementation, inspection, QA, trace, review, and closeout states. It manages roles, prerequisites, ordered job steps, inspections, safe evidence metadata, synthetic implementation overlays, approved-versus-recorded conformance, reused post-work Connectivity QA and Network Trace evidence, release gates, closeout gates, immutable versions, descriptive job packages, and completion receipts.
+
+All V1 implementation records use `simulated_overlay_only`. Job packages contain `"executable": false`; no source, staged, canonical, or operational GIS data is edited. The public demo stores only deterministic synthetic work orders in `sessionStorage` and makes no backend requests.
+
+UtilitiesPlatform Work Order and Job Package V1 converts approved vendor-neutral proposed changes into structured synthetic job workflows. It records planning, review, evidence, validation, and closeout without modifying an operational utility GIS or executing work in ArcFM, Smallworld, Esri Utility Network, telecom inventory, field-service, outage-management, or work-management systems.
+
+See `docs/work-order-job-package.md`. The exact next product action is Network Snapshot, Version Control, and Implementation Verification V1; it is not started in this phase.
 
 ## Repository Structure
 

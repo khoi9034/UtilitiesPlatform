@@ -8,6 +8,7 @@ import { UtilityAssetsWorkspace } from "../utility-assets/UtilityAssetsWorkspace
 import { ConnectivityQAWorkspace } from "../connectivity-qa/ConnectivityQAWorkspace";
 import { NetworkTraceWorkspace } from "../network-trace/NetworkTraceWorkspace";
 import { ProposedEditWorkspace } from "../proposed-edits/ProposedEditWorkspace";
+import { WorkOrderWorkspace } from "../work-orders/WorkOrderWorkspace";
 import styles from "./utility-workspaces.module.css";
 
 export function UtilitiesLanding() {
@@ -92,6 +93,8 @@ export function UtilityVerticalWorkspace({ verticalId, view }: { verticalId: Uti
         <NetworkTraceWorkspace config={vertical} />
       ) : view === "proposed-edits" ? (
         <ProposedEditWorkspace config={vertical} />
+      ) : view === "work-orders" ? (
+        <WorkOrderWorkspace config={vertical} />
       ) : (
         <UtilityAssetsWorkspace
           detailAssetId={assetId}
@@ -107,7 +110,7 @@ export function UtilityVerticalWorkspace({ verticalId, view }: { verticalId: Uti
 function DemoNotice() {
   return (
     <div className={styles.demoNotice} role="status">
-      All utility assets, proposed changes, QA comparisons, trace comparisons, and approvals in this demo are synthetic and reset with the demo session.
+      All utility assets, proposed changes, work orders, assignments, inspections, implementation records, QA results, trace results, and closeout decisions in this demo are synthetic and reset with the demo session.
     </div>
   );
 }

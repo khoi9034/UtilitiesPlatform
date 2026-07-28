@@ -4,11 +4,13 @@ Utilities Platform uses a monorepo with a frontend, backend, database layer, GIS
 
 ## Proposed Change Boundary
 
-`Connectivity QA -> QA calibration -> Network Trace -> trace calibration -> Proposed Edit Workspace -> future work order -> future licensed-system adapter`
+`Connectivity QA -> QA calibration -> Network Trace -> trace calibration -> Proposed Edit Workspace -> Work Order and Job Package -> future network snapshot and licensed-system adapter`
 
 Proposed Edit Workspace V1 stores versioned vendor-neutral plans and ordered allowlisted operations in the application registry. It builds sparse temporary overlays in memory and invokes the existing pure QA, calibration, trace, and trace-calibration functions for before-and-after evidence. Canonical assets, canonical relationships, source and staged geometry, and immutable QA and trace evidence remain unchanged.
 
 An approved proposal is an approved plan only. Safe implementation packages are descriptive JSON with `executable: false`; no proprietary SDK, schema, command, credential, service publication, or operational transaction is included.
+
+Work Order and Job Package V1 references locked approved proposal versions and converts their operations into roles, prerequisites, phases, checklists, inspections, metadata-only evidence, a recorded implementation overlay, conformance, post-work QA and trace verification, closeout, and an immutable receipt. Baseline, approved-plan, and recorded-implementation states remain separate. Work-order release and closeout do not modify the canonical graph or prove external implementation.
 
 ## Frontend
 
@@ -16,7 +18,7 @@ The frontend is a Next.js TypeScript application using the App Router, ESLint, C
 
 ## Backend
 
-The backend is a FastAPI application exposing intake, canonical asset, Connectivity QA, QA calibration, read-only Network Trace, and trace-calibration APIs. The canonical asset registry, QA evidence, issue groups, immutable trace records, and separate trace interpretations share one external application database while real GIS data remains outside Git.
+The backend is a FastAPI application exposing intake, canonical asset, Connectivity QA, QA calibration, read-only Network Trace, trace-calibration, Proposed Edit, and Work Order APIs. The canonical asset registry, QA evidence, issue groups, immutable trace records, proposal evidence, work-order records, and separate interpretations share one external application database while real GIS data remains outside Git.
 
 Network Trace reuses the canonical connectivity graph instead of maintaining a second topology. Vertical profiles provide Electric and Telecom semantics over one deterministic traversal engine. A separate calibration layer groups and scopes immutable trace evidence without rewriting it. See `network-trace-engine.md` and `network-trace-calibration.md`.
 

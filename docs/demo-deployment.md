@@ -48,4 +48,4 @@ The GitHub Pages workflow is `.github/workflows/deploy-utilities-demo.yml`. It i
 
 ## Demo limitations
 
-The demo is read-only except for temporary browser-session review decisions. It cannot upload, standardize, curate, export, repair geometry, or connect to live utility infrastructure.
+The demo supports temporary browser-session source review, proposals, work orders, assignments, prerequisites, inspections, synthetic implementation overlays, QA/trace validation, and closeout receipts. All state is synthetic and resets with the session. It cannot upload, dispatch work, switch equipment, provision capacity, standardize, curate, export, repair geometry, or connect to live utility infrastructure.

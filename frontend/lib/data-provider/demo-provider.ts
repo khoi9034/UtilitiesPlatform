@@ -69,6 +69,7 @@ import {
   runDemoTraceCalibration,
 } from "../network-trace";
 import { demoProposedDelete, demoProposedGet, demoProposedPost, demoProposedPut } from "../proposed-edits";
+import { demoWorkOrderDelete, demoWorkOrderGet, demoWorkOrderPost, demoWorkOrderPut } from "../work-orders";
 
 const demoIssues = issues.items as unknown as Issue[];
 
@@ -79,6 +80,7 @@ export class DemoDataProvider implements PlatformDataProvider {
     const url = new URL(path, "https://demo.local");
     const pathname = url.pathname;
     const params = url.searchParams;
+    if (pathname.startsWith("/api/work-orders/")) return clone(demoWorkOrderGet(pathname, params)) as T;
     if (pathname.startsWith("/api/proposed-edits/")) return clone(demoProposedGet(pathname, params)) as T;
     if (pathname === "/api/platform/command-center") return clone(commandCenter) as T;
     if (pathname === "/api/network-trace/types") return clone(demoTraceTypes()) as T;
@@ -231,6 +233,7 @@ export class DemoDataProvider implements PlatformDataProvider {
 
   async post<T>(path: string, body?: BodyInit | Record<string, unknown>): Promise<T> {
     const pathname = new URL(path, "https://demo.local").pathname;
+    if (pathname.startsWith("/api/work-orders/")) return clone(demoWorkOrderPost(pathname, body as Record<string, unknown> || {})) as T;
     if (pathname.startsWith("/api/proposed-edits/")) return clone(demoProposedPost(pathname, body as Record<string, unknown> || {})) as T;
     if (pathname.startsWith("/api/network-trace/") && pathname.endsWith("/calibrate")) {
       const parts = pathname.split("/");
@@ -301,6 +304,7 @@ export class DemoDataProvider implements PlatformDataProvider {
 
   async put<T>(path: string, body: unknown): Promise<T> {
     const pathname = new URL(path, "https://demo.local").pathname;
+    if (pathname.startsWith("/api/work-orders/")) return clone(demoWorkOrderPut(pathname, body as Record<string, unknown>)) as T;
     if (pathname.startsWith("/api/proposed-edits/")) return clone(demoProposedPut(pathname, body as Record<string, unknown>)) as T;
     if (pathname.endsWith("/canonicalization-plan/field-mappings")) {
       const plan = demoPlanForPath(pathname);
@@ -316,6 +320,7 @@ export class DemoDataProvider implements PlatformDataProvider {
 
   async delete<T>(path: string): Promise<T> {
     const pathname = new URL(path, "https://demo.local").pathname;
+    if (pathname.startsWith("/api/work-orders/")) return clone(demoWorkOrderDelete(pathname)) as T;
     if (pathname.startsWith("/api/proposed-edits/")) return clone(demoProposedDelete(pathname)) as T;
     return this.get<T>(path);
   }

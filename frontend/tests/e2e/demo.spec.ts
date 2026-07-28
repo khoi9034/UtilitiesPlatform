@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const routes = ["/", "/utilities", "/utilities/electric", "/utilities/electric/assets", "/utilities/electric/connectivity-qa", "/utilities/electric/network-trace", "/utilities/electric/proposed-edits", "/utilities/telecom", "/utilities/telecom/assets", "/utilities/telecom/connectivity-qa", "/utilities/telecom/network-trace", "/utilities/telecom/proposed-edits", "/command-center", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/data-health", "/network-intelligence", "/cad-intake", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/projects", "/maintenance", "/methodology"];
+const routes = ["/", "/utilities", "/utilities/electric", "/utilities/electric/assets", "/utilities/electric/connectivity-qa", "/utilities/electric/network-trace", "/utilities/electric/proposed-edits", "/utilities/electric/work-orders", "/utilities/telecom", "/utilities/telecom/assets", "/utilities/telecom/connectivity-qa", "/utilities/telecom/network-trace", "/utilities/telecom/proposed-edits", "/utilities/telecom/work-orders", "/command-center", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/data-health", "/network-intelligence", "/cad-intake", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/projects", "/maintenance", "/methodology"];
 const basePath = process.env.DEMO_BASE_PATH ?? "";
 
 test.setTimeout(120_000);
@@ -57,7 +57,7 @@ test.describe("portfolio demo mode", () => {
 
   test("runs and restores a browser-only synthetic network trace", async ({ page }) => {
     await page.goto(`${basePath}/utilities/electric/network-trace`, { waitUntil: "domcontentloaded" });
-    await expect(page.getByText("All utility assets, proposed changes, QA comparisons, trace comparisons, and approvals in this demo are synthetic and reset with the demo session.")).toBeVisible();
+    await expect(page.getByText(/All utility assets, proposed changes, work orders, assignments/)).toBeVisible();
     await page.getByLabel("QA policy").selectOption("diagnostic");
     await page.getByRole("button", { name: "Run Trace" }).click();
     await expect(page.getByText("Calibrated interpretation", { exact: true })).toBeVisible();
@@ -251,7 +251,7 @@ test.describe("portfolio demo mode", () => {
 
   test("reviews and approves a synthetic proposed change without API requests", async ({ page }) => {
     await page.goto(`${basePath}/utilities/electric/proposed-edits`, { waitUntil: "domcontentloaded" });
-    await expect(page.getByText("All utility assets, proposed changes, QA comparisons, trace comparisons, and approvals in this demo are synthetic and reset with the demo session.")).toBeVisible();
+    await expect(page.getByText(/All utility assets, proposed changes, work orders, assignments/)).toBeVisible();
     await page.getByRole("button", { name: /E-EDIT-001/ }).click();
     await page.getByRole("button", { name: "Compare" }).click();
     await expect(page.getByText("Connectivity QA comparison")).toBeVisible();
@@ -268,5 +268,36 @@ test.describe("portfolio demo mode", () => {
     await page.getByRole("button", { name: "Generate safe package" }).click();
     await expect(page.getByText(/"executable": false/)).toBeVisible();
     expect(await page.evaluate(() => sessionStorage.getItem("utilities-platform-demo-proposed-edits-v1"))).toContain('"approval_status":"approved"');
+  });
+
+  test("runs a synthetic work order through release and three-state validation without API requests", async ({ page }) => {
+    await page.goto(`${basePath}/utilities/electric/work-orders`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "Electric Work Orders" })).toBeVisible();
+    await expect(page.getByText(/All utility assets, proposed changes, work orders, assignments/)).toBeVisible();
+    await page.getByRole("button", { name: /E-WO-001/ }).click();
+    await page.getByRole("button", { name: "Release" }).click();
+    await page.getByRole("button", { name: "Submit for Review" }).click();
+    await page.getByRole("button", { name: "Start Review" }).click();
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByRole("button", { name: "Approve for Release" }).click();
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByRole("button", { name: "Release Work" }).click();
+    await page.getByRole("button", { name: "Implementation" }).click();
+    await page.getByRole("button", { name: "Start Work" }).click();
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByRole("button", { name: "Record Implementation" }).click();
+    await expect(page.getByText("Recorded implementation is synthetic and has not changed the canonical or source network.")).toBeVisible();
+    await page.getByRole("button", { name: "Validate" }).click();
+    await page.getByRole("button", { name: "Run Conformance" }).click();
+    await page.getByRole("button", { name: "Run Post-Work QA" }).click();
+    await page.getByRole("button", { name: "Run Post-Work Traces" }).click();
+    await expect(page.getByText("Baseline / approved plan / recorded implementation")).toBeVisible();
+    expect(await page.evaluate(() => sessionStorage.getItem("utilities-platform-demo-work-orders-v1"))).toContain('"status":"simulated_overlay_only"');
+
+    await page.goto(`${basePath}/utilities/telecom/work-orders`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: /T-WO-001/ }).click();
+    await page.getByRole("button", { name: "Closeout" }).click();
+    await page.getByRole("button", { name: "View Completion Receipt" }).click();
+    await expect(page.getByText(/"receipt_version": "work-order-completion-receipt-v1"/)).toBeVisible();
   });
 });

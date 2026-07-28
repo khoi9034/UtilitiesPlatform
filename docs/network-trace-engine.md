@@ -6,6 +6,8 @@ Proposed Edit Workspace V1 calls the same read-only trace and trace-calibration 
 
 Proposal trace runs are isolated analytical evidence. They do not mutate immutable active trace runs, operate devices, allocate capacity, or claim authoritative topology.
 
+Work Order and Job Package V1 invokes the same trace engine against a recorded implementation overlay and compares baseline, approved-plan, and recorded outcomes, confidence, objectives, path signatures, and branch signatures. Work-order traces are stored separately and cannot rewrite original or proposal trace evidence.
+
 ## Boundary
 
 UtilitiesPlatform Network Trace V1 performs read-only analytical traversal of the platform's vendor-neutral canonical asset and relationship model. It is not an operational ArcFM, Smallworld, Esri Utility Network, outage-management, engineering, or telecom-provisioning trace.

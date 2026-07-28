@@ -30,6 +30,7 @@ from app.services.connectivity_qa import ConnectivityQaError, service as connect
 from app.services.network_trace import NetworkTraceError, service as network_trace
 from app.services.proposed_edits import ProposedEditError, service as proposed_edits
 from app.services.utility_assets import UtilityAssetError, service as utility_assets
+from app.services.work_orders import WorkOrderError, service as work_orders
 from app.services.upload_validation_service import UploadValidationError
 from app.services.data_storage_service import (
     catalog_summary,
@@ -75,6 +76,17 @@ def _proposal_call(callback: Callable[..., Any], *args: object) -> Any:
     try:
         return callback(*args)
     except ProposedEditError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+def _work_order_call(callback: Callable[..., Any], *args: object, **kwargs: object) -> Any:
+    try:
+        return callback(*args, **kwargs)
+    except WorkOrderError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -666,6 +678,402 @@ def create_proposed_edit_package(
 @router.get("/proposed-edits/{utility_vertical}/{proposal_id}/implementation-package")
 def proposed_edit_package(utility_vertical: str, proposal_id: str) -> dict[str, object]:
     return _proposal_call(proposed_edits.package, utility_vertical, proposal_id)
+
+
+@router.get("/work-orders/types")
+def work_order_types() -> dict[str, object]:
+    return _work_order_call(work_orders.types)
+
+
+@router.get("/work-orders/types/{utility_vertical}")
+def work_order_vertical_types(utility_vertical: str) -> dict[str, object]:
+    return _work_order_call(work_orders.types, utility_vertical)
+
+
+@router.get("/work-orders/roles")
+def work_order_roles() -> dict[str, object]:
+    return _work_order_call(work_orders.roles)
+
+
+@router.get("/work-orders/prerequisite-types")
+def work_order_prerequisite_types() -> dict[str, object]:
+    return _work_order_call(work_orders.prerequisite_types)
+
+
+@router.get("/work-orders/inspection-types")
+def work_order_inspection_types() -> dict[str, object]:
+    return _work_order_call(work_orders.inspection_types)
+
+
+@router.get("/work-orders/evidence-types")
+def work_order_evidence_types() -> dict[str, object]:
+    return _work_order_call(work_orders.evidence_types)
+
+
+@router.get("/work-orders/{utility_vertical}")
+def work_order_list(
+    utility_vertical: str,
+    status: str | None = None,
+    work_order_type: str | None = None,
+    priority: str | None = None,
+    proposal: str | None = None,
+    affected_asset: str | None = None,
+    readiness: str | None = None,
+    qa_status: str | None = None,
+    trace_status: str | None = None,
+    closeout_status: str | None = None,
+    external_mapping_status: str | None = None,
+    search: str | None = None,
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> dict[str, object]:
+    filters = {
+        key: value for key, value in {
+            "status": status, "work_order_type": work_order_type, "priority": priority,
+            "proposal": proposal, "affected_asset": affected_asset, "readiness": readiness,
+            "qa_status": qa_status, "trace_status": trace_status,
+            "closeout_status": closeout_status,
+            "external_mapping_status": external_mapping_status, "search": search,
+            "limit": limit, "offset": offset,
+        }.items() if value is not None
+    }
+    return _work_order_call(work_orders.list_work_orders, utility_vertical, filters)
+
+
+@router.post("/work-orders/{utility_vertical}")
+def create_work_order(utility_vertical: str, payload: dict[str, object]) -> dict[str, object]:
+    return _work_order_call(work_orders.create, utility_vertical, payload)
+
+
+@router.get("/work-orders/{utility_vertical}/{work_order_id}")
+def work_order_detail(utility_vertical: str, work_order_id: str) -> dict[str, object]:
+    return _work_order_call(work_orders.work_order, utility_vertical, work_order_id)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/clone")
+def clone_work_order(
+    utility_vertical: str, work_order_id: str, payload: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return _work_order_call(work_orders.clone, utility_vertical, work_order_id, payload)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/new-version")
+def version_work_order(
+    utility_vertical: str, work_order_id: str, payload: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return _work_order_call(work_orders.new_version, utility_vertical, work_order_id, payload)
+
+
+@router.get("/work-orders/{utility_vertical}/{work_order_id}/assignments")
+def work_order_assignments(utility_vertical: str, work_order_id: str) -> dict[str, object]:
+    return _work_order_call(work_orders.records, utility_vertical, work_order_id, "assignments")
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/assignments")
+def add_work_order_assignment(
+    utility_vertical: str, work_order_id: str, payload: dict[str, object],
+) -> dict[str, object]:
+    return _work_order_call(work_orders.add_record, utility_vertical, work_order_id, "assignments", payload)
+
+
+@router.put("/work-orders/{utility_vertical}/{work_order_id}/assignments/{assignment_id}")
+def update_work_order_assignment(
+    utility_vertical: str, work_order_id: str, assignment_id: str, payload: dict[str, object],
+) -> dict[str, object]:
+    return _work_order_call(work_orders.update_assignment, utility_vertical, work_order_id, assignment_id, payload)
+
+
+@router.delete("/work-orders/{utility_vertical}/{work_order_id}/assignments/{assignment_id}")
+def delete_work_order_assignment(
+    utility_vertical: str, work_order_id: str, assignment_id: str,
+) -> dict[str, object]:
+    return _work_order_call(work_orders.delete_assignment, utility_vertical, work_order_id, assignment_id)
+
+
+@router.get("/work-orders/{utility_vertical}/{work_order_id}/phases")
+def work_order_phases(utility_vertical: str, work_order_id: str) -> dict[str, object]:
+    return _work_order_call(work_orders.records, utility_vertical, work_order_id, "phases")
+
+
+@router.get("/work-orders/{utility_vertical}/{work_order_id}/steps")
+def work_order_steps(utility_vertical: str, work_order_id: str) -> dict[str, object]:
+    return _work_order_call(work_orders.records, utility_vertical, work_order_id, "steps")
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/steps")
+def add_work_order_step(
+    utility_vertical: str, work_order_id: str, payload: dict[str, object],
+) -> dict[str, object]:
+    return _work_order_call(work_orders.add_record, utility_vertical, work_order_id, "steps", payload)
+
+
+@router.put("/work-orders/{utility_vertical}/{work_order_id}/steps/{step_id}")
+def update_work_order_step(
+    utility_vertical: str, work_order_id: str, step_id: str, payload: dict[str, object],
+) -> dict[str, object]:
+    return _work_order_call(work_orders.update_step, utility_vertical, work_order_id, step_id, payload)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/steps/{step_id}/complete")
+def complete_work_order_step(
+    utility_vertical: str, work_order_id: str, step_id: str, payload: dict[str, object],
+) -> dict[str, object]:
+    return _work_order_call(work_orders.complete_step, utility_vertical, work_order_id, step_id, payload)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/steps/{step_id}/exception")
+def except_work_order_step(
+    utility_vertical: str, work_order_id: str, step_id: str, payload: dict[str, object],
+) -> dict[str, object]:
+    return _work_order_call(work_orders.complete_step, utility_vertical, work_order_id, step_id, payload, exception=True)
+
+
+@router.get("/work-orders/{utility_vertical}/{work_order_id}/prerequisites")
+def work_order_prerequisites(utility_vertical: str, work_order_id: str) -> dict[str, object]:
+    return _work_order_call(work_orders.records, utility_vertical, work_order_id, "prerequisites")
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/prerequisites")
+def add_work_order_prerequisite(
+    utility_vertical: str, work_order_id: str, payload: dict[str, object],
+) -> dict[str, object]:
+    return _work_order_call(work_orders.add_record, utility_vertical, work_order_id, "prerequisites", payload)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/prerequisites/{prerequisite_id}/confirm")
+def confirm_work_order_prerequisite(
+    utility_vertical: str, work_order_id: str, prerequisite_id: str, payload: dict[str, object],
+) -> dict[str, object]:
+    return _work_order_call(work_orders.confirm_prerequisite, utility_vertical, work_order_id, prerequisite_id, payload)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/prerequisites/{prerequisite_id}/waive")
+def waive_work_order_prerequisite(
+    utility_vertical: str, work_order_id: str, prerequisite_id: str, payload: dict[str, object],
+) -> dict[str, object]:
+    return _work_order_call(work_orders.confirm_prerequisite, utility_vertical, work_order_id, prerequisite_id, payload, waive=True)
+
+
+@router.get("/work-orders/{utility_vertical}/{work_order_id}/inspections")
+def work_order_inspections(utility_vertical: str, work_order_id: str) -> dict[str, object]:
+    return _work_order_call(work_orders.records, utility_vertical, work_order_id, "inspections")
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/inspections")
+def add_work_order_inspection(
+    utility_vertical: str, work_order_id: str, payload: dict[str, object],
+) -> dict[str, object]:
+    return _work_order_call(work_orders.add_record, utility_vertical, work_order_id, "inspections", payload)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/inspections/{inspection_id}/record")
+def record_work_order_inspection(
+    utility_vertical: str, work_order_id: str, inspection_id: str, payload: dict[str, object],
+) -> dict[str, object]:
+    return _work_order_call(work_orders.record_inspection, utility_vertical, work_order_id, inspection_id, payload)
+
+
+@router.get("/work-orders/{utility_vertical}/{work_order_id}/evidence")
+def work_order_evidence(utility_vertical: str, work_order_id: str) -> dict[str, object]:
+    return _work_order_call(work_orders.records, utility_vertical, work_order_id, "evidence")
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/evidence")
+def add_work_order_evidence(
+    utility_vertical: str, work_order_id: str, payload: dict[str, object],
+) -> dict[str, object]:
+    return _work_order_call(work_orders.add_record, utility_vertical, work_order_id, "evidence", payload)
+
+
+@router.get("/work-orders/{utility_vertical}/{work_order_id}/evidence/{evidence_id}")
+def work_order_evidence_detail(
+    utility_vertical: str, work_order_id: str, evidence_id: str,
+) -> dict[str, object]:
+    return _work_order_call(work_orders.record, utility_vertical, work_order_id, "evidence", evidence_id)
+
+
+@router.get("/work-orders/{utility_vertical}/{work_order_id}/readiness")
+def work_order_readiness(utility_vertical: str, work_order_id: str) -> dict[str, object]:
+    return _work_order_call(work_orders.readiness, utility_vertical, work_order_id)
+
+
+@router.get("/work-orders/{utility_vertical}/{work_order_id}/closeout-readiness")
+def work_order_closeout_readiness(utility_vertical: str, work_order_id: str) -> dict[str, object]:
+    return _work_order_call(work_orders.closeout_readiness, utility_vertical, work_order_id)
+
+
+def _work_order_transition(
+    utility_vertical: str,
+    work_order_id: str,
+    action: str,
+    payload: dict[str, object] | None,
+) -> dict[str, object]:
+    return _work_order_call(work_orders.transition, utility_vertical, work_order_id, action, payload)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/submit")
+def submit_work_order(utility_vertical: str, work_order_id: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _work_order_transition(utility_vertical, work_order_id, "submit", payload)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/start-review")
+def start_work_order_review(utility_vertical: str, work_order_id: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _work_order_transition(utility_vertical, work_order_id, "start-review", payload)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/request-revision")
+def revise_work_order(utility_vertical: str, work_order_id: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _work_order_transition(utility_vertical, work_order_id, "request-revision", payload)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/approve-release")
+def approve_work_order_release(utility_vertical: str, work_order_id: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _work_order_transition(utility_vertical, work_order_id, "approve-release", payload)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/reject")
+def reject_work_order(utility_vertical: str, work_order_id: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _work_order_transition(utility_vertical, work_order_id, "reject", payload)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/defer")
+def defer_work_order(utility_vertical: str, work_order_id: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _work_order_transition(utility_vertical, work_order_id, "defer", payload)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/release")
+def release_work_order(utility_vertical: str, work_order_id: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _work_order_transition(utility_vertical, work_order_id, "release", payload)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/start-work")
+def start_work_order(utility_vertical: str, work_order_id: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _work_order_transition(utility_vertical, work_order_id, "start-work", payload)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/pause")
+def pause_work_order(utility_vertical: str, work_order_id: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _work_order_transition(utility_vertical, work_order_id, "pause-work", payload)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/resume")
+def resume_work_order(utility_vertical: str, work_order_id: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _work_order_transition(utility_vertical, work_order_id, "resume-work", payload)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/record-field-complete")
+def field_complete_work_order(utility_vertical: str, work_order_id: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _work_order_transition(utility_vertical, work_order_id, "field-complete", payload)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/record-gis-update")
+def gis_update_work_order(utility_vertical: str, work_order_id: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _work_order_transition(utility_vertical, work_order_id, "gis-update", payload)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/record-implementation")
+def record_work_order_implementation(
+    utility_vertical: str, work_order_id: str, payload: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return _work_order_call(work_orders.record_implementation, utility_vertical, work_order_id, payload)
+
+
+@router.get("/work-orders/{utility_vertical}/{work_order_id}/implementation")
+def work_order_implementation(utility_vertical: str, work_order_id: str) -> dict[str, object]:
+    return _work_order_call(work_orders.implementation, utility_vertical, work_order_id)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/run-conformance")
+def run_work_order_conformance(
+    utility_vertical: str, work_order_id: str, payload: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return _work_order_call(work_orders.run_conformance, utility_vertical, work_order_id, payload)
+
+
+@router.get("/work-orders/{utility_vertical}/{work_order_id}/conformance")
+def work_order_conformance(utility_vertical: str, work_order_id: str) -> dict[str, object]:
+    return _work_order_call(work_orders.conformance, utility_vertical, work_order_id)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/run-post-work-qa")
+def run_work_order_post_qa(
+    utility_vertical: str, work_order_id: str, payload: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return _work_order_call(work_orders.run_post_qa, utility_vertical, work_order_id, payload)
+
+
+@router.get("/work-orders/{utility_vertical}/{work_order_id}/post-work-qa")
+def work_order_post_qa(utility_vertical: str, work_order_id: str) -> dict[str, object]:
+    return _work_order_call(work_orders.post_qa, utility_vertical, work_order_id)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/run-post-work-traces")
+def run_work_order_post_traces(
+    utility_vertical: str, work_order_id: str, payload: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return _work_order_call(work_orders.run_post_traces, utility_vertical, work_order_id, payload)
+
+
+@router.get("/work-orders/{utility_vertical}/{work_order_id}/post-work-traces")
+def work_order_post_traces(utility_vertical: str, work_order_id: str) -> dict[str, object]:
+    return _work_order_call(work_orders.post_traces, utility_vertical, work_order_id)
+
+
+@router.get("/work-orders/{utility_vertical}/{work_order_id}/validation-summary")
+def work_order_validation_summary(utility_vertical: str, work_order_id: str) -> dict[str, object]:
+    return _work_order_call(work_orders.validation_summary, utility_vertical, work_order_id)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/submit-closeout")
+def submit_work_order_closeout(utility_vertical: str, work_order_id: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _work_order_transition(utility_vertical, work_order_id, "submit-closeout", payload)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/approve-closeout")
+def approve_work_order_closeout(utility_vertical: str, work_order_id: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _work_order_transition(utility_vertical, work_order_id, "approve-closeout", payload)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/reopen")
+def reopen_work_order(utility_vertical: str, work_order_id: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _work_order_transition(utility_vertical, work_order_id, "reopen", payload)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/suspend")
+def suspend_work_order(utility_vertical: str, work_order_id: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _work_order_transition(utility_vertical, work_order_id, "suspend", payload)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/cancel")
+def cancel_work_order(utility_vertical: str, work_order_id: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _work_order_transition(utility_vertical, work_order_id, "cancel", payload)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/supersede")
+def supersede_work_order(utility_vertical: str, work_order_id: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _work_order_transition(utility_vertical, work_order_id, "supersede", payload)
+
+
+@router.get("/work-orders/{utility_vertical}/{work_order_id}/safe-summary")
+def work_order_safe_summary(utility_vertical: str, work_order_id: str) -> dict[str, object]:
+    return _work_order_call(work_orders.safe_summary, utility_vertical, work_order_id)
+
+
+@router.post("/work-orders/{utility_vertical}/{work_order_id}/job-package")
+def create_work_order_package(
+    utility_vertical: str, work_order_id: str, payload: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return _work_order_call(work_orders.create_package, utility_vertical, work_order_id, payload)
+
+
+@router.get("/work-orders/{utility_vertical}/{work_order_id}/job-package")
+def work_order_package(utility_vertical: str, work_order_id: str) -> dict[str, object]:
+    return _work_order_call(work_orders.package, utility_vertical, work_order_id)
+
+
+@router.get("/work-orders/{utility_vertical}/{work_order_id}/completion-receipt")
+def work_order_completion_receipt(utility_vertical: str, work_order_id: str) -> dict[str, object]:
+    return _work_order_call(work_orders.receipt, utility_vertical, work_order_id)
 
 
 @router.get("/storage/status", response_model=StorageStatusResponse)

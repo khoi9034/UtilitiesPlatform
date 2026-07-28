@@ -71,6 +71,8 @@ Frontend routes:
 
 Catalog and workflow APIs begin at `/api/proposed-edits`. Local mode uses FastAPI and the external application registry. Demo mode uses synthetic `sessionStorage` state and makes no backend request.
 
-## Next Phase
+## Work Order Boundary
 
-The next phase is Work Order and Job Package V1. It may reference approved proposal versions but must not weaken the proposal-only safety boundary.
+Work Order and Job Package V1 can reference an approved locked proposal and convert its operations into a separate versioned job checklist. A work order cannot mutate proposal operations. Changed field evidence requires an exception plus a revised or superseding proposal.
+
+Approval remains plan approval; release remains synthetic workflow release; recorded implementation remains an isolated overlay. See `work-order-job-package.md`.

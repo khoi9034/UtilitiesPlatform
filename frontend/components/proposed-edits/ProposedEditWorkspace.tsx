@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { getDataProvider, isDemoMode } from "../../lib/data-provider/provider";
 import { label } from "../../lib/formatters";
@@ -312,7 +313,10 @@ function ApprovalView({ proposal, busy, run }: { proposal: ProposedEdit; busy: b
         <StatusBadge value={proposal.approval_status} tone={proposal.approval_status === "approved" ? "success" : "neutral"} />
         <ul><li>Validation passed: {proposal.validation_status === "passed" ? "Yes" : "No"}</li><li>Analysis complete: {proposal.analysis_status === "complete" ? "Yes" : "No"}</li><li>Baseline preserved: Yes</li><li>Implementation status: Not implemented</li></ul>
         {ready ? <button className={ws.button} disabled={busy} onClick={() => run("approve", { reviewer: "Synthetic Reviewer", reviewer_role: "final_approver", notes: "Reviewed synthetic plan and accepted proposal-only limitations.", acknowledge_new_blockers: false })}><calcite-icon icon="checkCircle" scale="s" aria-hidden="true" /> Approve Change Plan</button> : null}
-        {proposal.approval_status === "approved" ? <strong className={styles.approved}>Approved plan - not implemented in any operational utility system.</strong> : null}
+        {proposal.approval_status === "approved" ? <>
+          <strong className={styles.approved}>Approved plan - not implemented in any operational utility system.</strong>
+          <Link className={ws.button} href={`/utilities/${proposal.utility_vertical === "electric_distribution" ? "electric" : "telecom"}/work-orders?proposal_id=${encodeURIComponent(proposal.proposal_id)}`}>Create Work Order</Link>
+        </> : null}
       </div>
     </Panel>
     <History events={proposal.reviews} />

@@ -11,6 +11,7 @@ export type UtilityWorkspaceView =
   | "connectivity-qa"
   | "network-trace"
   | "proposed-edits"
+  | "work-orders"
   | "review-history";
 
 export type UtilityVerticalConfig = {
@@ -38,6 +39,7 @@ const sharedNavigation: UtilityVerticalConfig["navigation"] = [
   { view: "connectivity-qa", label: "Connectivity QA" },
   { view: "network-trace", label: "Network Trace" },
   { view: "proposed-edits", label: "Proposed Edits" },
+  { view: "work-orders", label: "Work Orders" },
   { view: "review-history", label: "Review History" },
 ];
 
@@ -54,7 +56,7 @@ export const utilityVerticals: UtilityVerticalConfig[] = [
     capabilities: ["Feeders and circuits", "Devices and transformers", "Poles and conductors", "Connectivity readiness"],
     operationalFocus: ["Substations and feeders", "Protective devices", "Transformers", "Poles and conductors", "Conduit and service relationships"],
     navigation: sharedNavigation,
-    futureModules: ["Work Orders", "Vendor Integrations"],
+    futureModules: ["Implementation Verification enhancements", "Network Snapshots", "Vendor Integrations"],
   },
   {
     id: "telecom",
@@ -68,7 +70,7 @@ export const utilityVerticals: UtilityVerticalConfig[] = [
     capabilities: ["Fiber routes and cables", "Cabinets and terminals", "Splices and structures", "Capacity readiness"],
     operationalFocus: ["Network hubs and cabinets", "Fiber routes and cables", "Poles and conduit", "Splice closures", "Splitters and terminals", "Capacity and construction status"],
     navigation: sharedNavigation,
-    futureModules: ["Construction Workflows", "Work Orders", "Vendor Integrations"],
+    futureModules: ["Construction Workflow enhancements", "Network Snapshots", "Vendor Integrations"],
   },
 ];
 

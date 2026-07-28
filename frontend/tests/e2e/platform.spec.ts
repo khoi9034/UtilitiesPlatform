@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const routes = ["/", "/utilities", "/utilities/electric", "/utilities/electric/assets", "/utilities/electric/connectivity-qa", "/utilities/electric/network-trace", "/utilities/electric/proposed-edits", "/utilities/telecom", "/utilities/telecom/assets", "/utilities/telecom/connectivity-qa", "/utilities/telecom/network-trace", "/utilities/telecom/proposed-edits", "/command-center", "/data-health", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/network-intelligence", "/cad-intake", "/projects", "/maintenance", "/methodology"];
+const routes = ["/", "/utilities", "/utilities/electric", "/utilities/electric/assets", "/utilities/electric/connectivity-qa", "/utilities/electric/network-trace", "/utilities/electric/proposed-edits", "/utilities/electric/work-orders", "/utilities/telecom", "/utilities/telecom/assets", "/utilities/telecom/connectivity-qa", "/utilities/telecom/network-trace", "/utilities/telecom/proposed-edits", "/utilities/telecom/work-orders", "/command-center", "/data-health", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/network-intelligence", "/cad-intake", "/projects", "/maintenance", "/methodology"];
 const viewports = [
   { width: 1440, height: 900 },
   { width: 1280, height: 800 },
@@ -139,11 +139,22 @@ test.describe("enterprise shell", () => {
   test("loads electric and telecom Proposed Edit workspaces through FastAPI", async ({ page }) => {
     await page.goto("/utilities/electric/proposed-edits");
     await expect(page.getByRole("heading", { name: "Electric Proposed Edits" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "E-EDIT-001 Connect missing conductor endpoint Analysis Complete / 2 operations" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /E-EDIT-001 Connect missing conductor endpoint/ })).toBeVisible();
     await expect(page.getByText("This is a proposed data change, not a switching instruction.")).toBeVisible();
     await page.goto("/utilities/telecom/proposed-edits");
     await expect(page.getByRole("heading", { name: "Telecom Proposed Edits" })).toBeVisible();
     await expect(page.getByRole("button", { name: /T-EDIT-001/ })).toBeVisible();
+    await expect(page.locator("body")).not.toContainText("C:\\");
+  });
+
+  test("loads electric and telecom Work Order workspaces through FastAPI", async ({ page }) => {
+    await page.goto("/utilities/electric/work-orders");
+    await expect(page.getByRole("heading", { name: "Electric Work Orders" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /E-WO-001/ })).toBeVisible();
+    await expect(page.getByText("Device-state review is data verification, not a switching instruction or outage response.")).toBeVisible();
+    await page.goto("/utilities/telecom/work-orders");
+    await expect(page.getByRole("heading", { name: "Telecom Work Orders" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /T-WO-001/ })).toBeVisible();
     await expect(page.locator("body")).not.toContainText("C:\\");
   });
 

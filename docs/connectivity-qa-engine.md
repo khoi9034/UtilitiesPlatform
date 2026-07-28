@@ -6,6 +6,8 @@ Proposed Edit Workspace V1 calls the same pure graph builder, rule evaluator, an
 
 Resolved counts are candidates for human review. A lower total does not offset a newly introduced critical blocker.
 
+Work Order and Job Package V1 invokes the same graph builder, rules, and calibration against a recorded implementation overlay. Post-work findings remain work-order-specific evidence and are compared with baseline and approved-plan evidence; original QA runs are unchanged. Fewer findings alone never authorizes closeout.
+
 ## Purpose and Boundary
 
 Connectivity QA Engine V1 evaluates canonical Electric Distribution and Telecom/Fiber assets before future tracing, editing, and vendor integration. It identifies review candidates from safe canonical attributes and explicit stored relationships.
