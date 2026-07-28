@@ -6,6 +6,10 @@ Real utility data stays outside Git because utility infrastructure datasets can 
 C:\UtilitiesPlatform_Data
 ```
 
+The repository remains at `C:\Projects\UtilitiesPlatform`. Both locations must resolve directly to the local `C:` drive and must not be inside OneDrive, Documents, Desktop, or another synchronized folder. The FastAPI startup guard and `python scripts\validate_local_storage.py` fail when an active path violates that boundary.
+
+The public portfolio demo stores synthetic session state in browser `sessionStorage`; it never receives a local path. Uncertain files recovered from a duplicate cloud folder belong under `C:\UtilitiesPlatform_Recovery\<timestamp>`, outside Git and every managed storage stage.
+
 ## Storage Stages
 
 - `01_raw`: untouched approved source copies. Raw files should never be edited.

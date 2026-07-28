@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from app.core.local_storage import require_runtime_data_root, require_under_root
 from app.services import intake_registry_service as intake_registry
 
 SAFE_CATALOG_FIELDS = [
@@ -134,14 +135,18 @@ class StoragePaths:
 
 
 def get_storage_paths() -> StoragePaths:
-    root = Path(os.getenv("UTILITY_DATA_ROOT", r"C:\UtilitiesPlatform_Data"))
+    root = require_runtime_data_root()
+
+    def child(variable: str, default: Path) -> Path:
+        return require_under_root(Path(os.getenv(variable, str(default))), root)
+
     return StoragePaths(
         root=root,
-        raw=Path(os.getenv("UTILITY_RAW_ROOT", str(root / "01_raw"))),
-        staging=Path(os.getenv("UTILITY_STAGING_ROOT", str(root / "02_staging"))),
-        standardized=Path(os.getenv("UTILITY_STANDARDIZED_ROOT", str(root / "03_standardized"))),
-        curated=Path(os.getenv("UTILITY_CURATED_ROOT", str(root / "04_curated"))),
-        exports=Path(os.getenv("UTILITY_EXPORT_ROOT", str(root / "06_exports"))),
+        raw=child("UTILITY_RAW_ROOT", root / "01_raw"),
+        staging=child("UTILITY_STAGING_ROOT", root / "02_staging"),
+        standardized=child("UTILITY_STANDARDIZED_ROOT", root / "03_standardized"),
+        curated=child("UTILITY_CURATED_ROOT", root / "04_curated"),
+        exports=child("UTILITY_EXPORT_ROOT", root / "06_exports"),
         catalog=root / "00_admin" / "data_catalog.csv",
         processing_history=root / "00_admin" / "processing_history.csv",
         export_registry=root / "00_admin" / "export_registry.csv",
@@ -150,9 +155,9 @@ def get_storage_paths() -> StoragePaths:
         raw_submissions=root / "01_raw" / "submissions",
         temp_uploads=root / "temp" / "uploads",
         intake_logs=root / "logs" / "intake",
-        staging_gdb=Path(os.getenv("UTILITY_STAGING_GDB", str(root / "02_staging" / "Utility_Staging.gdb"))),
-        standardized_gdb=Path(os.getenv("UTILITY_STANDARDIZED_GDB", str(root / "03_standardized" / "Utility_Standardized.gdb"))),
-        master_gdb=Path(os.getenv("UTILITY_MASTER_GDB", str(root / "04_curated" / "Utility_Master.gdb"))),
+        staging_gdb=child("UTILITY_STAGING_GDB", root / "02_staging" / "Utility_Staging.gdb"),
+        standardized_gdb=child("UTILITY_STANDARDIZED_GDB", root / "03_standardized" / "Utility_Standardized.gdb"),
+        master_gdb=child("UTILITY_MASTER_GDB", root / "04_curated" / "Utility_Master.gdb"),
     )
 
 
@@ -237,7 +242,7 @@ def catalog_summary() -> dict[str, object]:
 
 
 def inventory_report_paths() -> dict[str, Path]:
-    root = Path(os.getenv("UTILITY_DATA_ROOT", r"C:\UtilitiesPlatform_Data"))
+    root = require_runtime_data_root()
     report_root = root / "05_qa" / "reports"
     return {
         "inventory": report_root / "utility_data_inventory.csv",

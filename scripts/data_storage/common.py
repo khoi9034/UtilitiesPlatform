@@ -6,6 +6,7 @@ import logging
 import os
 import shutil
 import subprocess
+import sys
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
@@ -13,6 +14,12 @@ from pathlib import Path
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+BACKEND_ROOT = REPO_ROOT / "backend"
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(BACKEND_ROOT))
+
+from app.core.local_storage import require_local_path, require_under_root  # noqa: E402
+
 DEFAULT_ROOT = Path(os.getenv("UTILITY_DATA_ROOT", r"C:\UtilitiesPlatform_Data"))
 
 DATA_CATALOG_COLUMNS = [
@@ -193,7 +200,7 @@ def storage_structure(year: int | None = None) -> list[Path]:
 
 
 def default_config(root: Path | None = None) -> StorageConfig:
-    root = (root or DEFAULT_ROOT).resolve()
+    root = require_local_path(root or DEFAULT_ROOT)
     return StorageConfig(
         master_data_root=root,
         admin_root=root / "00_admin",
@@ -229,7 +236,11 @@ def load_config(config_path: Path | None = None) -> StorageConfig:
         return default_config()
 
     data = json.loads(config_path.read_text(encoding="utf-8"))
-    return StorageConfig(**{key: Path(value) for key, value in data.items()})
+    config = StorageConfig(**{key: Path(value) for key, value in data.items()})
+    root = require_local_path(config.master_data_root)
+    for path in config.__dict__.values():
+        require_under_root(path, root)
+    return config
 
 
 def ensure_under_root(path: Path, root: Path) -> Path:

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import json
-import os
 import sqlite3
 import threading
 import uuid
 from pathlib import Path
 from typing import Any
 
+from app.core.local_storage import require_runtime_data_root
 from app.services import intake_registry_service
 from app.services.source_inspection import registry as inspection_registry
 
@@ -25,7 +25,7 @@ class UtilityAssetError(ValueError):
 
 class UtilityAssetService:
     def root(self) -> Path:
-        return Path(os.getenv("UTILITY_DATA_ROOT", r"C:\UtilitiesPlatform_Data"))
+        return require_runtime_data_root()
 
     def connect(self) -> sqlite3.Connection:
         connection = intake_registry_service.connect(self.root())

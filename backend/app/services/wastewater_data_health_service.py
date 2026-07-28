@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import csv
 import json
-import os
 import sqlite3
 import sys
 from datetime import datetime
@@ -10,6 +9,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from app.core.local_storage import require_runtime_data_root
 from app.schemas.responses import ComponentReviewUpdate, IssueReviewUpdate
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -104,7 +104,7 @@ def reports_root() -> Path:
 
 
 def data_root() -> Path:
-    return Path(os.getenv("UTILITY_DATA_ROOT", r"C:\UtilitiesPlatform_Data"))
+    return require_runtime_data_root()
 
 
 def summary() -> dict[str, Any]:
@@ -188,7 +188,7 @@ def network() -> dict[str, Any]:
 
 
 def runs() -> dict[str, Any]:
-    history = Path(os.getenv("UTILITY_DATA_ROOT", r"C:\UtilitiesPlatform_Data")) / "00_admin" / "processing_history.csv"
+    history = require_runtime_data_root() / "00_admin" / "processing_history.csv"
     if not history.exists():
         return {"runs": []}
     with history.open(newline="", encoding="utf-8") as handle:

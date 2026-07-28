@@ -58,6 +58,14 @@ Never commit county production data, utility infrastructure datasets, CAD files,
 
 ## Local Master Data Storage
 
+The code repository and runtime data must remain on the local drive:
+
+```text
+Repository: C:\Projects\UtilitiesPlatform
+Runtime data: C:\UtilitiesPlatform_Data
+Public demo state: sessionStorage
+```
+
 Approved local utility data belongs in:
 
 ```text
@@ -66,11 +74,14 @@ C:\UtilitiesPlatform_Data
 
 This directory is intentionally outside the Git repository. It is the local warehouse for raw approved source copies, staging work, standardized layers, curated analysis-ready data, QA reports, export packages, samples, archives, backups, and catalog files.
 
+OneDrive, Documents, Desktop, and other synchronized folders are unsupported for the repository or runtime data. Recovery of uncertain cloud copies belongs under `C:\UtilitiesPlatform_Recovery\<timestamp>`, never under Raw, Staging, Standardized, Curated, or Git. Local paths are not returned by public APIs or included in the static demo.
+
 Initialize it with:
 
 ```powershell
 python scripts\data_storage\initialize_data_storage.py
 python scripts\data_storage\validate_data_storage.py
+python scripts\validate_local_storage.py
 python scripts\data_storage\build_stage_manifest.py
 ```
 
