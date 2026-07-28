@@ -427,7 +427,7 @@ The workspace provides readiness preview, bounded branching, logical and ordered
 
 UtilitiesPlatform Network Trace V1 performs read-only analytical traversal of the platform's vendor-neutral canonical asset and relationship model. It is not an operational ArcFM, Smallworld, Esri Utility Network, outage-management, engineering, or telecom-provisioning trace.
 
-See `docs/network-trace-engine.md`. The next product action is Proposed Edit Workspace V1; it is not implemented in this phase.
+See `docs/network-trace-engine.md`.
 
 ### Network Trace Calibration and Result Triage V1
 
@@ -445,7 +445,28 @@ The fixed allowlisted rule contract is `config/network_trace/trace_calibration_v
 
 UtilitiesPlatform trace calibration interprets immutable vendor-neutral trace evidence for human review. It does not alter utility assets, repair connectivity, execute switching, allocate fiber capacity, predict outages, or reproduce proprietary utility-system traces.
 
-See `docs/network-trace-calibration.md`. Proposed Edit Workspace V1 remains the exact next product phase and was not started here.
+See `docs/network-trace-calibration.md`.
+
+## Proposed Edit Workspace V1
+
+Electric Distribution and Telecom/Fiber share one vendor-neutral proposed-change workflow:
+
+- `http://localhost:3001/utilities/electric/proposed-edits`
+- `http://localhost:3001/utilities/telecom/proposed-edits`
+- `http://127.0.0.1:8001/api/proposed-edits/types`
+
+Start both local services:
+
+```powershell
+cd <repository-root>
+powershell -ExecutionPolicy Bypass -File scripts\local\start-local-platform.ps1
+```
+
+The workspace creates ordered allowlisted operations, validates a fixed baseline, applies a sparse in-memory overlay, reuses Connectivity QA and Network Trace analysis, compares before and after evidence, locks submitted versions, records human review, and generates descriptive nonexecutable JSON packages. Static demo mode provides the same synthetic workflow in `sessionStorage` with no backend requests.
+
+UtilitiesPlatform Proposed Edit Workspace V1 creates isolated vendor-neutral change plans and evaluates them against temporary network overlays. Approval confirms the plan for future implementation review; it does not modify an operational utility GIS, execute switching, allocate telecom capacity, or apply changes to ArcFM, Smallworld, Esri Utility Network, or another proprietary system.
+
+See `docs/proposed-edit-workspace.md`. The exact next product action is Work Order and Job Package V1; it is not started in this phase.
 
 ## Repository Structure
 

@@ -2,6 +2,14 @@
 
 Utilities Platform uses a monorepo with a frontend, backend, database layer, GIS processing workspace, guarded data folders, and documentation.
 
+## Proposed Change Boundary
+
+`Connectivity QA -> QA calibration -> Network Trace -> trace calibration -> Proposed Edit Workspace -> future work order -> future licensed-system adapter`
+
+Proposed Edit Workspace V1 stores versioned vendor-neutral plans and ordered allowlisted operations in the application registry. It builds sparse temporary overlays in memory and invokes the existing pure QA, calibration, trace, and trace-calibration functions for before-and-after evidence. Canonical assets, canonical relationships, source and staged geometry, and immutable QA and trace evidence remain unchanged.
+
+An approved proposal is an approved plan only. Safe implementation packages are descriptive JSON with `executable: false`; no proprietary SDK, schema, command, credential, service publication, or operational transaction is included.
+
 ## Frontend
 
 The frontend is a Next.js TypeScript application using the App Router, ESLint, CSS modules, and the ArcGIS Maps SDK for JavaScript. The initial UI is a non-production dashboard shell with demo placeholders only.

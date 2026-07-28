@@ -1,5 +1,11 @@
 # Network Trace Engine V1
 
+## Proposed Overlay Reuse
+
+Proposed Edit Workspace V1 calls the same read-only trace and trace-calibration functions against a fixed baseline and a sparse temporary overlay. Comparison uses calibrated outcome, confidence, objective status, comparison key, path signature, branch signature, reachable assets, and path-specific blockers.
+
+Proposal trace runs are isolated analytical evidence. They do not mutate immutable active trace runs, operate devices, allocate capacity, or claim authoritative topology.
+
 ## Boundary
 
 UtilitiesPlatform Network Trace V1 performs read-only analytical traversal of the platform's vendor-neutral canonical asset and relationship model. It is not an operational ArcFM, Smallworld, Esri Utility Network, outage-management, engineering, or telecom-provisioning trace.

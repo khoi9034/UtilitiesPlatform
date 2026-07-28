@@ -167,6 +167,7 @@ export interface PlatformDataProvider {
   post<T>(path: string, body?: BodyInit | Record<string, unknown>): Promise<T>;
   put<T>(path: string, body: unknown): Promise<T>;
   patch<T>(path: string, body: unknown): Promise<T>;
+  delete<T>(path: string): Promise<T>;
   commandCenter(signal?: AbortSignal): Promise<CommandCenterResponse>;
   storageStatus(signal?: AbortSignal): Promise<StorageStatus>;
   stageItems(signal?: AbortSignal): Promise<CatalogResponse>;

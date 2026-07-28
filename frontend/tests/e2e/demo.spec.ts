@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const routes = ["/", "/utilities", "/utilities/electric", "/utilities/electric/assets", "/utilities/electric/connectivity-qa", "/utilities/electric/network-trace", "/utilities/telecom", "/utilities/telecom/assets", "/utilities/telecom/connectivity-qa", "/utilities/telecom/network-trace", "/command-center", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/data-health", "/network-intelligence", "/cad-intake", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/projects", "/maintenance", "/methodology"];
+const routes = ["/", "/utilities", "/utilities/electric", "/utilities/electric/assets", "/utilities/electric/connectivity-qa", "/utilities/electric/network-trace", "/utilities/electric/proposed-edits", "/utilities/telecom", "/utilities/telecom/assets", "/utilities/telecom/connectivity-qa", "/utilities/telecom/network-trace", "/utilities/telecom/proposed-edits", "/command-center", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/data-health", "/network-intelligence", "/cad-intake", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/projects", "/maintenance", "/methodology"];
 const basePath = process.env.DEMO_BASE_PATH ?? "";
 
 test.setTimeout(120_000);
@@ -57,7 +57,7 @@ test.describe("portfolio demo mode", () => {
 
   test("runs and restores a browser-only synthetic network trace", async ({ page }) => {
     await page.goto(`${basePath}/utilities/electric/network-trace`, { waitUntil: "domcontentloaded" });
-    await expect(page.getByText("All utility assets, relationships, QA findings, trace evidence, and calibrated trace results in this demo are synthetic and reset with the demo session.")).toBeVisible();
+    await expect(page.getByText("All utility assets, proposed changes, QA comparisons, trace comparisons, and approvals in this demo are synthetic and reset with the demo session.")).toBeVisible();
     await page.getByLabel("QA policy").selectOption("diagnostic");
     await page.getByRole("button", { name: "Run Trace" }).click();
     await expect(page.getByText("Calibrated interpretation", { exact: true })).toBeVisible();
@@ -247,5 +247,26 @@ test.describe("portfolio demo mode", () => {
     await expect(page.getByText("Source lineage")).toBeVisible();
     await expect(page.getByText("Provisional / Rule Inferred")).toBeVisible();
     await expect(page.locator("body")).not.toContainText("C:\\");
+  });
+
+  test("reviews and approves a synthetic proposed change without API requests", async ({ page }) => {
+    await page.goto(`${basePath}/utilities/electric/proposed-edits`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("All utility assets, proposed changes, QA comparisons, trace comparisons, and approvals in this demo are synthetic and reset with the demo session.")).toBeVisible();
+    await page.getByRole("button", { name: /E-EDIT-001/ }).click();
+    await page.getByRole("button", { name: "Compare" }).click();
+    await expect(page.getByText("Connectivity QA comparison")).toBeVisible();
+    await expect(page.getByText("Network Trace comparison")).toBeVisible();
+    await page.getByRole("button", { name: "Review" }).click();
+    await page.getByRole("button", { name: "Submit for Review" }).click();
+    await page.getByRole("button", { name: "Start Review" }).click();
+    await page.getByRole("button", { name: "Approval" }).click();
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByRole("button", { name: "Approve Change Plan" }).click();
+    await expect(page.getByText("Approved plan - not implemented in any operational utility system.")).toBeVisible();
+    await page.getByRole("button", { name: "Package" }).click();
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByRole("button", { name: "Generate safe package" }).click();
+    await expect(page.getByText(/"executable": false/)).toBeVisible();
+    expect(await page.evaluate(() => sessionStorage.getItem("utilities-platform-demo-proposed-edits-v1"))).toContain('"approval_status":"approved"');
   });
 });

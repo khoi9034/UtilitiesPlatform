@@ -1,0 +1,189 @@
+{
+  "version": "proposed-edit-scenarios-v1",
+  "electric_distribution": [
+    {
+      "scenario_code": "E-EDIT-001",
+      "title": "Connect missing conductor endpoint",
+      "proposal_type": "connect_conductor_endpoint",
+      "trace_type": "ELEC-TRACE-002",
+      "trace_start_name": "ELEC-OVERHEAD-CONDUCTOR-008",
+      "operations": [
+        {"operation_type": "add_relationship", "from_asset_name": "ELEC-OVERHEAD-CONDUCTOR-006", "to_asset_name": "ELEC-OVERHEAD-CONDUCTOR-008", "relationship_type": "feeds", "reason": "Represent the first reviewed endpoint candidate."},
+        {"operation_type": "add_relationship", "from_asset_name": "ELEC-OVERHEAD-CONDUCTOR-008", "to_asset_name": "ELEC-OVERHEAD-CONDUCTOR-004", "relationship_type": "feeds", "reason": "Represent the second reviewed endpoint candidate."}
+      ]
+    },
+    {
+      "scenario_code": "E-EDIT-002",
+      "title": "Assign transformer feeder",
+      "proposal_type": "assign_transformer_feeder",
+      "trace_type": "ELEC-TRACE-002",
+      "trace_start_name": "ELEC-TRANSFORMER-008",
+      "operations": [
+        {"operation_type": "update_asset_attribute", "target_asset_name": "ELEC-TRANSFORMER-008", "field_name": "feeder_id", "proposed_value": "FEEDER-1", "reason": "Propose the feeder identifier supported by the synthetic review context."},
+        {"operation_type": "add_relationship", "from_asset_name": "ELEC-FEEDER-002", "to_asset_name": "ELEC-TRANSFORMER-008", "relationship_type": "belongs_to_feeder", "reason": "Represent membership separately from physical connectivity."}
+      ]
+    },
+    {
+      "scenario_code": "E-EDIT-003",
+      "title": "Correct phase assignment",
+      "proposal_type": "correct_phase",
+      "trace_type": "ELEC-TRACE-002",
+      "trace_start_name": "ELEC-TRANSFORMER-007",
+      "operations": [
+        {"operation_type": "update_asset_attribute", "target_asset_name": "ELEC-TRANSFORMER-007", "field_name": "phase", "proposed_value": "A", "reason": "Replace the synthetic invalid phase code with an allowlisted reviewed value."}
+      ]
+    },
+    {
+      "scenario_code": "E-EDIT-004",
+      "title": "Associate underground conductor with conduit",
+      "proposal_type": "associate_conductor_conduit",
+      "trace_type": "ELEC-TRACE-002",
+      "trace_start_name": "ELEC-UNDERGROUND-CONDUCTOR-003",
+      "operations": [
+        {"operation_type": "update_asset_attribute", "target_asset_name": "ELEC-UNDERGROUND-CONDUCTOR-003", "field_name": "conduit_id", "proposed_value": "CONDUIT-1", "reason": "Record reviewed conduit membership."},
+        {"operation_type": "add_relationship", "from_asset_name": "ELEC-UNDERGROUND-CONDUCTOR-003", "to_asset_name": "ELEC-CONDUIT-001", "relationship_type": "routed_through", "reason": "Keep containment separate from energized flow."}
+      ]
+    },
+    {
+      "scenario_code": "E-EDIT-005",
+      "title": "Confirm proposed switch state",
+      "proposal_type": "confirm_or_change_device_state",
+      "trace_type": "ELEC-TRACE-002",
+      "trace_start_name": "ELEC-SWITCH-003",
+      "operations": [
+        {"operation_type": "change_operational_status", "target_asset_name": "ELEC-SWITCH-003", "proposed_value": "closed", "reason": "Model reviewed data-state evidence only; this is not a switching instruction."},
+        {"operation_type": "update_asset_attributes", "target_asset_name": "ELEC-SWITCH-003", "proposed_values": {"normally_open": false, "device_state": "closed"}, "reason": "Keep canonical status fields internally consistent in the proposal overlay."}
+      ]
+    },
+    {
+      "scenario_code": "E-EDIT-006",
+      "title": "Replace transformer",
+      "proposal_type": "replace_transformer",
+      "trace_type": "ELEC-TRACE-002",
+      "trace_start_name": "ELEC-TRANSFORMER-007",
+      "operations": [
+        {"operation_type": "add_asset", "temporary_key": "replacement", "proposed_values": {"asset_class": "transformer", "asset_subtype": "distribution_transformer", "canonical_name": "Proposed replacement transformer", "lifecycle_status": "proposed", "operational_status": "unknown", "canonical_attributes": {"feeder_id": "FEEDER-2", "circuit_id": "CIR-2", "phase": "A", "nominal_voltage": 12.47, "placement_type": "overhead"}}, "reason": "Create a proposal-local replacement asset."},
+        {"operation_type": "remove_relationship", "target_relationship": {"from_asset_name": "ELEC-TRANSFORMER-006", "to_asset_name": "ELEC-TRANSFORMER-007", "relationship_type": "feeds"}, "reason": "Review the incoming relationship transfer explicitly."},
+        {"operation_type": "remove_relationship", "target_relationship": {"from_asset_name": "ELEC-TRANSFORMER-007", "to_asset_name": "ELEC-TRANSFORMER-008", "relationship_type": "feeds"}, "reason": "Review the outgoing relationship transfer explicitly."},
+        {"operation_type": "add_relationship", "from_asset_name": "ELEC-TRANSFORMER-006", "to_temporary_key": "replacement", "relationship_type": "feeds", "reason": "Propose the reviewed incoming transfer."},
+        {"operation_type": "add_relationship", "from_temporary_key": "replacement", "to_asset_name": "ELEC-TRANSFORMER-008", "relationship_type": "feeds", "reason": "Propose the reviewed outgoing transfer."},
+        {"operation_type": "retire_asset", "target_asset_name": "ELEC-TRANSFORMER-007", "reason": "Retirement is represented as a separate explicit operation."}
+      ]
+    },
+    {
+      "scenario_code": "E-EDIT-007",
+      "title": "Correct upstream downstream relationship",
+      "proposal_type": "correct_upstream_downstream",
+      "trace_type": "ELEC-TRACE-002",
+      "trace_start_name": "ELEC-TRANSFORMER-008",
+      "operations": [
+        {"operation_type": "replace_relationship", "target_relationship": {"from_asset_name": "ELEC-TRANSFORMER-008", "to_asset_name": "ELEC-JUNCTION-002", "relationship_type": "feeds"}, "from_asset_name": "ELEC-JUNCTION-002", "to_asset_name": "ELEC-TRANSFORMER-008", "relationship_type": "feeds", "reason": "Model the reviewed directional candidate without asserting authoritative electrical flow."}
+      ]
+    },
+    {
+      "scenario_code": "E-EDIT-008",
+      "title": "Unsafe voltage proposal",
+      "proposal_type": "correct_voltage",
+      "trace_type": "ELEC-TRACE-002",
+      "trace_start_name": "ELEC-TRANSFORMER-007",
+      "operations": [
+        {"operation_type": "update_asset_attribute", "target_asset_name": "ELEC-TRANSFORMER-007", "field_name": "operating_voltage", "proposed_value": 4.16, "reason": "Deliberately unsafe synthetic voltage conflict."}
+      ]
+    }
+  ],
+  "telecom_fiber": [
+    {
+      "scenario_code": "T-EDIT-001",
+      "title": "Assign cable endpoint",
+      "proposal_type": "assign_cable_endpoint",
+      "trace_type": "TEL-TRACE-003",
+      "trace_start_name": "FIBER-FIBER-CABLE-004",
+      "operations": [
+        {"operation_type": "update_asset_attribute", "target_asset_name": "FIBER-FIBER-CABLE-004", "field_name": "to_structure_id", "proposed_value": "STRUCT-05", "reason": "Propose the reviewed endpoint identifier."},
+        {"operation_type": "add_relationship", "from_asset_name": "FIBER-FIBER-CABLE-004", "to_asset_name": "FIBER-HANDHOLE-004", "relationship_type": "terminates_at", "reason": "Represent the endpoint relationship explicitly."}
+      ]
+    },
+    {
+      "scenario_code": "T-EDIT-002",
+      "title": "Add splice relationship",
+      "proposal_type": "add_splice_relationship",
+      "trace_type": "TEL-TRACE-004",
+      "trace_start_name": "FIBER-SPLICE-CLOSURE-001",
+      "operations": [
+        {"operation_type": "confirm_provisional_relationship", "target_relationship": {"from_asset_name": "FIBER-SPLICE-CLOSURE-001", "to_asset_name": "FIBER-SPLICE-CLOSURE-002", "relationship_type": "connects_to"}, "reason": "Confirm the synthetic provisional splice evidence in the proposal only."}
+      ]
+    },
+    {
+      "scenario_code": "T-EDIT-003",
+      "title": "Correct strand overlap",
+      "proposal_type": "correct_strand_assignment",
+      "trace_type": "TEL-TRACE-003",
+      "trace_start_name": "FIBER-FIBER-CABLE-004",
+      "operations": [
+        {"operation_type": "update_asset_attributes", "target_asset_name": "FIBER-FIBER-CABLE-004", "proposed_values": {"strand_start": 145, "strand_end": 288}, "reason": "Move the synthetic assignment outside the overlapping range."}
+      ]
+    },
+    {
+      "scenario_code": "T-EDIT-004",
+      "title": "Correct capacity values",
+      "proposal_type": "correct_capacity",
+      "trace_type": "TEL-TRACE-002",
+      "trace_start_name": "FIBER-TERMINAL-006",
+      "operations": [
+        {"operation_type": "update_asset_attribute", "target_asset_name": "FIBER-TERMINAL-006", "field_name": "available_capacity", "proposed_value": 4, "reason": "Reconcile the safe aggregate capacity arithmetic."}
+      ]
+    },
+    {
+      "scenario_code": "T-EDIT-005",
+      "title": "Associate cable with conduit",
+      "proposal_type": "associate_cable_conduit",
+      "trace_type": "TEL-TRACE-003",
+      "trace_start_name": "FIBER-FIBER-CABLE-001",
+      "operations": [
+        {"operation_type": "add_relationship", "from_asset_name": "FIBER-FIBER-CABLE-001", "to_asset_name": "FIBER-CONDUIT-001", "relationship_type": "routed_through", "reason": "Represent containment without creating cable continuity."}
+      ]
+    },
+    {
+      "scenario_code": "T-EDIT-006",
+      "title": "Connect terminal upstream",
+      "proposal_type": "connect_terminal",
+      "trace_type": "TEL-TRACE-002",
+      "trace_start_name": "FIBER-TERMINAL-006",
+      "operations": [
+        {"operation_type": "add_relationship", "from_asset_name": "FIBER-FIBER-CABLE-004", "to_asset_name": "FIBER-TERMINAL-006", "relationship_type": "terminates_at", "reason": "Propose explicit upstream serving evidence."}
+      ]
+    },
+    {
+      "scenario_code": "T-EDIT-007",
+      "title": "Close proposed route gap",
+      "proposal_type": "close_proposed_route_gap",
+      "trace_type": "TEL-TRACE-008",
+      "trace_start_name": "FIBER-PROPOSED-CONSTRUCTION-SEGMENT-001",
+      "operations": [
+        {"operation_type": "update_asset_attribute", "target_asset_name": "FIBER-PROPOSED-CONSTRUCTION-SEGMENT-001", "field_name": "to_structure_id", "proposed_value": "STRUCT-08", "reason": "Complete proposal-only endpoint evidence."}
+      ]
+    },
+    {
+      "scenario_code": "T-EDIT-008",
+      "title": "Replace retired cable relationship",
+      "proposal_type": "replace_cable",
+      "trace_type": "TEL-TRACE-003",
+      "trace_start_name": "FIBER-FIBER-CABLE-003",
+      "operations": [
+        {"operation_type": "add_asset", "temporary_key": "replacement", "proposed_values": {"asset_class": "fiber_cable", "asset_subtype": "distribution_fiber", "canonical_name": "Proposed replacement cable", "lifecycle_status": "proposed", "operational_status": "proposed", "canonical_attributes": {"route_id": "ROUTE-1", "fiber_count": 144, "strand_start": 1, "strand_end": 144, "placement_type": "underground", "total_capacity": 32, "used_capacity": 24, "reserved_capacity": 4, "available_capacity": 4}}, "reason": "Create a proposal-local replacement cable."},
+        {"operation_type": "remove_relationship", "target_relationship": {"from_asset_name": "FIBER-FIBER-CABLE-003", "to_asset_name": "FIBER-TERMINAL-001", "relationship_type": "terminates_at"}, "reason": "Remove the lifecycle-conflicting termination in the overlay."},
+        {"operation_type": "add_relationship", "from_temporary_key": "replacement", "to_asset_name": "FIBER-TERMINAL-001", "relationship_type": "terminates_at", "reason": "Propose the replacement termination explicitly."}
+      ]
+    },
+    {
+      "scenario_code": "T-EDIT-009",
+      "title": "Unsafe strand proposal",
+      "proposal_type": "correct_strand_assignment",
+      "trace_type": "TEL-TRACE-003",
+      "trace_start_name": "FIBER-FIBER-CABLE-002",
+      "operations": [
+        {"operation_type": "update_asset_attributes", "target_asset_name": "FIBER-FIBER-CABLE-002", "proposed_values": {"strand_start": 300, "strand_end": 400}, "reason": "Deliberately invalid synthetic strand range."}
+      ]
+    }
+  ]
+}

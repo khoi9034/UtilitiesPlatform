@@ -1,5 +1,11 @@
 # Connectivity QA Engine V1
 
+## Proposed Overlay Reuse
+
+Proposed Edit Workspace V1 calls the same pure graph builder, rule evaluator, and deterministic issue-group calibration against baseline and proposal-overlay state. Proposal QA findings and comparisons are stored in proposal-specific tables. Active QA runs and technical findings are never overwritten, reviewed, or downgraded by proposal analysis.
+
+Resolved counts are candidates for human review. A lower total does not offset a newly introduced critical blocker.
+
 ## Purpose and Boundary
 
 Connectivity QA Engine V1 evaluates canonical Electric Distribution and Telecom/Fiber assets before future tracing, editing, and vendor integration. It identifies review candidates from safe canonical attributes and explicit stored relationships.

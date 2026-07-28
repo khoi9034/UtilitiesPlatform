@@ -28,6 +28,7 @@ from app.services import source_inspection
 from app.services import review_automation
 from app.services.connectivity_qa import ConnectivityQaError, service as connectivity_qa
 from app.services.network_trace import NetworkTraceError, service as network_trace
+from app.services.proposed_edits import ProposedEditError, service as proposed_edits
 from app.services.utility_assets import UtilityAssetError, service as utility_assets
 from app.services.upload_validation_service import UploadValidationError
 from app.services.data_storage_service import (
@@ -66,6 +67,17 @@ def _trace_call(callback: Callable[..., dict[str, Any]], *args: object) -> dict[
         return callback(*args)
     except NetworkTraceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+def _proposal_call(callback: Callable[..., Any], *args: object) -> Any:
+    try:
+        return callback(*args)
+    except ProposedEditError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -459,6 +471,201 @@ def network_trace_calibrated_safe_summary(
 @router.get("/network-trace/assets/{asset_id}/readiness")
 def network_trace_asset_readiness(asset_id: str) -> dict[str, object]:
     return _trace_call(network_trace.readiness, asset_id)
+
+
+@router.get("/proposed-edits/types")
+def proposed_edit_types() -> dict[str, object]:
+    return _proposal_call(proposed_edits.types)
+
+
+@router.get("/proposed-edits/types/{utility_vertical}")
+def proposed_edit_vertical_types(utility_vertical: str) -> dict[str, object]:
+    return _proposal_call(proposed_edits.types, utility_vertical)
+
+
+@router.get("/proposed-edits/operation-types")
+def proposed_edit_operation_types() -> dict[str, object]:
+    return _proposal_call(proposed_edits.operation_types)
+
+
+@router.get("/proposed-edits/{utility_vertical}")
+def proposed_edit_list(
+    utility_vertical: str,
+    status: str | None = None,
+    proposal_type: str | None = None,
+    validation_status: str | None = None,
+    approval_status: str | None = None,
+    search: str | None = None,
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> dict[str, object]:
+    filters = {
+        key: value for key, value in {
+            "status": status, "proposal_type": proposal_type,
+            "validation_status": validation_status, "approval_status": approval_status,
+            "search": search, "limit": limit, "offset": offset,
+        }.items() if value is not None
+    }
+    return _proposal_call(proposed_edits.list_proposals, utility_vertical, filters)
+
+
+@router.post("/proposed-edits/{utility_vertical}")
+def create_proposed_edit(utility_vertical: str, payload: dict[str, object]) -> dict[str, object]:
+    return _proposal_call(proposed_edits.create_proposal, utility_vertical, payload)
+
+
+@router.get("/proposed-edits/{utility_vertical}/{proposal_id}")
+def proposed_edit_detail(utility_vertical: str, proposal_id: str) -> dict[str, object]:
+    return _proposal_call(proposed_edits.proposal, utility_vertical, proposal_id)
+
+
+@router.post("/proposed-edits/{utility_vertical}/{proposal_id}/clone")
+def clone_proposed_edit(
+    utility_vertical: str, proposal_id: str, payload: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return _proposal_call(proposed_edits.clone, utility_vertical, proposal_id, payload)
+
+
+@router.post("/proposed-edits/{utility_vertical}/{proposal_id}/new-version")
+def version_proposed_edit(
+    utility_vertical: str, proposal_id: str, payload: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return _proposal_call(proposed_edits.new_version, utility_vertical, proposal_id, payload)
+
+
+@router.get("/proposed-edits/{utility_vertical}/{proposal_id}/operations")
+def proposed_edit_operations(utility_vertical: str, proposal_id: str) -> dict[str, object]:
+    return _proposal_call(proposed_edits.operations, utility_vertical, proposal_id)
+
+
+@router.post("/proposed-edits/{utility_vertical}/{proposal_id}/operations")
+def add_proposed_edit_operation(
+    utility_vertical: str, proposal_id: str, payload: dict[str, object],
+) -> dict[str, object]:
+    return _proposal_call(proposed_edits.add_operation, utility_vertical, proposal_id, payload)
+
+
+@router.put("/proposed-edits/{utility_vertical}/{proposal_id}/operations/{operation_id}")
+def update_proposed_edit_operation(
+    utility_vertical: str, proposal_id: str, operation_id: str, payload: dict[str, object],
+) -> dict[str, object]:
+    return _proposal_call(proposed_edits.update_operation, utility_vertical, proposal_id, operation_id, payload)
+
+
+@router.delete("/proposed-edits/{utility_vertical}/{proposal_id}/operations/{operation_id}")
+def delete_proposed_edit_operation(
+    utility_vertical: str, proposal_id: str, operation_id: str,
+) -> dict[str, object]:
+    return _proposal_call(proposed_edits.delete_operation, utility_vertical, proposal_id, operation_id)
+
+
+@router.post("/proposed-edits/{utility_vertical}/{proposal_id}/validate")
+def validate_proposed_edit(
+    utility_vertical: str, proposal_id: str, payload: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return _proposal_call(proposed_edits.validate, utility_vertical, proposal_id, payload)
+
+
+@router.post("/proposed-edits/{utility_vertical}/{proposal_id}/analyze")
+def analyze_proposed_edit(
+    utility_vertical: str, proposal_id: str, payload: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return _proposal_call(proposed_edits.analyze, utility_vertical, proposal_id, payload)
+
+
+@router.get("/proposed-edits/{utility_vertical}/{proposal_id}/validation")
+def proposed_edit_validation(utility_vertical: str, proposal_id: str) -> dict[str, object]:
+    return _proposal_call(proposed_edits.validation, utility_vertical, proposal_id)
+
+
+@router.get("/proposed-edits/{utility_vertical}/{proposal_id}/overlay")
+def proposed_edit_overlay(utility_vertical: str, proposal_id: str) -> dict[str, object]:
+    return _proposal_call(proposed_edits.overlay, utility_vertical, proposal_id)
+
+
+@router.get("/proposed-edits/{utility_vertical}/{proposal_id}/qa-comparison")
+def proposed_edit_qa_comparison(utility_vertical: str, proposal_id: str) -> dict[str, object]:
+    return _proposal_call(proposed_edits.qa_comparison, utility_vertical, proposal_id)
+
+
+@router.get("/proposed-edits/{utility_vertical}/{proposal_id}/trace-comparisons")
+def proposed_edit_trace_comparisons(utility_vertical: str, proposal_id: str) -> dict[str, object]:
+    return _proposal_call(proposed_edits.trace_comparisons, utility_vertical, proposal_id)
+
+
+@router.get("/proposed-edits/{utility_vertical}/{proposal_id}/impact-summary")
+def proposed_edit_impact(utility_vertical: str, proposal_id: str) -> dict[str, object]:
+    return _proposal_call(proposed_edits.impact, utility_vertical, proposal_id)
+
+
+def _review_proposed_edit(
+    utility_vertical: str, proposal_id: str, action: str, payload: dict[str, object] | None,
+) -> dict[str, object]:
+    return _proposal_call(proposed_edits.review, utility_vertical, proposal_id, action, payload)
+
+
+@router.post("/proposed-edits/{utility_vertical}/{proposal_id}/submit")
+def submit_proposed_edit(utility_vertical: str, proposal_id: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _review_proposed_edit(utility_vertical, proposal_id, "submit", payload)
+
+
+@router.post("/proposed-edits/{utility_vertical}/{proposal_id}/start-review")
+def start_proposed_edit_review(utility_vertical: str, proposal_id: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _review_proposed_edit(utility_vertical, proposal_id, "start-review", payload)
+
+
+@router.post("/proposed-edits/{utility_vertical}/{proposal_id}/request-revision")
+def revise_proposed_edit(utility_vertical: str, proposal_id: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _review_proposed_edit(utility_vertical, proposal_id, "request-revision", payload)
+
+
+@router.post("/proposed-edits/{utility_vertical}/{proposal_id}/approve")
+def approve_proposed_edit(utility_vertical: str, proposal_id: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _review_proposed_edit(utility_vertical, proposal_id, "approve", payload)
+
+
+@router.post("/proposed-edits/{utility_vertical}/{proposal_id}/reject")
+def reject_proposed_edit(utility_vertical: str, proposal_id: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _review_proposed_edit(utility_vertical, proposal_id, "reject", payload)
+
+
+@router.post("/proposed-edits/{utility_vertical}/{proposal_id}/defer")
+def defer_proposed_edit(utility_vertical: str, proposal_id: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _review_proposed_edit(utility_vertical, proposal_id, "defer", payload)
+
+
+@router.post("/proposed-edits/{utility_vertical}/{proposal_id}/withdraw")
+def withdraw_proposed_edit(utility_vertical: str, proposal_id: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _review_proposed_edit(utility_vertical, proposal_id, "withdraw", payload)
+
+
+@router.post("/proposed-edits/{utility_vertical}/{proposal_id}/reopen")
+def reopen_proposed_edit(utility_vertical: str, proposal_id: str, payload: dict[str, object] | None = None) -> dict[str, object]:
+    return _review_proposed_edit(utility_vertical, proposal_id, "reopen", payload)
+
+
+@router.post("/proposed-edits/{utility_vertical}/{proposal_id}/supersede")
+def supersede_proposed_edit(
+    utility_vertical: str, proposal_id: str, payload: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return _proposal_call(proposed_edits.supersede, utility_vertical, proposal_id, payload)
+
+
+@router.get("/proposed-edits/{utility_vertical}/{proposal_id}/safe-summary")
+def proposed_edit_safe_summary(utility_vertical: str, proposal_id: str) -> dict[str, object]:
+    return _proposal_call(proposed_edits.safe_summary, utility_vertical, proposal_id)
+
+
+@router.post("/proposed-edits/{utility_vertical}/{proposal_id}/implementation-package")
+def create_proposed_edit_package(
+    utility_vertical: str, proposal_id: str, payload: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return _proposal_call(proposed_edits.create_package, utility_vertical, proposal_id, payload)
+
+
+@router.get("/proposed-edits/{utility_vertical}/{proposal_id}/implementation-package")
+def proposed_edit_package(utility_vertical: str, proposal_id: str) -> dict[str, object]:
+    return _proposal_call(proposed_edits.package, utility_vertical, proposal_id)
 
 
 @router.get("/storage/status", response_model=StorageStatusResponse)

@@ -7,6 +7,7 @@ import { getUtilityVertical, utilityVerticals, utilityViewPath, type UtilityVert
 import { UtilityAssetsWorkspace } from "../utility-assets/UtilityAssetsWorkspace";
 import { ConnectivityQAWorkspace } from "../connectivity-qa/ConnectivityQAWorkspace";
 import { NetworkTraceWorkspace } from "../network-trace/NetworkTraceWorkspace";
+import { ProposedEditWorkspace } from "../proposed-edits/ProposedEditWorkspace";
 import styles from "./utility-workspaces.module.css";
 
 export function UtilitiesLanding() {
@@ -89,6 +90,8 @@ export function UtilityVerticalWorkspace({ verticalId, view }: { verticalId: Uti
         <ConnectivityQAWorkspace config={vertical} />
       ) : view === "network-trace" ? (
         <NetworkTraceWorkspace config={vertical} />
+      ) : view === "proposed-edits" ? (
+        <ProposedEditWorkspace config={vertical} />
       ) : (
         <UtilityAssetsWorkspace
           detailAssetId={assetId}
@@ -104,7 +107,7 @@ export function UtilityVerticalWorkspace({ verticalId, view }: { verticalId: Uti
 function DemoNotice() {
   return (
     <div className={styles.demoNotice} role="status">
-      All utility assets, relationships, QA findings, trace evidence, and calibrated trace results in this demo are synthetic and reset with the demo session.
+      All utility assets, proposed changes, QA comparisons, trace comparisons, and approvals in this demo are synthetic and reset with the demo session.
     </div>
   );
 }

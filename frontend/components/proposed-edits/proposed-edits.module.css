@@ -1,0 +1,572 @@
+.workspace,
+.detail,
+.stack {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.safety,
+.operationalWarning,
+.message,
+.error {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 11px 14px;
+  border-left: 3px solid var(--utility-accent, var(--color-accent));
+  background: var(--color-surface-1);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.operationalWarning {
+  border-color: var(--color-warning);
+  color: var(--color-text-primary);
+  font-weight: 800;
+}
+
+.message {
+  border-color: var(--color-success);
+}
+
+.error {
+  border-color: var(--color-danger);
+}
+
+.metrics,
+.compareGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.32fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.sidebar {
+  position: sticky;
+  top: 76px;
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  max-height: calc(100vh - 96px);
+  padding: 14px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-1);
+  overflow: auto;
+}
+
+.sidebarHeader,
+.viewToolbar,
+.proposalHeader,
+.actionRow,
+.packageHeader {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebarHeader > div,
+.viewToolbar > div,
+.stack {
+  display: grid;
+  gap: 4px;
+}
+
+.sidebarHeader span,
+.viewToolbar span,
+.proposalHeader span,
+.traceCompare span,
+.compareValue > span {
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.filters,
+.createForm {
+  display: grid;
+  gap: 10px;
+}
+
+.filters label,
+.createForm label,
+.operationForm label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.filters input,
+.filters select,
+.createForm input,
+.createForm select,
+.operationForm input,
+.operationForm select,
+.operationForm textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xs);
+  background: var(--color-surface-2);
+  color: var(--color-text-primary);
+}
+
+.operationForm textarea {
+  min-height: 76px;
+  resize: vertical;
+}
+
+.proposalList {
+  display: grid;
+  gap: 7px;
+}
+
+.proposal,
+.selectedProposal {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xs);
+  background: var(--color-surface-2);
+  color: var(--color-text-primary);
+  text-align: left;
+}
+
+.selectedProposal {
+  border-color: var(--utility-accent, var(--color-accent));
+  box-shadow: inset 3px 0 0 var(--utility-accent, var(--color-accent));
+}
+
+.proposal span,
+.selectedProposal span {
+  color: var(--utility-accent, var(--color-accent));
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.proposal strong,
+.selectedProposal strong {
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+}
+
+.proposal small,
+.selectedProposal small,
+.operationCard small,
+.traceCompare small,
+.history small {
+  color: var(--color-text-tertiary);
+}
+
+.proposalHeader {
+  min-height: 82px;
+  padding: 2px 0 14px;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.proposalHeader > div:first-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.proposalHeader h2 {
+  overflow-wrap: anywhere;
+  font-size: 24px;
+  line-height: 1.15;
+}
+
+.proposalHeader p {
+  color: var(--color-text-secondary);
+}
+
+.headerStatuses {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  border-bottom: 1px solid var(--color-border-subtle);
+  overflow-x: auto;
+}
+
+.steps button {
+  display: grid;
+  gap: 5px;
+  min-width: 78px;
+  min-height: 56px;
+  place-items: center;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.steps button span {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 50%;
+  font-size: 10px;
+}
+
+.steps .activeStep {
+  border-color: var(--utility-accent, var(--color-accent));
+  color: var(--color-text-primary);
+}
+
+.steps .activeStep span {
+  border-color: var(--utility-accent, var(--color-accent));
+  background: color-mix(in srgb, var(--utility-accent, var(--color-accent)) 16%, transparent);
+}
+
+.viewGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.definition {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.definition > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.definition dt {
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.definition dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.fingerprint,
+.code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  word-break: break-all;
+}
+
+.code {
+  display: block;
+  padding: 12px;
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-2);
+}
+
+.operationForm {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--utility-accent, var(--color-accent));
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-1);
+}
+
+.wide,
+.formActions {
+  grid-column: 1 / -1;
+}
+
+.formActions,
+.reviewActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.formActions button,
+.reviewActions button,
+.packageHeader button {
+  min-height: 40px;
+  padding: 0 12px;
+}
+
+.operationList,
+.findings,
+.history {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.operationCard {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xs);
+  background: var(--color-surface-1);
+}
+
+.operationCard > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.operationCard p {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.sequence {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--utility-accent, var(--color-accent));
+  border-radius: 50%;
+  color: var(--utility-accent, var(--color-accent));
+  font-weight: 900;
+}
+
+.findings li,
+.history li {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--color-danger);
+  background: var(--color-surface-2);
+}
+
+.history li {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  border-color: var(--color-border-strong);
+}
+
+.emptyEvidence,
+.disclaimer {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.compareValue {
+  display: grid;
+  gap: 9px;
+  min-height: 128px;
+  padding: 15px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-1);
+}
+
+.compareValue > div {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.compareValue strong {
+  font-size: 28px;
+}
+
+.compareValue small {
+  color: var(--color-text-secondary);
+  font-weight: 800;
+}
+
+.deltaLists {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.deltaLists > div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-2);
+}
+
+.deltaLists ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.traceCompare {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+}
+
+.traceCompare > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-2);
+}
+
+.approvalBox {
+  display: grid;
+  gap: 14px;
+}
+
+.approvalBox ul {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--color-text-secondary);
+}
+
+.approved {
+  padding: 12px;
+  border: 1px solid var(--color-success);
+  color: var(--color-text-primary);
+}
+
+.packageHeader > div {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--color-text-secondary);
+}
+
+.package {
+  max-height: 520px;
+  margin: 14px 0 0;
+  padding: 14px;
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-0);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  line-height: 1.55;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.disclaimer {
+  padding: 12px 0 0;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+@media (max-width: 1080px) {
+  .metrics,
+  .compareGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .layout {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+
+  .viewGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 780px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+    max-height: none;
+  }
+
+  .proposalList {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .steps {
+    grid-template-columns: repeat(8, 86px);
+  }
+
+  .traceCompare {
+    grid-template-columns: 1fr;
+  }
+
+  .traceCompare > calcite-icon {
+    transform: rotate(90deg);
+  }
+}
+
+@media (max-width: 540px) {
+  .metrics,
+  .compareGrid,
+  .proposalList,
+  .operationForm,
+  .definition,
+  .deltaLists {
+    grid-template-columns: 1fr;
+  }
+
+  .proposalHeader,
+  .viewToolbar,
+  .packageHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .operationCard {
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+
+  .operationCard > :last-child {
+    grid-column: 2;
+  }
+
+  .history li {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace *,
+  .workspace *::before,
+  .workspace *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}

@@ -286,6 +286,7 @@ function TraceResult({
         <div className={ws.buttonRow}>
           <button className={ws.button} type="button" onClick={onRerun}><calcite-icon icon="refresh" scale="s" aria-hidden="true" />Rerun</button>
           <button className={ws.button} type="button" onClick={onDownload}><calcite-icon icon="download" scale="s" aria-hidden="true" />Download Calibrated Receipt</button>
+          <Link className={ws.button} href={`${config.routeBase}/proposed-edits?source_trace_run_id=${encodeURIComponent(result.trace_run_id)}&source_asset_id=${encodeURIComponent(result.start_asset_id)}`}>Create proposed edit</Link>
         </div>
       </Panel>
       <Panel title="Original trace result" description="Immutable traversal evidence remains available and is never rewritten by calibration.">

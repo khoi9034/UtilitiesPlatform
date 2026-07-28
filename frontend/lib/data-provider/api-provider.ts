@@ -125,6 +125,12 @@ export class ApiDataProvider implements PlatformDataProvider {
     return response.json() as Promise<T>;
   }
 
+  async delete<T>(path: string): Promise<T> {
+    const response = await fetch(`${apiUrl}${path}`, { method: "DELETE" });
+    if (!response.ok) throw await errorFromResponse(response);
+    return response.json() as Promise<T>;
+  }
+
   commandCenter(signal?: AbortSignal) { return this.get<CommandCenterResponse>("/api/platform/command-center?utility_system=wastewater", signal); }
   storageStatus(signal?: AbortSignal) { return this.get<StorageStatus>("/api/storage/status", signal); }
   stageItems(signal?: AbortSignal) { return this.get<CatalogResponse>("/api/storage/catalog", signal); }

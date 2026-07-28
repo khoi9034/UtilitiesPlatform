@@ -501,7 +501,10 @@ function IssueGroupDetail({
           <div><dt>Root-cause confidence</dt><dd>{label(detail.root_cause_confidence)}</dd></div>
           <div><dt>Technical blocking</dt><dd>{detail.effective_blocking ? "Yes" : "No"}</dd></div>
         </dl>
-        {detail.affected_asset_ids[0] ? <Link className={ws.button} href={`${config.routeBase}/assets?asset_id=${encodeURIComponent(detail.affected_asset_ids[0])}`}>Open primary asset</Link> : null}
+        <div className={ws.buttonRow}>
+          {detail.affected_asset_ids[0] ? <Link className={ws.button} href={`${config.routeBase}/assets?asset_id=${encodeURIComponent(detail.affected_asset_ids[0])}`}>Open primary asset</Link> : null}
+          <Link className={ws.button} href={`${config.routeBase}/proposed-edits?source_issue_group_id=${encodeURIComponent(detail.issue_group_id)}`}>Create proposed edit</Link>
+        </div>
       </Panel>
       <Panel title="Related technical findings" description="Every original rule result remains inspectable.">
         <div className={styles.memberList}>

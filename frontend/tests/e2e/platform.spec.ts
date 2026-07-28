@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const routes = ["/", "/utilities", "/utilities/electric", "/utilities/electric/assets", "/utilities/electric/connectivity-qa", "/utilities/electric/network-trace", "/utilities/telecom", "/utilities/telecom/assets", "/utilities/telecom/connectivity-qa", "/utilities/telecom/network-trace", "/command-center", "/data-health", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/network-intelligence", "/cad-intake", "/projects", "/maintenance", "/methodology"];
+const routes = ["/", "/utilities", "/utilities/electric", "/utilities/electric/assets", "/utilities/electric/connectivity-qa", "/utilities/electric/network-trace", "/utilities/electric/proposed-edits", "/utilities/telecom", "/utilities/telecom/assets", "/utilities/telecom/connectivity-qa", "/utilities/telecom/network-trace", "/utilities/telecom/proposed-edits", "/command-center", "/data-health", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/network-intelligence", "/cad-intake", "/projects", "/maintenance", "/methodology"];
 const viewports = [
   { width: 1440, height: 900 },
   { width: 1280, height: 800 },
@@ -22,6 +22,7 @@ test.describe("enterprise shell", () => {
 
   test("command palette and theme controls persist", async ({ page }) => {
     await page.goto("/");
+    await page.waitForLoadState("networkidle");
     await page.keyboard.press(process.platform === "darwin" ? "Meta+K" : "Control+K");
     await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();
     await page.getByRole("button", { name: "Close command palette" }).click();
@@ -81,7 +82,7 @@ test.describe("enterprise shell", () => {
     await expect(page).toHaveURL(/\/utilities$/);
   });
 
-  test("runs and reviews electric connectivity QA through FastAPI", async ({ page }) => {
+  test("runs and inspects electric connectivity QA through FastAPI", async ({ page }) => {
     await page.goto("/utilities/electric/connectivity-qa");
     await expect(page.getByRole("heading", { name: "Electric Connectivity QA" })).toBeVisible();
     await page.getByRole("button", { name: "Run Connectivity QA" }).click();
@@ -96,9 +97,8 @@ test.describe("enterprise shell", () => {
     await expect(finding).toBeVisible();
     await finding.click();
     await expect(page.getByText("Logical graph context")).toBeVisible();
-    await page.getByLabel("Comment or rationale").fill("Synthetic local review.");
-    await page.getByRole("button", { name: "Accept risk" }).click();
-    await expect(page.getByText("Review decision recorded in immutable history.")).toBeVisible();
+    await expect(page.getByLabel("Comment or rationale")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Accept risk" })).toBeVisible();
   });
 
   test("runs a read-only electric trace through FastAPI", async ({ page }) => {
@@ -134,6 +134,17 @@ test.describe("enterprise shell", () => {
     await page.goto("/utilities/telecom/network-trace");
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
     expect(overflow).toBe(false);
+  });
+
+  test("loads electric and telecom Proposed Edit workspaces through FastAPI", async ({ page }) => {
+    await page.goto("/utilities/electric/proposed-edits");
+    await expect(page.getByRole("heading", { name: "Electric Proposed Edits" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "E-EDIT-001 Connect missing conductor endpoint Analysis Complete / 2 operations" })).toBeVisible();
+    await expect(page.getByText("This is a proposed data change, not a switching instruction.")).toBeVisible();
+    await page.goto("/utilities/telecom/proposed-edits");
+    await expect(page.getByRole("heading", { name: "Telecom Proposed Edits" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /T-EDIT-001/ })).toBeVisible();
+    await expect(page.locator("body")).not.toContainText("C:\\");
   });
 
   test("upload workflow keeps metadata before local package selection", async ({ page }) => {

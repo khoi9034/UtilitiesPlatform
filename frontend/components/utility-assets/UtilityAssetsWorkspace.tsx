@@ -430,6 +430,7 @@ function AssetDetail({ asset, relationships, lineage, findings, issueGroups, tra
       <Panel title="Network Trace" description="Read-only analytical traversal readiness; no device state, relationship, or source evidence is changed.">
         <div className={styles.contextActions}>
           <Link className={ws.button} href={`${utilityViewPath(verticalConfig, "network-trace")}?start_asset_id=${encodeURIComponent(asset.asset_id)}`}>Start trace from this asset</Link>
+          <Link className={ws.button} href={`${utilityViewPath(verticalConfig, "proposed-edits")}?source_asset_id=${encodeURIComponent(asset.asset_id)}`}>Create proposed edit</Link>
           <span><strong>Eligible trace types</strong> {traceReadiness?.eligible_trace_types.map((item) => item.name).join(", ") || "None"}</span>
           <span><strong>Trace eligibility</strong> {traceReadiness?.trace_ready ? "Eligible" : "Not eligible"}</span>
           <span><strong>Historical trace count</strong> {traceReadiness?.trace_count ?? 0}</span>
