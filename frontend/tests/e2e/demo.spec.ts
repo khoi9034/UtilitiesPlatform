@@ -57,28 +57,38 @@ test.describe("portfolio demo mode", () => {
 
   test("runs and restores a browser-only synthetic network trace", async ({ page }) => {
     await page.goto(`${basePath}/utilities/electric/network-trace`, { waitUntil: "domcontentloaded" });
-    await expect(page.getByText("All utility assets, relationships, QA findings, and trace results in this demo are synthetic and reset with the demo session.")).toBeVisible();
+    await expect(page.getByText("All utility assets, relationships, QA findings, trace evidence, and calibrated trace results in this demo are synthetic and reset with the demo session.")).toBeVisible();
     await page.getByLabel("QA policy").selectOption("diagnostic");
     await page.getByRole("button", { name: "Run Trace" }).click();
-    await expect(page.getByText("Trace result", { exact: true })).toBeVisible();
-    await expect(page.getByText("Logical relationship view", { exact: true })).toBeVisible();
+    await expect(page.getByText("Calibrated interpretation", { exact: true })).toBeVisible();
+    await expect(page.getByText("Why this result", { exact: true })).toBeVisible();
+    await expect(page.getByText("Original trace result", { exact: true })).toBeVisible();
     expect(await page.evaluate(() => sessionStorage.getItem("utilities-platform-demo-network-trace-v1"))).toContain("ELEC-TRACE-001");
+    expect(await page.evaluate(() => sessionStorage.getItem("utilities-platform-demo-network-trace-calibration-v1"))).toContain("network-trace-calibration-v1");
     const [download] = await Promise.all([
       page.waitForEvent("download"),
-      page.getByRole("button", { name: "Download Safe Trace Receipt" }).click(),
+      page.getByRole("button", { name: "Download Calibrated Receipt" }).click(),
     ]);
-    expect(download.suggestedFilename()).toContain("safe-trace-receipt.json");
+    expect(download.suggestedFilename()).toContain("calibrated-safe-trace-receipt.json");
 
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.getByText("Trace result", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "View Ordered Path" }).click();
+    await expect(page.getByText("Calibrated interpretation", { exact: true })).toBeVisible();
+    await page.getByRole("tab", { name: "Ordered Paths" }).click();
     await expect(page.getByText("Ordered path", { exact: true })).toBeVisible();
+    await page.getByRole("tab", { name: "Primary Issues" }).click();
+    await expect(page.getByText("Primary issues and selected-path conditions", { exact: true })).toBeVisible();
+    await page.getByRole("tab", { name: "Background Conditions" }).click();
+    await expect(page.getByText("Background Network Conditions", { exact: true })).toBeVisible();
 
     await page.goto(`${basePath}/utilities/telecom/network-trace`, { waitUntil: "domcontentloaded" });
     await expect(page.getByLabel("Trace type")).toHaveValue("TEL-TRACE-001");
+    await page.getByLabel("QA policy").selectOption("diagnostic");
+    await page.getByRole("button", { name: "Run Trace" }).click();
+    await expect(page.getByText("Calibrated interpretation", { exact: true })).toBeVisible();
     await expect(page.locator("body")).not.toContainText("C:\\");
     await page.getByRole("button", { name: "Reset Demo Session" }).click();
     expect(await page.evaluate(() => sessionStorage.getItem("utilities-platform-demo-network-trace-v1"))).toBeNull();
+    expect(await page.evaluate(() => sessionStorage.getItem("utilities-platform-demo-network-trace-calibration-v1"))).toBeNull();
   });
 
   test("shows sanitized data-source stages", async ({ page }) => {

@@ -350,6 +350,28 @@ def network_trace_status(utility_vertical: str) -> dict[str, object]:
     return _trace_call(network_trace.status, utility_vertical)
 
 
+@router.get("/network-trace/{utility_vertical}/calibration/status")
+def network_trace_calibration_status(utility_vertical: str) -> dict[str, object]:
+    return _trace_call(network_trace.calibration_status, utility_vertical)
+
+
+@router.get("/network-trace/{utility_vertical}/calibration/runs")
+def network_trace_calibration_runs(
+    utility_vertical: str,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+) -> dict[str, object]:
+    return _trace_call(network_trace.calibration_runs, utility_vertical, limit, offset)
+
+
+@router.get("/network-trace/{utility_vertical}/calibration/runs/{calibration_run_id}")
+def network_trace_calibration_run(
+    utility_vertical: str,
+    calibration_run_id: str,
+) -> dict[str, object]:
+    return _trace_call(network_trace.calibration_run, utility_vertical, calibration_run_id)
+
+
 @router.get("/network-trace/{utility_vertical}/runs")
 def network_trace_runs(
     utility_vertical: str,
@@ -362,6 +384,15 @@ def network_trace_runs(
 @router.get("/network-trace/{utility_vertical}/runs/{trace_run_id}")
 def network_trace_run(utility_vertical: str, trace_run_id: str) -> dict[str, object]:
     return _trace_call(network_trace.run_detail, utility_vertical, trace_run_id)
+
+
+@router.post("/network-trace/{utility_vertical}/runs/{trace_run_id}/calibrate")
+def calibrate_network_trace_run(
+    utility_vertical: str,
+    trace_run_id: str,
+    payload: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return _trace_call(network_trace.calibrate, utility_vertical, trace_run_id, payload)
 
 
 @router.get("/network-trace/{utility_vertical}/runs/{trace_run_id}/paths")
@@ -379,9 +410,50 @@ def network_trace_events(utility_vertical: str, trace_run_id: str) -> dict[str, 
     return _trace_call(network_trace.events, utility_vertical, trace_run_id)
 
 
+@router.get("/network-trace/{utility_vertical}/runs/{trace_run_id}/calibrated-result")
+def network_trace_calibrated_result(
+    utility_vertical: str,
+    trace_run_id: str,
+) -> dict[str, object]:
+    return _trace_call(network_trace.calibrated_result, utility_vertical, trace_run_id)
+
+
+@router.get("/network-trace/{utility_vertical}/runs/{trace_run_id}/calibrated-events")
+def network_trace_calibrated_events(
+    utility_vertical: str,
+    trace_run_id: str,
+    scope: str | None = None,
+    category: str | None = None,
+    priority: int | None = Query(default=None, ge=0, le=9),
+    primary: bool | None = None,
+    path_id: str | None = None,
+    asset_id: str | None = None,
+    relationship_id: str | None = None,
+    issue_group_id: str | None = None,
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> dict[str, object]:
+    filters = {
+        key: value for key, value in {
+            "scope": scope, "category": category, "priority": priority, "primary": primary,
+            "path_id": path_id, "asset_id": asset_id, "relationship_id": relationship_id,
+            "issue_group_id": issue_group_id, "limit": limit, "offset": offset,
+        }.items() if value is not None
+    }
+    return _trace_call(network_trace.calibrated_events, utility_vertical, trace_run_id, filters)
+
+
 @router.get("/network-trace/{utility_vertical}/runs/{trace_run_id}/safe-summary")
 def network_trace_safe_summary(utility_vertical: str, trace_run_id: str) -> dict[str, object]:
     return _trace_call(network_trace.safe_summary, utility_vertical, trace_run_id)
+
+
+@router.get("/network-trace/{utility_vertical}/runs/{trace_run_id}/calibrated-safe-summary")
+def network_trace_calibrated_safe_summary(
+    utility_vertical: str,
+    trace_run_id: str,
+) -> dict[str, object]:
+    return _trace_call(network_trace.calibrated_safe_summary, utility_vertical, trace_run_id)
 
 
 @router.get("/network-trace/assets/{asset_id}/readiness")

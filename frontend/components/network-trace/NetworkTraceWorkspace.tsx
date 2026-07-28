@@ -5,7 +5,15 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { getDataProvider, isDemoMode } from "../../lib/data-provider/provider";
 import { label } from "../../lib/formatters";
-import type { TraceEvent, TracePath, TraceRun, TraceStep, TraceType } from "../../lib/network-trace";
+import type {
+  CalibratedTraceEvent,
+  CalibratedTraceResult,
+  TraceEvent,
+  TracePath,
+  TraceRun,
+  TraceStep,
+  TraceType,
+} from "../../lib/network-trace";
 import type { UtilityAsset } from "../../lib/utility-assets";
 import type { UtilityVerticalConfig } from "../../lib/utility-verticals";
 import { EmptyState, LoadingSkeleton, MetricTile, OfflineState, Panel, StatusBadge, workspaceStyles as ws } from "../ui/Primitives";
@@ -33,14 +41,7 @@ type Readiness = {
 };
 type AssetResponse = { items: UtilityAsset[] };
 type RunResponse = { items: TraceRun[] };
-type ResultView = "logical" | "ordered" | "blockers" | "history";
-
-const completedStages = [
-  "Validating request", "Loading canonical assets", "Loading relationships",
-  "Loading QA and calibration evidence", "Building graph", "Applying trace profile",
-  "Traversing network", "Evaluating blockers", "Ranking paths",
-  "Calculating confidence", "Writing trace history", "Complete",
-];
+type ResultView = "summary" | "ordered" | "logical" | "primary" | "background" | "evidence" | "history" | "types";
 
 export function NetworkTraceWorkspace({ config }: { config: UtilityVerticalConfig }) {
   const provider = getDataProvider();
@@ -49,6 +50,8 @@ export function NetworkTraceWorkspace({ config }: { config: UtilityVerticalConfi
   const [assets, setAssets] = useState<UtilityAsset[]>([]);
   const [runs, setRuns] = useState<TraceRun[]>([]);
   const [result, setResult] = useState<TraceRun | null>(null);
+  const [calibrated, setCalibrated] = useState<CalibratedTraceResult | null>(null);
+  const [calibratedEvents, setCalibratedEvents] = useState<CalibratedTraceEvent[]>([]);
   const [steps, setSteps] = useState<TraceStep[]>([]);
   const [readiness, setReadiness] = useState<Readiness | null>(null);
   const [traceType, setTraceType] = useState("");
@@ -61,7 +64,7 @@ export function NetworkTraceWorkspace({ config }: { config: UtilityVerticalConfi
   const [qaPolicy, setQaPolicy] = useState("conservative");
   const [maxDepth, setMaxDepth] = useState(40);
   const [maxAssets, setMaxAssets] = useState(250);
-  const [view, setView] = useState<ResultView>("logical");
+  const [view, setView] = useState<ResultView>("summary");
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
 
@@ -115,8 +118,18 @@ export function NetworkTraceWorkspace({ config }: { config: UtilityVerticalConfi
       provider.get<TraceRun>(`/api/network-trace/${config.canonicalValue}/runs/${encodeURIComponent(traceRunId)}`),
       provider.get<{ items: TraceStep[] }>(`/api/network-trace/${config.canonicalValue}/runs/${encodeURIComponent(traceRunId)}/steps`),
     ]);
+    await provider.post(`/api/network-trace/${config.canonicalValue}/runs/${encodeURIComponent(traceRunId)}/calibrate`, {
+      force_recalculate: false,
+    });
+    const [calibratedResult, eventData] = await Promise.all([
+      provider.get<CalibratedTraceResult>(`/api/network-trace/${config.canonicalValue}/runs/${encodeURIComponent(traceRunId)}/calibrated-result`),
+      provider.get<{ items: CalibratedTraceEvent[] }>(`/api/network-trace/${config.canonicalValue}/runs/${encodeURIComponent(traceRunId)}/calibrated-events?limit=500`),
+    ]);
     setResult(run);
     setSteps(stepData.items);
+    setCalibrated(calibratedResult);
+    setCalibratedEvents(eventData.items);
+    setView("summary");
     const routeIndex = window.location.pathname.indexOf(config.routeBase);
     const basePrefix = routeIndex >= 0 ? window.location.pathname.slice(0, routeIndex) : "";
     window.history.replaceState({}, "", `${basePrefix}${config.routeBase}/network-trace?trace_run_id=${encodeURIComponent(traceRunId)}`);
@@ -157,11 +170,11 @@ export function NetworkTraceWorkspace({ config }: { config: UtilityVerticalConfi
 
   async function downloadReceipt() {
     if (!result) return;
-    const receipt = await provider.get<Record<string, unknown>>(`/api/network-trace/${config.canonicalValue}/runs/${encodeURIComponent(result.trace_run_id)}/safe-summary`);
+    const receipt = await provider.get<Record<string, unknown>>(`/api/network-trace/${config.canonicalValue}/runs/${encodeURIComponent(result.trace_run_id)}/calibrated-safe-summary`);
     const url = URL.createObjectURL(new Blob([JSON.stringify(receipt, null, 2)], { type: "application/json" }));
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `${result.trace_run_id}-safe-trace-receipt.json`;
+    anchor.download = `${result.trace_run_id}-calibrated-safe-trace-receipt.json`;
     anchor.click();
     URL.revokeObjectURL(url);
   }
@@ -224,8 +237,9 @@ export function NetworkTraceWorkspace({ config }: { config: UtilityVerticalConfi
       </div>
 
       {running ? <Panel title="Trace progress" description="The synchronous trace request is executing; no artificial delay or percentage is shown."><p>Validating request and loading persisted canonical evidence...</p></Panel> : null}
-      {result ? <TraceResult
-        config={config} result={result} steps={steps} runs={runs} view={view}
+      {result && calibrated ? <TraceResult
+        config={config} result={result} calibrated={calibrated} calibratedEvents={calibratedEvents}
+        steps={steps} runs={runs} types={types} view={view}
         setView={setView} onOpenRun={openRun} onRerun={() => runTrace(true)} onDownload={downloadReceipt}
       /> : <EmptyState title="No trace selected" message="Run a trace or open an immutable historical result." />}
     </div>
@@ -233,53 +247,148 @@ export function NetworkTraceWorkspace({ config }: { config: UtilityVerticalConfi
 }
 
 function TraceResult({
-  config, result, steps, runs, view, setView, onOpenRun, onRerun, onDownload,
+  config, result, calibrated, calibratedEvents, steps, runs, types, view, setView, onOpenRun, onRerun, onDownload,
 }: {
   config: UtilityVerticalConfig;
   result: TraceRun;
+  calibrated: CalibratedTraceResult;
+  calibratedEvents: CalibratedTraceEvent[];
   steps: TraceStep[];
   runs: TraceRun[];
+  types: TraceType[];
   view: ResultView;
   setView: (view: ResultView) => void;
   onOpenRun: (id: string) => Promise<void>;
   onRerun: () => void;
   onDownload: () => Promise<void>;
 }) {
-  const primaryPath = result.paths[0];
+  const tabs: Array<[ResultView, string]> = [
+    ["summary", "Summary"], ["ordered", "Ordered Paths"], ["logical", "Logical Network"],
+    ["primary", "Primary Issues"], ["background", "Background Conditions"],
+    ["evidence", "All Trace Evidence"], ["history", "History"], ["types", "Trace Types"],
+  ];
   return (
     <>
       <section className={ws.grid12} aria-label="Trace result metrics">
-        <div className={ws.span3}><MetricTile labelText="Outcome" value={label(result.outcome)} detail={String(result.summary.message ?? "")} /></div>
-        <div className={ws.span3}><MetricTile labelText="Confidence" value={label(result.confidence)} detail="Analytical evidence confidence" /></div>
-        <div className={ws.span3}><MetricTile labelText="Assets visited" value={String(result.assets_visited)} detail={`${result.relationships_traversed} relationships traversed`} /></div>
-        <div className={ws.span3}><MetricTile labelText="Paths" value={String(result.paths_evaluated)} detail={`${result.provisional_segments} provisional segments`} /></div>
+        <div className={ws.span3}><MetricTile labelText="Calibrated outcome" value={label(calibrated.calibrated_outcome)} detail={calibrated.objective_reached ? "Trace objective reached" : "Trace objective not reached"} /></div>
+        <div className={ws.span3}><MetricTile labelText="Calibrated confidence" value={label(calibrated.calibrated_confidence)} detail="Selected-path evidence only" /></div>
+        <div className={ws.span3}><MetricTile labelText="Path conditions" value={String(calibrated.path_specific_blocker_count + calibrated.path_specific_warning_count)} detail={`${calibrated.background_warning_count} background conditions separated`} /></div>
+        <div className={ws.span3}><MetricTile labelText="Branches" value={String(calibrated.normal_branch_count)} detail={`${calibrated.ambiguous_branch_count} ambiguous alternative(s)`} /></div>
       </section>
-      <Panel title="Trace result" description={`${result.trace_run_id} / ${result.completed_at}`}>
+      <Panel title="Calibrated interpretation" description={`${result.trace_type} / ${result.trace_run_id}`}>
         <div className={styles.resultSummary}>
           <span><strong>Start</strong>{result.start_asset_id}</span>
-          <span><strong>End</strong>{primaryPath?.end_asset_id || "No path"}</span>
-          <span><strong>Stopping reason</strong>{label(primaryPath?.stopping_reason ?? "no_path")}</span>
-          <span><strong>Warnings</strong>{result.warnings_count}</span>
-          <span><strong>Blockers</strong>{result.blockers_count}</span>
+          <span><strong>Target / objective</strong>{result.target_asset_id || "Profile terminal condition"}</span>
+          <span><strong>Objective reached</strong>{calibrated.objective_reached ? "Yes" : "No"}</span>
+          <span><strong>Primary condition</strong>{label(calibrated.primary_stopping_category || "none")}</span>
+          <span><strong>Provisional segments</strong>{calibrated.provisional_segment_count}</span>
         </div>
         <div className={ws.buttonRow}>
           <button className={ws.button} type="button" onClick={onRerun}><calcite-icon icon="refresh" scale="s" aria-hidden="true" />Rerun</button>
-          <button className={ws.button} type="button" onClick={() => setView("logical")}>View Logical Network</button>
-          <button className={ws.button} type="button" onClick={() => setView("ordered")}>View Ordered Path</button>
-          <button className={ws.button} type="button" onClick={() => setView("blockers")}>View Blocking Issues</button>
-          <button className={ws.button} type="button" onClick={() => setView("history")}>View Trace History</button>
-          <button className={ws.button} type="button" onClick={onDownload}><calcite-icon icon="download" scale="s" aria-hidden="true" />Download Safe Trace Receipt</button>
+          <button className={ws.button} type="button" onClick={onDownload}><calcite-icon icon="download" scale="s" aria-hidden="true" />Download Calibrated Receipt</button>
         </div>
       </Panel>
-      <Panel title="Persisted trace stages" description="Completed states reflect the stored result; no simulated percentage progress is used.">
-        <ol className={styles.stages}>{completedStages.map((stage) => <li key={stage}><calcite-icon icon="checkCircle" scale="s" aria-hidden="true" />{stage}</li>)}</ol>
+      <Panel title="Original trace result" description="Immutable traversal evidence remains available and is never rewritten by calibration.">
+        <div className={styles.resultSummary}>
+          <span><strong>Original outcome</strong>{label(result.outcome)}</span>
+          <span><strong>Original confidence</strong>{label(result.confidence)}</span>
+          <span><strong>Raw warnings</strong>{result.warnings_count}</span>
+          <span><strong>Raw blockers</strong>{result.blockers_count}</span>
+          <span><strong>Raw events</strong>{calibrated.related_raw_event_count}</span>
+        </div>
       </Panel>
-      {view === "logical" ? <LogicalView config={config} paths={result.paths} steps={steps} /> : null}
+      <nav className={styles.resultTabs} aria-label="Trace result views" role="tablist">
+        {tabs.map(([id, name]) => <button
+          aria-selected={view === id} className={view === id ? styles.activeTab : ""}
+          key={id} onClick={() => setView(id)} role="tab" type="button"
+        >{name}</button>)}
+      </nav>
+      {view === "summary" ? <CalibrationSummary result={calibrated} paths={result.paths} /> : null}
       {view === "ordered" ? <OrderedView config={config} paths={result.paths} steps={steps} /> : null}
-      {view === "blockers" ? <BlockingView config={config} paths={result.paths} events={result.events} /> : null}
+      {view === "logical" ? <LogicalView config={config} paths={result.paths} steps={steps} /> : null}
+      {view === "primary" ? <PrimaryIssues config={config} events={calibratedEvents} /> : null}
+      {view === "background" ? <BackgroundConditions events={calibratedEvents} /> : null}
+      {view === "evidence" ? <RawEvidence config={config} paths={result.paths} events={result.events} /> : null}
       {view === "history" ? <HistoryView runs={runs} selected={result.trace_run_id} onOpen={onOpenRun} /> : null}
+      {view === "types" ? <TraceTypesView types={types} /> : null}
     </>
   );
+}
+
+function CalibrationSummary({ result, paths }: { result: CalibratedTraceResult; paths: TracePath[] }) {
+  const normal = result.normal_branch_count ? paths.slice(1, result.normal_branch_count + 1) : [];
+  return <>
+    <Panel title="Why this result" description="Deterministic reasons based on selected paths, not the full network warning count.">
+      <ul className={styles.reasonList}>{result.outcome_reason.map((reason) => <li key={reason}>{reason}</li>)}</ul>
+      <h4>Confidence</h4>
+      <ul className={styles.reasonList}>{result.confidence_reason.map((reason) => <li key={reason}>{reason}</li>)}</ul>
+      <p><strong>Safest next action:</strong> {result.recommended_action}</p>
+    </Panel>
+    <Panel title="Branch interpretation" description="Expected fan-out is separate from competing authoritative alternatives.">
+      <div className={styles.branchGrid}>
+        <section><h4>Normal branches</h4><p>{result.normal_branch_count} expected branch alternative(s).</p>
+          {normal.map((path) => <p key={path.trace_path_id}><strong>{path.trace_path_id}</strong><br />Ends at {path.end_asset_id}; {label(path.path_status)}{path.provisional ? "; provisional" : ""}.</p>)}
+        </section>
+        <section><h4>Ambiguous alternatives</h4><p>{result.ambiguous_branch_count ? `${result.ambiguous_branch_count} competing interpretation(s) require review.` : "No competing authoritative interpretation was identified."}</p></section>
+      </div>
+    </Panel>
+    <Panel title="Future comparison fields" description="Stable read-only fields prepared for a later proposed-edit workspace.">
+      <div className={styles.resultSummary}>
+        <span><strong>Comparison key</strong>{result.comparison_key}</span>
+        <span><strong>Path signature</strong>{result.path_signature}</span>
+        <span><strong>Branch signature</strong>{result.branch_signature}</span>
+        <span><strong>Reachable assets</strong>{result.reachable_asset_ids.length}</span>
+        <span><strong>Suggested category</strong>{label(result.recommended_edit_category)}</span>
+      </div>
+    </Panel>
+  </>;
+}
+
+function PrimaryIssues({ config, events }: { config: UtilityVerticalConfig; events: CalibratedTraceEvent[] }) {
+  const items = events.filter((event) =>
+    event.primary || ["stopping_condition", "path_specific", "branch_specific", "start_asset_context", "target_asset_context"].includes(event.scope),
+  );
+  return <Panel title="Primary issues and selected-path conditions" description="Grouped operational interpretation; all underlying events remain in All Trace Evidence.">
+    {items.length ? <div className={ws.tableWrap}><table className={ws.table}><thead><tr><th>Priority</th><th>Condition</th><th>Scope</th><th>Affected evidence</th><th>Effect</th><th>Safe action</th></tr></thead>
+      <tbody>{items.map((event) => <tr key={event.calibrated_event_id}><td>{event.primary ? <StatusBadge value="Primary" tone="danger" /> : event.priority}</td><td><strong>{event.title}</strong><small className={styles.assetId}>{label(event.category)}</small></td><td>{label(event.scope)}</td><td>{event.path_ids.length} path(s), {event.repeated_count} reference(s){event.issue_group_ids[0] ? <><br /><Link href={`${config.routeBase}/connectivity-qa?issue_group_id=${encodeURIComponent(event.issue_group_ids[0])}`}>{event.issue_group_ids[0]}</Link></> : null}</td><td>{event.summary}<small className={styles.assetId}>{label(event.trace_effect)}</small></td><td>{event.recommended_action}</td></tr>)}</tbody>
+    </table></div> : <EmptyState title="No selected-path issues" message="Only background or informational evidence was found." />}
+  </Panel>;
+}
+
+function BackgroundConditions({ events }: { events: CalibratedTraceEvent[] }) {
+  const background = events.filter((event) => ["network_background", "unrelated_to_selected_path"].includes(event.scope));
+  const groups = [...new Set(background.map((event) => event.category))].map((category) => {
+    const items = background.filter((event) => event.category === category);
+    return {
+      category, issueGroups: new Set(items.flatMap((event) => event.issue_group_ids)).size,
+      assets: new Set(items.flatMap((event) => event.asset_ids)).size,
+      references: items.reduce((sum, event) => sum + event.repeated_count, 0),
+    };
+  });
+  return <Panel title="Background Network Conditions" description="These conditions were present in the evaluated network but did not directly determine the selected trace result.">
+    {groups.length ? <div className={ws.tableWrap}><table className={ws.table}><thead><tr><th>Category</th><th>Issue groups</th><th>Off-path assets</th><th>Evidence references</th></tr></thead><tbody>
+      {groups.map((group) => <tr key={group.category}><td>{label(group.category)}</td><td>{group.issueGroups}</td><td>{group.assets}</td><td>{group.references}</td></tr>)}
+    </tbody></table></div> : <EmptyState title="No background conditions" message="All calibrated evidence was related to a returned path." />}
+  </Panel>;
+}
+
+function RawEvidence({ config, paths, events }: { config: UtilityVerticalConfig; paths: TracePath[]; events: TraceEvent[] }) {
+  return <>
+    <BlockingView config={config} paths={paths} events={events} />
+    <Panel title="Immutable raw trace events" description="Complete event-level evidence retained exactly as produced by the trace run.">
+      {events.length ? <div className={ws.tableWrap}><table className={ws.table}><thead><tr><th>Event</th><th>Type</th><th>Asset / relationship</th><th>Issue group</th><th>Message</th></tr></thead><tbody>
+        {events.map((event) => <tr key={event.trace_event_id}><td>{event.trace_event_id}</td><td>{label(event.event_type)}</td><td>{event.asset_id || event.relationship_id || "Trace context"}</td><td>{event.issue_group_id || "None"}</td><td>{event.message}</td></tr>)}
+      </tbody></table></div> : <EmptyState title="No raw events" message="The immutable trace did not produce event records." />}
+    </Panel>
+  </>;
+}
+
+function TraceTypesView({ types }: { types: TraceType[] }) {
+  return <Panel title="Allowlisted trace types" description="Profiles define vendor-neutral analytical objectives and safe terminal conditions.">
+    <div className={ws.tableWrap}><table className={ws.table}><thead><tr><th>Code</th><th>Name</th><th>Direction</th><th>Eligible starts</th><th>Terminal classes</th></tr></thead><tbody>
+      {types.map((type) => <tr key={type.trace_type}><td>{type.trace_type}</td><td>{type.name}</td><td>{label(type.default_direction)}</td><td>{type.start_asset_classes.map(label).join(", ")}</td><td>{type.terminal_asset_classes.map(label).join(", ") || "Evidence boundary"}</td></tr>)}
+    </tbody></table></div>
+  </Panel>;
 }
 
 function LogicalView({ config, paths, steps }: { config: UtilityVerticalConfig; paths: TracePath[]; steps: TraceStep[] }) {

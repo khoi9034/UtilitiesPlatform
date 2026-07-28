@@ -4,6 +4,8 @@
 
 Connectivity QA Engine V1 evaluates canonical Electric Distribution and Telecom/Fiber assets before future tracing, editing, and vendor integration. It identifies review candidates from safe canonical attributes and explicit stored relationships.
 
+Network Trace Calibration consumes exact issue groups referenced by the immutable trace run. It may classify a group as path-specific, branch-specific, background, excluded, or unrelated for that one trace objective. This does not alter the QA finding, issue group, technical severity, blocking state, trace impact, or review history.
+
 It does not itself traverse a requested path, implement ArcFM, GE Smallworld, Esri Utility Network, or a telecom inventory system. It does not infer authoritative flow, snap or repair geometry, modify source or staged records, publish services, or call proprietary software. Network Trace V1 consumes its immutable findings and calibrated trace-impact groups through the shared canonical graph; QA remains a separate evidence-producing stage.
 
 ## Shared Graph Model

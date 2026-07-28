@@ -1,0 +1,234 @@
+{
+  "version": "network-trace-calibration-v1",
+  "event_grouping_version": "trace-event-grouping-v1",
+  "warning_relevance_version": "trace-warning-relevance-v1",
+  "branch_analysis_version": "trace-branch-analysis-v1",
+  "stopping_precedence_version": "trace-stopping-precedence-v1",
+  "outcome_calibration_version": "trace-outcome-calibration-v1",
+  "confidence_calibration_version": "trace-confidence-calibration-v1",
+  "event_grouping": {
+    "deduplicate_issue_groups": true,
+    "preserve_source_event_ids": true,
+    "preserve_independent_causes": true
+  },
+  "branch_classifications": [
+    "normal_branch",
+    "ambiguous_alternative"
+  ],
+  "outcome_values": [
+    "complete",
+    "complete_with_warnings",
+    "partial",
+    "blocked",
+    "no_path",
+    "ambiguous",
+    "failed_safely"
+  ],
+  "confidence_values": [
+    "high",
+    "medium",
+    "low",
+    "indeterminate"
+  ],
+  "warning_scopes": [
+    "stopping_condition",
+    "path_specific",
+    "branch_specific",
+    "start_asset_context",
+    "target_asset_context",
+    "network_background",
+    "excluded_context",
+    "informational",
+    "unrelated_to_selected_path"
+  ],
+  "event_categories": [
+    "start_asset_issue",
+    "target_issue",
+    "endpoint_failure",
+    "open_device",
+    "lifecycle_exclusion",
+    "provisional_relationship",
+    "missing_relationship",
+    "feeder_conflict",
+    "circuit_conflict",
+    "route_conflict",
+    "phase_conflict",
+    "voltage_conflict",
+    "strand_conflict",
+    "capacity_conflict",
+    "containment_warning",
+    "support_warning",
+    "normal_branch",
+    "ambiguous_source",
+    "ambiguous_route",
+    "ambiguous_relationship",
+    "cycle_detected",
+    "traversal_limit",
+    "excluded_asset",
+    "excluded_relationship",
+    "target_reached",
+    "source_reached",
+    "terminal_reached",
+    "path_completed",
+    "path_stopped",
+    "background_qa",
+    "confidence_reduction",
+    "controlled_execution_warning"
+  ],
+  "stopping_precedence": [
+    "failed_safely",
+    "invalid_start_asset",
+    "incompatible_vertical",
+    "missing_referenced_relationship_endpoint",
+    "trace_stopping_issue",
+    "open_device",
+    "missing_endpoint",
+    "phase_conflict",
+    "voltage_conflict",
+    "strand_conflict",
+    "capacity_conflict",
+    "retired_asset",
+    "inactive_asset",
+    "feeder_conflict",
+    "circuit_conflict",
+    "route_conflict",
+    "prohibited_relationship",
+    "ambiguous_source",
+    "ambiguous_route",
+    "missing_relationship",
+    "cycle_detected",
+    "maximum_depth",
+    "maximum_assets",
+    "no_traversable_edge",
+    "target_reached",
+    "terminal_reached",
+    "source_reached"
+  ],
+  "normal_branch_trace_types": [
+    "ELEC-TRACE-001",
+    "ELEC-TRACE-004",
+    "ELEC-TRACE-005",
+    "ELEC-TRACE-006",
+    "TEL-TRACE-001",
+    "TEL-TRACE-004",
+    "TEL-TRACE-005",
+    "TEL-TRACE-006",
+    "TEL-TRACE-008"
+  ],
+  "authoritative_trace_types": [
+    "ELEC-TRACE-002",
+    "ELEC-TRACE-003",
+    "ELEC-TRACE-007",
+    "TEL-TRACE-002",
+    "TEL-TRACE-003",
+    "TEL-TRACE-007"
+  ],
+  "relevance_profiles": {
+    "ELEC-TRACE-001": {
+      "high": ["endpoint_failure", "open_device", "feeder_conflict", "circuit_conflict", "phase_conflict", "voltage_conflict", "lifecycle_exclusion"],
+      "advisory": ["containment_warning", "support_warning", "provisional_relationship"]
+    },
+    "ELEC-TRACE-002": {
+      "high": ["missing_relationship", "feeder_conflict", "ambiguous_source", "open_device", "lifecycle_exclusion"],
+      "advisory": ["provisional_relationship", "support_warning"]
+    },
+    "ELEC-TRACE-003": {
+      "high": ["missing_relationship", "ambiguous_relationship", "open_device", "lifecycle_exclusion"],
+      "advisory": ["provisional_relationship", "support_warning"]
+    },
+    "ELEC-TRACE-004": {
+      "high": ["open_device", "phase_conflict", "voltage_conflict", "endpoint_failure"],
+      "advisory": ["normal_branch", "provisional_relationship"]
+    },
+    "ELEC-TRACE-005": {
+      "high": ["missing_relationship", "phase_conflict", "voltage_conflict"],
+      "advisory": ["normal_branch", "provisional_relationship"]
+    },
+    "ELEC-TRACE-006": {
+      "high": ["feeder_conflict", "circuit_conflict", "ambiguous_relationship"],
+      "advisory": ["normal_branch", "provisional_relationship"]
+    },
+    "ELEC-TRACE-007": {
+      "high": ["missing_relationship", "ambiguous_source", "feeder_conflict", "open_device"],
+      "advisory": ["provisional_relationship"]
+    },
+    "TEL-TRACE-001": {
+      "high": ["endpoint_failure", "route_conflict", "missing_relationship", "lifecycle_exclusion"],
+      "advisory": ["normal_branch", "provisional_relationship", "containment_warning"]
+    },
+    "TEL-TRACE-002": {
+      "high": ["endpoint_failure", "ambiguous_route", "route_conflict", "missing_relationship"],
+      "advisory": ["provisional_relationship"]
+    },
+    "TEL-TRACE-003": {
+      "high": ["endpoint_failure", "strand_conflict", "route_conflict", "ambiguous_route"],
+      "advisory": ["provisional_relationship", "containment_warning"]
+    },
+    "TEL-TRACE-004": {
+      "high": ["endpoint_failure", "strand_conflict", "ambiguous_relationship"],
+      "advisory": ["normal_branch", "provisional_relationship"]
+    },
+    "TEL-TRACE-005": {
+      "high": ["endpoint_failure", "missing_relationship", "route_conflict"],
+      "advisory": ["normal_branch", "provisional_relationship"]
+    },
+    "TEL-TRACE-006": {
+      "high": ["endpoint_failure", "route_conflict", "lifecycle_exclusion"],
+      "advisory": ["normal_branch", "provisional_relationship"]
+    },
+    "TEL-TRACE-007": {
+      "high": ["capacity_conflict", "strand_conflict", "route_conflict", "endpoint_failure"],
+      "advisory": ["provisional_relationship"]
+    },
+    "TEL-TRACE-008": {
+      "high": ["endpoint_failure", "route_conflict", "missing_relationship"],
+      "advisory": ["normal_branch", "provisional_relationship", "containment_warning"]
+    }
+  },
+  "recommended_edits": {
+    "endpoint_failure": "connect_endpoint",
+    "missing_relationship": "add_relationship",
+    "open_device": "confirm_device_state",
+    "lifecycle_exclusion": "confirm_lifecycle",
+    "feeder_conflict": "correct_membership",
+    "circuit_conflict": "correct_membership",
+    "route_conflict": "resolve_route",
+    "phase_conflict": "correct_phase",
+    "voltage_conflict": "correct_voltage",
+    "strand_conflict": "correct_strand_assignment",
+    "capacity_conflict": "correct_capacity",
+    "containment_warning": "associate_conduit",
+    "ambiguous_source": "manual_investigation",
+    "ambiguous_route": "resolve_route",
+    "ambiguous_relationship": "manual_investigation",
+    "provisional_relationship": "confirm_provisional_relationship"
+  },
+  "recommended_edit_categories": [
+    "connect_endpoint",
+    "add_relationship",
+    "remove_relationship",
+    "confirm_device_state",
+    "correct_membership",
+    "correct_phase",
+    "correct_voltage",
+    "associate_conduit",
+    "confirm_lifecycle",
+    "resolve_route",
+    "correct_capacity",
+    "correct_strand_assignment",
+    "confirm_provisional_relationship",
+    "manual_investigation",
+    "no_edit_recommended"
+  ],
+  "external_mapping_statuses": [
+    "not_mapped",
+    "conceptually_mappable",
+    "adapter_required",
+    "unsupported",
+    "unknown"
+  ],
+  "vendor_concept_hints": {
+    "electric_distribution": ["upstream source trace", "downstream feeder trace", "protective-device context", "isolation context"],
+    "telecom_fiber": ["upstream route trace", "downstream terminal trace", "splice sequence", "capacity path"]
+  }
+}

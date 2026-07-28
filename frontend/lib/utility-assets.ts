@@ -331,5 +331,6 @@ export function resetDemoUtilityAssets() {
     sessionStorage.removeItem(planSessionKey);
     sessionStorage.removeItem("utilities-platform-demo-connectivity-qa-v1");
     sessionStorage.removeItem("utilities-platform-demo-network-trace-v1");
+    sessionStorage.removeItem("utilities-platform-demo-network-trace-calibration-v1");
   }
 }

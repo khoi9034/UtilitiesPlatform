@@ -104,7 +104,7 @@ export function UtilityVerticalWorkspace({ verticalId, view }: { verticalId: Uti
 function DemoNotice() {
   return (
     <div className={styles.demoNotice} role="status">
-      All utility assets, relationships, QA findings, and trace results in this demo are synthetic and reset with the demo session.
+      All utility assets, relationships, QA findings, trace evidence, and calibrated trace results in this demo are synthetic and reset with the demo session.
     </div>
   );
 }

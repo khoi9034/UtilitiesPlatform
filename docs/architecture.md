@@ -8,9 +8,9 @@ The frontend is a Next.js TypeScript application using the App Router, ESLint, C
 
 ## Backend
 
-The backend is a FastAPI application exposing intake, canonical asset, Connectivity QA, calibration, and read-only Network Trace APIs. The canonical asset registry, QA evidence, issue groups, and immutable trace records share one external application database while real GIS data remains outside Git.
+The backend is a FastAPI application exposing intake, canonical asset, Connectivity QA, QA calibration, read-only Network Trace, and trace-calibration APIs. The canonical asset registry, QA evidence, issue groups, immutable trace records, and separate trace interpretations share one external application database while real GIS data remains outside Git.
 
-Network Trace reuses the canonical connectivity graph instead of maintaining a second topology. Vertical profiles provide Electric and Telecom semantics over one deterministic traversal engine. See `network-trace-engine.md`.
+Network Trace reuses the canonical connectivity graph instead of maintaining a second topology. Vertical profiles provide Electric and Telecom semantics over one deterministic traversal engine. A separate calibration layer groups and scopes immutable trace evidence without rewriting it. See `network-trace-engine.md` and `network-trace-calibration.md`.
 
 ## PostGIS
 

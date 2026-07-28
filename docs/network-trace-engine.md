@@ -4,6 +4,8 @@
 
 UtilitiesPlatform Network Trace V1 performs read-only analytical traversal of the platform's vendor-neutral canonical asset and relationship model. It is not an operational ArcFM, Smallworld, Esri Utility Network, outage-management, engineering, or telecom-provisioning trace.
 
+Network Trace Calibration and Result Triage V1 now derives a separate concise interpretation from each immutable run. It groups repeated QA references, scopes warnings to selected paths or background context, distinguishes normal branches from competing authoritative alternatives, and preserves both original and calibrated outcomes and confidence. See `network-trace-calibration.md`.
+
 The engine does not switch equipment, allocate fiber, infer customer outages, repair topology, edit source or staged geometry, publish a service, or call a proprietary utility system. It has no official affiliation with Pike, TDS Telecom, ArcFM, Schneider Electric, GE, Smallworld, Esri, or a telecom-system vendor.
 
 ## Shared Architecture
@@ -145,5 +147,11 @@ Eight same-membership explicit synthetic relationships were added for trace cove
 A future licensed-system adapter may translate approved vendor objects and network records into canonical assets and relationships, invoke the same read-only trace request, and translate safe results back to an approved integration contract. It must remain outside the engine, preserve vendor identifiers and source evidence, and never make inferred relationships authoritative.
 
 `Vendor record -> approved adapter mapping -> canonical asset/relationship -> Connectivity QA -> calibration -> Network Trace -> human interpretation`
+
+The current flow extends through a separate read-only trace interpretation:
+
+`Network Trace immutable evidence -> trace calibration -> human triage -> future proposed-edit comparison`
+
+Calibration never updates the canonical graph or the evidence tables documented above.
 
 No proprietary connector, dependency, logo, interface copy, or vendor service call is included in V1.

@@ -429,6 +429,24 @@ UtilitiesPlatform Network Trace V1 performs read-only analytical traversal of th
 
 See `docs/network-trace-engine.md`. The next product action is Proposed Edit Workspace V1; it is not implemented in this phase.
 
+### Network Trace Calibration and Result Triage V1
+
+Every Electric and Telecom trace can now produce a separate deterministic calibrated interpretation. The default result view shows objective status, primary stopping condition, selected-path warnings, background network conditions, normal branches, genuine ambiguity, calibrated confidence reasons, and a safe human review action. The original outcome, confidence, paths, steps, raw warning and blocker counts, and every raw event remain available under **All Trace Evidence**.
+
+Run calibration for an existing immutable trace:
+
+```powershell
+Invoke-RestMethod -Method Post -ContentType "application/json" `
+  -Body '{"force_recalculate":false}' `
+  http://127.0.0.1:8001/api/network-trace/electric_distribution/runs/<trace_run_id>/calibrate
+```
+
+The fixed allowlisted rule contract is `config/network_trace/trace_calibration_v1.json`; the 20 deterministic scenario expectations are in `config/network_trace_synthetic_expectations.json`. Static demo calibration and safe receipt generation run in the browser and persist synthetic state in `sessionStorage` only.
+
+UtilitiesPlatform trace calibration interprets immutable vendor-neutral trace evidence for human review. It does not alter utility assets, repair connectivity, execute switching, allocate fiber capacity, predict outages, or reproduce proprietary utility-system traces.
+
+See `docs/network-trace-calibration.md`. Proposed Edit Workspace V1 remains the exact next product phase and was not started here.
+
 ## Repository Structure
 
 ```text

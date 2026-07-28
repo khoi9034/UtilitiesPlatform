@@ -259,12 +259,21 @@ def test_synthetic_expectation_manifest_runs_without_engine_asset_ids(tmp_path: 
         for scenario in manifest[vertical]:
             payload = {
                 key: value for key, value in scenario.items()
-                if key not in {"scenario", "start_name", "target_name", "expected_outcomes"}
+                if key not in {"scenario", "start_name", "target_name", "expected_outcomes", "calibration_expectation"}
             }
             payload["start_asset_id"] = asset_ids[scenario["start_name"]]
             if scenario.get("target_name"):
                 payload["optional_target_asset_id"] = asset_ids[scenario["target_name"]]
             result = service.run(vertical, payload)
+            calibrated = service.calibrate(vertical, result["trace_run_id"])["result"]
+            expected = scenario["calibration_expectation"]
             outcomes[f"{vertical}:{scenario['scenario']}"] = result["outcome"]
             assert result["outcome"] in scenario["expected_outcomes"]
+            assert result["outcome"] == expected["expected_original_outcome"]
+            assert calibrated["calibrated_outcome"] in expected["allowed_calibrated_outcomes"]
+            assert calibrated["calibrated_confidence"] in expected["expected_confidence_range"]
+            assert calibrated["primary_stopping_category"] == expected["expected_primary_stopping_category"]
+            assert calibrated["normal_branch_count"] >= expected["minimum_normal_branches"]
+            assert calibrated["ambiguous_branch_count"] in expected["allowed_ambiguous_branches"]
+            assert calibrated["objective_reached"] is expected["objective_reached"]
     assert len(outcomes) == 20

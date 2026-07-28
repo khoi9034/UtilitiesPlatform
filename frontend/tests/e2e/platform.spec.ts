@@ -106,9 +106,10 @@ test.describe("enterprise shell", () => {
     await expect(page.getByText("Electric Network Trace", { exact: true })).toBeVisible();
     await page.getByLabel("QA policy").selectOption("diagnostic");
     await page.getByRole("button", { name: "Run Trace" }).click();
-    await expect(page.getByText("Trace result", { exact: true })).toBeVisible();
+    await expect(page.getByText("Calibrated interpretation", { exact: true })).toBeVisible();
+    await expect(page.getByText("Original trace result", { exact: true })).toBeVisible();
     await expect(page).toHaveURL(/trace_run_id=/);
-    await page.getByRole("button", { name: "View Ordered Path" }).click();
+    await page.getByRole("tab", { name: "Ordered Paths" }).click();
     await expect(page.getByText("Ordered path", { exact: true })).toBeVisible();
     await expect(page.locator("body")).not.toContainText("C:\\");
   });

@@ -100,12 +100,103 @@ export type TraceRun = {
   reused?: boolean;
   message?: string;
 };
+export type CalibratedTraceEvent = {
+  calibrated_event_id: string;
+  calibration_run_id: string;
+  trace_run_id: string;
+  category: string;
+  scope: string;
+  priority: number;
+  title: string;
+  summary: string;
+  source_event_ids: string[];
+  path_ids: string[];
+  asset_ids: string[];
+  relationship_ids: string[];
+  issue_group_ids: string[];
+  primary: boolean;
+  repeated_count: number;
+  trace_effect: string;
+  recommended_action: string;
+  created_at: string;
+};
+export type CalibratedTraceResult = {
+  calibrated_result_id: string;
+  calibration_run_id: string;
+  trace_run_id: string;
+  utility_vertical: UtilityAsset["utility_vertical"];
+  trace_calibration_version: string;
+  original_outcome: TraceOutcome;
+  calibrated_outcome: TraceOutcome;
+  original_confidence: string;
+  calibrated_confidence: string;
+  objective_reached: boolean;
+  primary_stopping_reason: string;
+  primary_stopping_category: string;
+  primary_stopping_asset_id: string;
+  primary_stopping_relationship_id: string;
+  primary_issue_group_id: string;
+  path_specific_blocker_count: number;
+  path_specific_warning_count: number;
+  branch_specific_warning_count: number;
+  background_warning_count: number;
+  informational_event_count: number;
+  normal_branch_count: number;
+  ambiguous_branch_count: number;
+  provisional_segment_count: number;
+  excluded_asset_count: number;
+  excluded_relationship_count: number;
+  related_raw_event_count: number;
+  confidence_reason: string[];
+  outcome_reason: string[];
+  recommended_action: string;
+  recommended_edit_category: string;
+  comparison_key: string;
+  path_signature: string;
+  branch_signature: string;
+  reachable_asset_ids: string[];
+  unreachable_asset_ids: string[];
+  blocked_path_ids: string[];
+  path_specific_issue_group_ids: string[];
+  external_trace_mapping_status: string;
+  adapter_required: boolean;
+  vendor_concept_hints: string[];
+  disclaimer: string;
+  created_at: string;
+};
+export type TraceCalibrationRun = {
+  calibration_run_id: string;
+  trace_run_id: string;
+  utility_vertical: UtilityAsset["utility_vertical"];
+  trace_calibration_version: string;
+  input_fingerprint: string;
+  status: string;
+  started_at: string;
+  completed_at: string;
+  raw_events_read: number;
+  raw_warnings_read: number;
+  raw_blockers_read: number;
+  calibrated_events_created: number;
+  path_specific_warning_count: number;
+  background_warning_count: number;
+  primary_blocker_count: number;
+  normal_branch_count: number;
+  ambiguous_branch_count: number;
+  supersedes_calibration_run_id: string;
+  result: CalibratedTraceResult;
+  events: CalibratedTraceEvent[];
+  history: Array<Record<string, unknown>>;
+  reused?: boolean;
+  message?: string;
+};
 
 export const traceDisclaimer = "UtilitiesPlatform Network Trace V1 performs read-only analytical traversal of the platform's vendor-neutral canonical asset and relationship model. It is not an operational ArcFM, Smallworld, Esri Utility Network, outage-management, engineering, or telecom-provisioning trace.";
 
 const profileVersion = "network-trace-profiles-v1";
 const ruleVersion = "network-trace-rules-v1";
 const storeKey = "utilities-platform-demo-network-trace-v1";
+const calibrationStoreKey = "utilities-platform-demo-network-trace-calibration-v1";
+const traceCalibrationVersion = "network-trace-calibration-v1";
 const electricFlow = ["substation", "feeder", "feeder_breaker", "switch", "fuse", "recloser", "transformer", "overhead_conductor", "underground_conductor", "secondary_conductor", "service_point", "junction"];
 const telecomFlow = ["central_office", "network_hub", "fiber_cabinet", "fiber_route", "fiber_cable", "handhole", "manhole", "splice_closure", "splitter", "terminal", "proposed_construction_segment"];
 
@@ -264,6 +355,266 @@ export function runDemoTrace(vertical: UtilityAsset["utility_vertical"], body: R
   };
   writeRuns([run, ...runs]);
   return run;
+}
+
+export function runDemoTraceCalibration(
+  vertical: UtilityAsset["utility_vertical"],
+  traceRunId: string,
+  force = false,
+): TraceCalibrationRun {
+  const run = demoTraceRun(traceRunId);
+  if (run.utility_vertical !== vertical) throw new Error("Synthetic trace run was not found in this utility vertical.");
+  const fingerprint = demoHash(JSON.stringify({
+    traceRunId, input: run.input_fingerprint, request: run.request_fingerprint,
+    paths: run.paths.map((path) => [path.asset_ids, path.relationship_ids, path.stopping_reason]),
+    events: run.events.map((event) => [event.trace_event_id, event.event_type, event.issue_group_id]),
+    version: traceCalibrationVersion,
+  }));
+  const calibrations = readCalibrations();
+  const reusable = calibrations.find((item) =>
+    item.trace_run_id === traceRunId && item.input_fingerprint === fingerprint && item.status === "succeeded",
+  );
+  if (reusable && !force) return {
+    ...reusable, reused: true, message: "No trace evidence or calibration-rule changes detected",
+  };
+
+  const now = new Date().toISOString();
+  const calibrationRunId = `demo-trace-calibration-${vertical}-${calibrations.length + 1}`;
+  const complete = run.paths.filter((path) =>
+    path.path_status === "complete" && ["target_reached", "source_reached", "terminal_reached"].includes(path.stopping_reason),
+  );
+  const objectivePaths = run.target_asset_id
+    ? complete.filter((path) => path.end_asset_id === run.target_asset_id)
+    : complete;
+  const objectiveReached = objectivePaths.length > 0;
+  const objectivePathIds = new Set(objectivePaths.map((path) => path.trace_path_id));
+  const normalTypes = new Set(["ELEC-TRACE-001", "ELEC-TRACE-004", "ELEC-TRACE-005", "ELEC-TRACE-006", "TEL-TRACE-001", "TEL-TRACE-004", "TEL-TRACE-005", "TEL-TRACE-006", "TEL-TRACE-008"]);
+  const authoritativeTypes = new Set(["ELEC-TRACE-002", "ELEC-TRACE-003", "ELEC-TRACE-007", "TEL-TRACE-002", "TEL-TRACE-003", "TEL-TRACE-007"]);
+  const branchCount = Math.max(0, run.paths.length - 1);
+  const ambiguousBranchCount = authoritativeTypes.has(run.trace_type) && new Set(complete.map((path) => path.end_asset_id)).size > 1 ? 1 : 0;
+  const normalBranchCount = normalTypes.has(run.trace_type) ? Math.max(0, branchCount - ambiguousBranchCount) : 0;
+  const conditionRows = run.paths.flatMap((path) => [
+    ...path.blockers.map((condition) => ({ condition, path, blocking: true })),
+    ...path.warnings.map((condition) => ({ condition, path, blocking: false })),
+  ]);
+  const grouped = new Map<string, typeof conditionRows>();
+  for (const row of conditionRows) {
+    const key = row.condition.issue_group_id || [
+      demoTraceCategory(row.condition.code, row.condition.message),
+      row.condition.asset_id, row.condition.relationship_id, row.condition.message,
+    ].join("|");
+    grouped.set(key, [...(grouped.get(key) ?? []), row]);
+  }
+  const calibratedEvents: CalibratedTraceEvent[] = [...grouped.entries()].map(([key, rows]) => {
+    const first = rows[0];
+    const category = demoTraceCategory(first.condition.code, first.condition.message);
+    const pathIds = [...new Set(rows.map((row) => row.path.trace_path_id))].sort();
+    const assetIds = [...new Set(rows.map((row) => row.condition.asset_id).filter(Boolean))].sort();
+    const relationshipIds = [...new Set(rows.map((row) => row.condition.relationship_id).filter(Boolean))].sort();
+    const issueGroupIds = [...new Set(rows.map((row) => row.condition.issue_group_id).filter(Boolean))].sort();
+    const stopping = rows.some((row) => row.blocking);
+    const selected = pathIds.some((id) => objectivePathIds.has(id));
+    const scope = stopping ? "stopping_condition"
+      : assetIds.includes(run.start_asset_id) ? "start_asset_context"
+        : run.target_asset_id && assetIds.includes(run.target_asset_id) ? "target_asset_context"
+          : selected ? pathIds.length < objectivePathIds.size ? "branch_specific" : "path_specific"
+            : pathIds.length ? "branch_specific" : "network_background";
+    const rawIds = run.events.filter((event) =>
+      issueGroupIds.includes(event.issue_group_id)
+      || (!event.issue_group_id && event.asset_id === first.condition.asset_id && event.message === first.condition.message),
+    ).map((event) => event.trace_event_id);
+    return {
+      calibrated_event_id: `demo-calibrated-event-${demoHash(`${traceRunId}|${key}|${scope}`)}`,
+      calibration_run_id: calibrationRunId, trace_run_id: traceRunId, category, scope,
+      priority: stopping ? 0 : selected ? 1 : 3,
+      title: category.replaceAll("_", " "), summary: first.condition.message,
+      source_event_ids: rawIds, path_ids: pathIds, asset_ids: assetIds,
+      relationship_ids: relationshipIds, issue_group_ids: issueGroupIds,
+      primary: false, repeated_count: rows.length + rawIds.length,
+      trace_effect: stopping ? "stops_trace" : selected ? "advisory" : "background",
+      recommended_action: demoRecommendedAction(category), created_at: now,
+    };
+  });
+  const referencedGroups = new Set(calibratedEvents.flatMap((event) => event.issue_group_ids));
+  for (const group of demoConnectivityIssueGroups(vertical, new URLSearchParams("limit=500")).items) {
+    if (referencedGroups.has(group.issue_group_id)) continue;
+    calibratedEvents.push({
+      calibrated_event_id: `demo-calibrated-event-${demoHash(`${traceRunId}|${group.issue_group_id}|background`)}`,
+      calibration_run_id: calibrationRunId, trace_run_id: traceRunId,
+      category: demoTraceCategory(group.primary_rule_code, group.group_title), scope: "network_background",
+      priority: 3, title: group.group_title, summary: group.group_summary,
+      source_event_ids: [], path_ids: [], asset_ids: group.affected_asset_ids,
+      relationship_ids: group.affected_relationship_ids, issue_group_ids: [group.issue_group_id],
+      primary: false, repeated_count: group.technical_finding_count,
+      trace_effect: "background", recommended_action: group.recommended_action, created_at: now,
+    });
+  }
+  const primary = calibratedEvents
+    .filter((event) => event.scope === "stopping_condition")
+    .sort((left, right) => demoTracePriority(left.category) - demoTracePriority(right.category) || left.calibrated_event_id.localeCompare(right.calibrated_event_id))[0];
+  if (primary) primary.primary = true;
+  calibratedEvents.sort((left, right) => Number(right.primary) - Number(left.primary) || left.priority - right.priority || left.calibrated_event_id.localeCompare(right.calibrated_event_id));
+  const pathWarnings = calibratedEvents.filter((event) =>
+    ["path_specific", "start_asset_context", "target_asset_context"].includes(event.scope),
+  ).length;
+  const backgroundWarnings = calibratedEvents.filter((event) =>
+    ["network_background", "unrelated_to_selected_path"].includes(event.scope),
+  ).length;
+  const materialWarning = calibratedEvents.some((event) =>
+    ["stopping_condition", "path_specific", "branch_specific", "start_asset_context", "target_asset_context"].includes(event.scope)
+    && !["normal_branch", "target_reached", "source_reached", "terminal_reached"].includes(event.category),
+  );
+  const calibratedOutcome: TraceOutcome = run.status === "failed" ? "failed_safely"
+    : objectiveReached ? ambiguousBranchCount ? "ambiguous" : materialWarning ? "complete_with_warnings" : "complete"
+      : ambiguousBranchCount ? "ambiguous"
+        : run.paths.every((path) => path.path_status === "blocked") && primary ? "blocked"
+          : run.paths.some((path) => path.hop_count > 0) ? "partial" : "no_path";
+  const calibratedConfidence = ["failed_safely", "no_path"].includes(calibratedOutcome) ? "indeterminate"
+    : ["blocked", "partial", "ambiguous"].includes(calibratedOutcome) ? "low"
+      : materialWarning || normalBranchCount ? "medium" : "high";
+  const selectedPaths = objectivePaths.length ? objectivePaths : run.paths.filter((path) => path.hop_count);
+  const reachable = [...new Set(selectedPaths.flatMap((path) => path.asset_ids))].sort();
+  const visited = new Set(run.paths.flatMap((path) => path.asset_ids));
+  const result: CalibratedTraceResult = {
+    calibrated_result_id: `demo-calibrated-result-${demoHash(`${fingerprint}|${traceCalibrationVersion}`)}`,
+    calibration_run_id: calibrationRunId, trace_run_id: traceRunId, utility_vertical: vertical,
+    trace_calibration_version: traceCalibrationVersion,
+    original_outcome: run.outcome, calibrated_outcome: calibratedOutcome,
+    original_confidence: run.confidence, calibrated_confidence: calibratedConfidence,
+    objective_reached: objectiveReached,
+    primary_stopping_reason: primary?.category ?? complete[0]?.stopping_reason ?? "",
+    primary_stopping_category: primary?.category ?? complete[0]?.stopping_reason ?? "",
+    primary_stopping_asset_id: primary?.asset_ids[0] ?? "",
+    primary_stopping_relationship_id: primary?.relationship_ids[0] ?? "",
+    primary_issue_group_id: primary?.issue_group_ids[0] ?? "",
+    path_specific_blocker_count: primary && !objectiveReached ? 1 : 0,
+    path_specific_warning_count: pathWarnings,
+    branch_specific_warning_count: calibratedEvents.filter((event) => event.scope === "branch_specific").length,
+    background_warning_count: backgroundWarnings,
+    informational_event_count: calibratedEvents.filter((event) => event.scope === "informational").length,
+    normal_branch_count: normalBranchCount, ambiguous_branch_count: ambiguousBranchCount,
+    provisional_segment_count: selectedPaths.filter((path) => path.provisional).length,
+    excluded_asset_count: run.events.filter((event) => event.event_type === "asset_excluded").length,
+    excluded_relationship_count: run.events.filter((event) => event.event_type === "relationship_excluded").length,
+    related_raw_event_count: run.events.length,
+    confidence_reason: [
+      objectiveReached ? "The objective was reached." : "The objective was not reached.",
+      calibratedConfidence === "medium" ? "Selected evidence includes an advisory, provisional, or normal branch condition." : "Confidence uses selected-path evidence only.",
+      "Background network conditions do not reduce confidence.",
+    ],
+    outcome_reason: [
+      `Objective reached: ${objectiveReached ? "yes" : "no"}.`,
+      primary ? `Primary represented condition: ${primary.category}.` : "No path-stopping condition was selected.",
+      `${normalBranchCount} normal and ${ambiguousBranchCount} ambiguous branch alternative(s).`,
+    ],
+    recommended_action: primary?.recommended_action ?? "Review the selected path evidence before operational use.",
+    recommended_edit_category: demoRecommendedEdit(primary?.category ?? ""),
+    comparison_key: demoHash(`${vertical}|${run.trace_type}|${run.start_asset_id}|${run.target_asset_id}|${run.request_fingerprint}`),
+    path_signature: demoHash(JSON.stringify(selectedPaths.map((path) => [path.asset_ids, path.relationship_ids]))),
+    branch_signature: demoHash(JSON.stringify(run.paths.map((path) => path.end_asset_id))),
+    reachable_asset_ids: reachable,
+    unreachable_asset_ids: [...visited].filter((assetId) => !reachable.includes(assetId)).sort(),
+    blocked_path_ids: run.paths.filter((path) => path.path_status === "blocked").map((path) => path.trace_path_id),
+    path_specific_issue_group_ids: [...new Set(calibratedEvents.filter((event) => !["network_background", "unrelated_to_selected_path"].includes(event.scope)).flatMap((event) => event.issue_group_ids))].sort(),
+    external_trace_mapping_status: "conceptually_mappable", adapter_required: true,
+    vendor_concept_hints: vertical === "electric_distribution"
+      ? ["downstream connectivity trace", "upstream source trace", "isolation analysis"]
+      : ["route continuity", "splice-sequence analysis", "affected-network analysis"],
+    disclaimer: "UtilitiesPlatform trace calibration interprets immutable vendor-neutral trace evidence for human review. It does not alter utility assets, repair connectivity, execute switching, allocate fiber capacity, predict outages, or reproduce proprietary utility-system traces.",
+    created_at: now,
+  };
+  const calibration: TraceCalibrationRun = {
+    calibration_run_id: calibrationRunId, trace_run_id: traceRunId, utility_vertical: vertical,
+    trace_calibration_version: traceCalibrationVersion, input_fingerprint: fingerprint,
+    status: "succeeded", started_at: now, completed_at: now,
+    raw_events_read: run.events.length, raw_warnings_read: run.warnings_count,
+    raw_blockers_read: run.blockers_count, calibrated_events_created: calibratedEvents.length,
+    path_specific_warning_count: pathWarnings, background_warning_count: backgroundWarnings,
+    primary_blocker_count: primary && !objectiveReached ? 1 : 0,
+    normal_branch_count: normalBranchCount, ambiguous_branch_count: ambiguousBranchCount,
+    supersedes_calibration_run_id: calibrations.find((item) => item.trace_run_id === traceRunId)?.calibration_run_id ?? "",
+    result, events: calibratedEvents,
+    history: [
+      { action: "calibration_started", actor_type: "system", actor: "demo_trace_calibration_v1", created_at: now },
+      { action: "calibration_completed", actor_type: "system", actor: "demo_trace_calibration_v1", created_at: now },
+    ],
+  };
+  writeCalibrations([calibration, ...calibrations]);
+  return calibration;
+}
+
+export function demoTraceCalibrationRuns(vertical: UtilityAsset["utility_vertical"]) {
+  return readCalibrations().filter((item) => item.utility_vertical === vertical);
+}
+
+export function demoTraceCalibrationRun(calibrationRunId: string) {
+  const run = readCalibrations().find((item) => item.calibration_run_id === calibrationRunId);
+  if (!run) throw new Error("Synthetic trace calibration run not found.");
+  return run;
+}
+
+export function demoTraceCalibrationStatus(vertical: UtilityAsset["utility_vertical"]) {
+  return demoTraceCalibrationRuns(vertical)[0] ?? {
+    utility_vertical: vertical, status: "not_started", trace_calibration_version: traceCalibrationVersion,
+    message: "Network Trace calibration has not been run for this utility vertical.",
+  };
+}
+
+export function demoCalibratedTraceResult(vertical: UtilityAsset["utility_vertical"], traceRunId: string) {
+  const run = demoTraceCalibrationRuns(vertical).find((item) => item.trace_run_id === traceRunId);
+  if (!run) throw new Error("Calibrated synthetic trace result not found. Run calibration first.");
+  return run.result;
+}
+
+export function demoCalibratedTraceEvents(
+  vertical: UtilityAsset["utility_vertical"],
+  traceRunId: string,
+  params: URLSearchParams,
+) {
+  const run = demoTraceCalibrationRuns(vertical).find((item) => item.trace_run_id === traceRunId);
+  if (!run) throw new Error("Calibrated synthetic trace result not found. Run calibration first.");
+  let items = [...run.events];
+  for (const [parameter, field] of [["scope", "scope"], ["category", "category"], ["priority", "priority"]] as const) {
+    if (params.has(parameter)) items = items.filter((item) => String(item[field]) === params.get(parameter));
+  }
+  if (params.has("primary")) items = items.filter((item) => item.primary === (params.get("primary") === "true"));
+  for (const [parameter, field] of [["path_id", "path_ids"], ["asset_id", "asset_ids"], ["relationship_id", "relationship_ids"], ["issue_group_id", "issue_group_ids"]] as const) {
+    if (params.has(parameter)) items = items.filter((item) => item[field].includes(params.get(parameter)!));
+  }
+  const limit = bounded(params.get("limit"), 100, 1, 500);
+  const offset = bounded(params.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER);
+  return {
+    items: items.slice(offset, offset + limit), calibration_run_id: run.calibration_run_id,
+    pagination: { total: items.length, limit, offset, has_more: offset + limit < items.length },
+  };
+}
+
+export function demoCalibratedTraceSummary(vertical: UtilityAsset["utility_vertical"], traceRunId: string) {
+  const run = demoTraceRun(traceRunId);
+  const result = demoCalibratedTraceResult(vertical, traceRunId);
+  return {
+    trace_run_id: traceRunId, calibration_run_id: result.calibration_run_id,
+    utility_vertical: vertical, trace_type: run.trace_type, trace_profile: run.trace_profile,
+    trace_profile_version: profileVersion, trace_calibration_version: traceCalibrationVersion,
+    start_asset_id: run.start_asset_id, target_asset_id: run.target_asset_id,
+    original_outcome: result.original_outcome, calibrated_outcome: result.calibrated_outcome,
+    original_confidence: result.original_confidence, calibrated_confidence: result.calibrated_confidence,
+    objective_reached: result.objective_reached, primary_stopping_condition: result.primary_stopping_reason,
+    primary_issue_group_ids: result.primary_issue_group_id ? [result.primary_issue_group_id] : [],
+    normal_branches: result.normal_branch_count, ambiguous_branches: result.ambiguous_branch_count,
+    path_specific_blockers: result.path_specific_blocker_count,
+    path_specific_warnings: result.path_specific_warning_count,
+    background_warning_count: result.background_warning_count,
+    provisional_segments: result.provisional_segment_count,
+    assets_visited: run.assets_visited, relationships_traversed: run.relationships_traversed,
+    path_count: run.paths_evaluated,
+    excluded_context: { assets: result.excluded_asset_count, relationships: result.excluded_relationship_count },
+    recommended_next_safe_action: result.recommended_action,
+    comparison_key: result.comparison_key, path_signature: result.path_signature,
+    branch_signature: result.branch_signature, input_fingerprint: run.input_fingerprint,
+    trace_started_at: run.started_at, trace_completed_at: run.completed_at,
+    calibration_created_at: result.created_at, disclaimer: result.disclaimer,
+  };
 }
 
 export function demoTraceReadiness(assetId: string) {
@@ -446,6 +797,55 @@ function pathSeverity(item: TraceCondition, paths: TracePath[]) {
   return paths.some((path) => path.blockers.includes(item)) ? "error" : "warning";
 }
 
+function demoTraceCategory(...values: string[]) {
+  const text = values.join(" ").toLowerCase().replaceAll("-", "_");
+  const categories: Array<[string, string]> = [
+    ["endpoint", "endpoint_failure"], ["termination", "endpoint_failure"],
+    ["open_device", "open_device"], ["normally open", "open_device"],
+    ["retired", "lifecycle_exclusion"], ["inactive", "lifecycle_exclusion"],
+    ["provisional", "provisional_relationship"], ["missing relationship", "missing_relationship"],
+    ["feeder", "feeder_conflict"], ["circuit", "circuit_conflict"], ["route", "route_conflict"],
+    ["phase", "phase_conflict"], ["voltage", "voltage_conflict"], ["strand", "strand_conflict"],
+    ["capacity", "capacity_conflict"], ["conduit", "containment_warning"],
+    ["target_reached", "target_reached"], ["source_reached", "source_reached"],
+    ["terminal_reached", "terminal_reached"], ["cycle", "cycle_detected"], ["maximum", "traversal_limit"],
+  ];
+  return categories.find(([needle]) => text.includes(needle))?.[1] ?? "background_qa";
+}
+
+function demoTracePriority(category: string) {
+  const categories = [
+    "endpoint_failure", "open_device", "phase_conflict", "voltage_conflict", "strand_conflict",
+    "capacity_conflict", "lifecycle_exclusion", "feeder_conflict", "circuit_conflict",
+    "route_conflict", "missing_relationship", "background_qa",
+  ];
+  const index = categories.indexOf(category);
+  return index < 0 ? categories.length : index;
+}
+
+function demoRecommendedAction(category: string) {
+  return ({
+    endpoint_failure: "Confirm the missing endpoint in an approved source-system workflow.",
+    open_device: "Confirm device state and trace policy with an authorized operator.",
+    lifecycle_exclusion: "Confirm lifecycle status with the data owner.",
+    provisional_relationship: "Confirm the provisional relationship with the data owner.",
+    strand_conflict: "Review strand assignment evidence; do not allocate capacity from this result.",
+    capacity_conflict: "Review safe aggregate capacity values with an authorized inventory owner.",
+  } as Record<string, string>)[category] ?? "Review the grouped evidence before proposing any source-system change.";
+}
+
+function demoRecommendedEdit(category: string) {
+  return ({
+    endpoint_failure: "connect_endpoint", open_device: "confirm_device_state",
+    lifecycle_exclusion: "confirm_lifecycle", provisional_relationship: "confirm_provisional_relationship",
+    missing_relationship: "add_relationship", feeder_conflict: "correct_membership",
+    circuit_conflict: "correct_membership", route_conflict: "resolve_route",
+    phase_conflict: "correct_phase", voltage_conflict: "correct_voltage",
+    strand_conflict: "correct_strand_assignment", capacity_conflict: "correct_capacity",
+    containment_warning: "associate_conduit",
+  } as Record<string, string>)[category] ?? "manual_investigation";
+}
+
 function readRuns(): TraceRun[] {
   if (typeof window === "undefined") return [];
   try { return JSON.parse(sessionStorage.getItem(storeKey) ?? "[]") as TraceRun[]; } catch { return []; }
@@ -453,4 +853,22 @@ function readRuns(): TraceRun[] {
 
 function writeRuns(runs: TraceRun[]) {
   if (typeof window !== "undefined") sessionStorage.setItem(storeKey, JSON.stringify(runs));
+}
+
+function readCalibrations(): TraceCalibrationRun[] {
+  if (typeof window === "undefined") return [];
+  try { return JSON.parse(sessionStorage.getItem(calibrationStoreKey) ?? "[]") as TraceCalibrationRun[]; } catch { return []; }
+}
+
+function writeCalibrations(runs: TraceCalibrationRun[]) {
+  if (typeof window !== "undefined") sessionStorage.setItem(calibrationStoreKey, JSON.stringify(runs));
+}
+
+function demoHash(value: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
 }

@@ -54,7 +54,20 @@ import {
   runDemoConnectivityQa,
 } from "../connectivity-qa";
 import type { UtilityAsset } from "../utility-assets";
-import { demoTraceReadiness, demoTraceRun, demoTraceRuns, demoTraceTypes, runDemoTrace } from "../network-trace";
+import {
+  demoCalibratedTraceEvents,
+  demoCalibratedTraceResult,
+  demoCalibratedTraceSummary,
+  demoTraceCalibrationRun,
+  demoTraceCalibrationRuns,
+  demoTraceCalibrationStatus,
+  demoTraceReadiness,
+  demoTraceRun,
+  demoTraceRuns,
+  demoTraceTypes,
+  runDemoTrace,
+  runDemoTraceCalibration,
+} from "../network-trace";
 
 const demoIssues = issues.items as unknown as Issue[];
 
@@ -80,11 +93,22 @@ export class DemoDataProvider implements PlatformDataProvider {
         const latest = demoTraceRuns(vertical)[0];
         return clone(latest ?? { utility_vertical: vertical, status: "not_started", message: "Network Trace has not been run for this utility vertical." }) as T;
       }
+      if (parts[4] === "calibration" && parts[5] === "status") return clone(demoTraceCalibrationStatus(vertical)) as T;
+      if (parts[4] === "calibration" && parts[5] === "runs" && parts[6]) {
+        return clone(demoTraceCalibrationRun(decodeURIComponent(parts[6]))) as T;
+      }
+      if (parts[4] === "calibration" && parts[5] === "runs") {
+        const items = demoTraceCalibrationRuns(vertical);
+        return clone({ items, pagination: { total: items.length, limit: 50, offset: 0, has_more: false } }) as T;
+      }
       if (parts[4] === "runs" && parts[5]) {
         const run = demoTraceRun(decodeURIComponent(parts[5]));
         if (parts[6] === "paths") return clone({ items: run.paths }) as T;
         if (parts[6] === "steps") return clone({ items: run.paths.flatMap((item) => item.steps ?? []) }) as T;
         if (parts[6] === "events") return clone({ items: run.events }) as T;
+        if (parts[6] === "calibrated-result") return clone(demoCalibratedTraceResult(vertical, run.trace_run_id)) as T;
+        if (parts[6] === "calibrated-events") return clone(demoCalibratedTraceEvents(vertical, run.trace_run_id, params)) as T;
+        if (parts[6] === "calibrated-safe-summary") return clone(demoCalibratedTraceSummary(vertical, run.trace_run_id)) as T;
         if (parts[6] === "safe-summary") {
           const warnings = run.paths.flatMap((item) => item.warnings);
           const blockers = run.paths.flatMap((item) => item.blockers);
@@ -205,6 +229,12 @@ export class DemoDataProvider implements PlatformDataProvider {
 
   async post<T>(path: string, body?: BodyInit | Record<string, unknown>): Promise<T> {
     const pathname = new URL(path, "https://demo.local").pathname;
+    if (pathname.startsWith("/api/network-trace/") && pathname.endsWith("/calibrate")) {
+      const parts = pathname.split("/");
+      const vertical = demoConnectivityVertical(parts[3]);
+      const options = body as Record<string, unknown> | undefined;
+      return clone(runDemoTraceCalibration(vertical, decodeURIComponent(parts[5]), Boolean(options?.force_recalculate))) as T;
+    }
     if (pathname.startsWith("/api/network-trace/") && pathname.endsWith("/runs")) {
       const vertical = demoConnectivityVertical(pathname.split("/")[3]);
       return clone(runDemoTrace(vertical, body as Record<string, unknown> || {})) as T;
