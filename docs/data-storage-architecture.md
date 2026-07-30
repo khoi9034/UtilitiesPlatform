@@ -52,3 +52,5 @@ The script does not publish, upload, or copy restricted data automatically.
 Restricted utility infrastructure must not be copied into public export folders unless it is sanitized and approved for public use.
 
 Production databases should never be used directly for experimentation. Export approved copies into raw storage first, preserve the original unchanged, and work forward through staging.
+
+Source-to-canonical mapping plans, field mappings, value mappings, preview receipts, and immutable mapping history live in the external application registry under administrative storage. Restricted local previews are aggregate-only. No mapping review record, registry database, source path, raw coordinate, or generated preview is committed to Git or sent to the public demo.

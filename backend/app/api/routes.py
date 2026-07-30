@@ -31,6 +31,10 @@ from app.services.connectivity_qa import ConnectivityQaError, service as connect
 from app.services.network_trace import NetworkTraceError, service as network_trace
 from app.services.proposed_edits import ProposedEditError, service as proposed_edits
 from app.services.utility_assets import UtilityAssetError, service as utility_assets
+from app.services.utility_assets.mapping_review import (
+    MappingReviewError,
+    service as mapping_review,
+)
 from app.services.work_orders import WorkOrderError, service as work_orders
 from app.services.upload_validation_service import UploadValidationError
 from app.services.data_storage_service import (
@@ -91,6 +95,15 @@ def _work_order_call(callback: Callable[..., Any], *args: object, **kwargs: obje
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+def _mapping_call(callback: Callable[..., Any], *args: object, **kwargs: object) -> Any:
+    try:
+        return callback(*args, **kwargs)
+    except MappingReviewError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -208,6 +221,16 @@ def canonical_utility_assets(
 @router.get("/utility-assets/canonicalization-plans")
 def canonicalization_plans() -> dict[str, object]:
     return utility_assets.list_plans()
+
+
+@router.get("/utility-assets/water-wastewater/mapping-candidates")
+def water_wastewater_mapping_candidates() -> dict[str, object]:
+    return _mapping_call(mapping_review.list_candidates)
+
+
+@router.get("/utility-assets/mapping-plans")
+def source_canonical_mapping_plans(utility_domain: str | None = None) -> dict[str, object]:
+    return _mapping_call(mapping_review.list_plans, utility_domain or "")
 
 
 @router.get("/utility-assets/{asset_id}")
@@ -1443,6 +1466,97 @@ def create_assets_from_canonicalization_plan(
         return utility_assets.create_assets(submission_id, layer_id, payload)
     except UtilityAssetError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+
+@router.get("/intake/submissions/{submission_id}/water-wastewater/mapping-candidates")
+def submission_mapping_candidates(submission_id: str) -> dict[str, object]:
+    return _mapping_call(mapping_review.list_candidates, submission_id)
+
+
+@router.get("/intake/submissions/{submission_id}/layers/{layer_id}/mapping-recommendations")
+def source_layer_mapping_recommendations(submission_id: str, layer_id: str) -> dict[str, object]:
+    return _mapping_call(mapping_review.recommendations, submission_id, layer_id)
+
+
+@router.post("/intake/submissions/{submission_id}/layers/{layer_id}/mapping-plan")
+def create_source_mapping_plan(
+    submission_id: str, layer_id: str, payload: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return _mapping_call(mapping_review.create_plan, submission_id, layer_id, payload or {})
+
+
+@router.get("/intake/submissions/{submission_id}/layers/{layer_id}/mapping-plan")
+def source_mapping_plan(submission_id: str, layer_id: str) -> dict[str, object]:
+    return _mapping_call(mapping_review.get_plan, submission_id, layer_id)
+
+
+@router.post("/intake/submissions/{submission_id}/layers/{layer_id}/mapping-plan/new-version")
+def new_source_mapping_plan_version(
+    submission_id: str, layer_id: str, payload: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return _mapping_call(mapping_review.new_version, submission_id, layer_id, payload or {})
+
+
+@router.post("/intake/submissions/{submission_id}/layers/{layer_id}/mapping-plan/recalculate")
+def recalculate_source_mapping_plan(
+    submission_id: str, layer_id: str, payload: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return _mapping_call(mapping_review.recalculate, submission_id, layer_id, payload or {})
+
+
+@router.get("/intake/submissions/{submission_id}/layers/{layer_id}/mapping-plan/fields")
+def source_mapping_plan_fields(submission_id: str, layer_id: str) -> dict[str, object]:
+    return _mapping_call(mapping_review.fields, submission_id, layer_id)
+
+
+@router.put("/intake/submissions/{submission_id}/layers/{layer_id}/mapping-plan/fields")
+def update_source_mapping_plan_fields(
+    submission_id: str, layer_id: str, payload: dict[str, object],
+) -> dict[str, object]:
+    return _mapping_call(mapping_review.update_fields, submission_id, layer_id, payload)
+
+
+@router.get("/intake/submissions/{submission_id}/layers/{layer_id}/mapping-plan/values")
+def source_mapping_plan_values(submission_id: str, layer_id: str) -> dict[str, object]:
+    return _mapping_call(mapping_review.values, submission_id, layer_id)
+
+
+@router.put("/intake/submissions/{submission_id}/layers/{layer_id}/mapping-plan/values")
+def update_source_mapping_plan_values(
+    submission_id: str, layer_id: str, payload: dict[str, object],
+) -> dict[str, object]:
+    return _mapping_call(mapping_review.update_values, submission_id, layer_id, payload)
+
+
+@router.post("/intake/submissions/{submission_id}/layers/{layer_id}/mapping-plan/preview")
+def generate_source_mapping_preview(submission_id: str, layer_id: str) -> dict[str, object]:
+    return _mapping_call(mapping_review.preview, submission_id, layer_id, create_run=True)
+
+
+@router.get("/intake/submissions/{submission_id}/layers/{layer_id}/mapping-plan/preview")
+def source_mapping_preview(submission_id: str, layer_id: str) -> dict[str, object]:
+    return _mapping_call(mapping_review.preview, submission_id, layer_id, create_run=False)
+
+
+@router.post("/intake/submissions/{submission_id}/layers/{layer_id}/mapping-plan/{action}")
+def review_source_mapping_plan(
+    submission_id: str, layer_id: str, action: str,
+    payload: dict[str, object] | None = None,
+) -> dict[str, object]:
+    allowed = {"submit", "start-review", "approve", "request-revision", "defer", "reject"}
+    if action not in allowed:
+        raise HTTPException(status_code=404, detail="Mapping-plan action not found.")
+    return _mapping_call(mapping_review.workflow, submission_id, layer_id, action, payload or {})
+
+
+@router.get("/intake/submissions/{submission_id}/layers/{layer_id}/canonicalization-eligibility")
+def source_mapping_eligibility(submission_id: str, layer_id: str) -> dict[str, object]:
+    return _mapping_call(mapping_review.eligibility, submission_id, layer_id)
+
+
+@router.get("/intake/submissions/{submission_id}/layers/{layer_id}/mapping-plan/safe-summary")
+def source_mapping_safe_summary(submission_id: str, layer_id: str) -> dict[str, object]:
+    return _mapping_call(mapping_review.safe_summary, submission_id, layer_id)
 
 
 @router.patch("/intake/submissions/{submission_id}/layers/{layer_id}/review")

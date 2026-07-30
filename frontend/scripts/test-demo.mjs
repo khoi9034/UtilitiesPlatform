@@ -25,6 +25,7 @@ const routes = [
   "utilities/telecom/work-orders/index.html",
   "utilities/water-wastewater/index.html",
   "utilities/water-wastewater/assets/index.html",
+  "utilities/water-wastewater/mapping-plans/index.html",
   "utilities/water-wastewater/connectivity-qa/index.html",
   "utilities/water-wastewater/network-trace/index.html",
   "utilities/water-wastewater/proposed-edits/index.html",

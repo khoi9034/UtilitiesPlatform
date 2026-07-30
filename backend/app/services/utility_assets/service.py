@@ -562,6 +562,8 @@ class UtilityAssetService:
             plan = self._required_plan(connection, submission_id, layer_id)
             if not bool(plan["approved_for_canonicalization"]):
                 raise UtilityAssetError("Canonical asset creation requires a previously approved plan.", 409)
+            if plan["utility_vertical"] in {"water", "wastewater"} and not submission_id.startswith("DEMO-"):
+                self._require_water_wastewater_creation_gates(connection, submission_id, layer_id)
             current_fingerprint = self._current_source_fingerprint(connection, plan)
             if current_fingerprint != plan["source_fingerprint"]:
                 raise UtilityAssetError("Source metadata changed after plan approval. Recreate the plan.", 409)
@@ -607,6 +609,45 @@ class UtilityAssetService:
             self._add_plan_history(connection, plan["plan_id"], "canonical_assets_created", {}, {"created": created, "existing": existing}, "human", actor, "")
             connection.commit()
         return {"plan_id": plan["plan_id"], "created_count": created, "existing_count": existing, "source_geometry_modified": False, "staging_geometry_modified": False, "published": False}
+
+    def _require_water_wastewater_creation_gates(
+        self, connection: sqlite3.Connection, submission_id: str, layer_id: str,
+    ) -> None:
+        if not _table_exists(connection, "source_canonical_mapping_plans"):
+            raise UtilityAssetError(
+                "Real Water/Wastewater canonical asset creation is blocked. An approved mapping review plan and final staging approval are required.",
+                409,
+            )
+        review = connection.execute(
+            """SELECT * FROM source_canonical_mapping_plans
+            WHERE submission_id=? AND source_layer_id=? ORDER BY plan_version DESC LIMIT 1""",
+            (submission_id, layer_id),
+        ).fetchone()
+        if not review or not bool(review["approved_plan"]):
+            raise UtilityAssetError(
+                "Real Water/Wastewater canonical asset creation is blocked. Human mapping-plan approval is required.",
+                409,
+            )
+        blockers = _load(review["blockers_json"], {})
+        active = [key for key, value in blockers.items() if value]
+        if active:
+            raise UtilityAssetError(
+                f"Real Water/Wastewater canonical asset creation is blocked by {active[0].replace('_', ' ')}.",
+                409,
+            )
+        staging = connection.execute(
+            """SELECT approved_for_staging FROM staging_plan_items
+            WHERE submission_id=? AND layer_id=?""", (submission_id, layer_id),
+        ).fetchone()
+        if not staging or not bool(staging["approved_for_staging"]):
+            raise UtilityAssetError(
+                "Real Water/Wastewater canonical asset creation is blocked pending final staging approval.",
+                409,
+            )
+        raise UtilityAssetError(
+            "Controlled Water/Wastewater asset creation is not enabled in Mapping Review V1.",
+            409,
+        )
 
     def _source_fingerprint(self, layer: dict[str, Any]) -> str:
         return stable_fingerprint(

@@ -70,6 +70,7 @@ import {
 } from "../network-trace";
 import { demoProposedDelete, demoProposedGet, demoProposedPost, demoProposedPut } from "../proposed-edits";
 import { demoWorkOrderDelete, demoWorkOrderGet, demoWorkOrderPost, demoWorkOrderPut } from "../work-orders";
+import { demoMappingGet, demoMappingPost, demoMappingPut } from "../mapping-review";
 
 const demoIssues = issues.items as unknown as Issue[];
 
@@ -80,6 +81,7 @@ export class DemoDataProvider implements PlatformDataProvider {
     const url = new URL(path, "https://demo.local");
     const pathname = url.pathname;
     const params = url.searchParams;
+    if (isMappingReviewPath(pathname)) return clone(demoMappingGet(pathname, params)) as T;
     if (pathname.startsWith("/api/work-orders/")) return clone(demoWorkOrderGet(pathname, params)) as T;
     if (pathname.startsWith("/api/proposed-edits/")) return clone(demoProposedGet(pathname, params)) as T;
     if (pathname === "/api/platform/command-center") return clone(commandCenter) as T;
@@ -262,6 +264,7 @@ export class DemoDataProvider implements PlatformDataProvider {
 
   async post<T>(path: string, body?: BodyInit | Record<string, unknown>): Promise<T> {
     const pathname = new URL(path, "https://demo.local").pathname;
+    if (isMappingReviewPath(pathname)) return clone(demoMappingPost(pathname, body as Record<string, unknown> || {})) as T;
     if (pathname.startsWith("/api/work-orders/")) return clone(demoWorkOrderPost(pathname, body as Record<string, unknown> || {})) as T;
     if (pathname.startsWith("/api/proposed-edits/")) return clone(demoProposedPost(pathname, body as Record<string, unknown> || {})) as T;
     if (pathname.startsWith("/api/network-trace/") && pathname.endsWith("/calibrate")) {
@@ -333,6 +336,7 @@ export class DemoDataProvider implements PlatformDataProvider {
 
   async put<T>(path: string, body: unknown): Promise<T> {
     const pathname = new URL(path, "https://demo.local").pathname;
+    if (isMappingReviewPath(pathname)) return clone(demoMappingPut(pathname, body as Record<string, unknown>)) as T;
     if (pathname.startsWith("/api/work-orders/")) return clone(demoWorkOrderPut(pathname, body as Record<string, unknown>)) as T;
     if (pathname.startsWith("/api/proposed-edits/")) return clone(demoProposedPut(pathname, body as Record<string, unknown>)) as T;
     if (pathname.endsWith("/canonicalization-plan/field-mappings")) {
@@ -760,6 +764,15 @@ function matchesSearch(values: unknown[], expected: string | null) {
 
 function severityRank(severity: string) {
   return severity === "high" ? 0 : severity === "medium" ? 1 : 2;
+}
+
+function isMappingReviewPath(pathname: string) {
+  return pathname === "/api/utility-assets/water-wastewater/mapping-candidates"
+    || pathname === "/api/utility-assets/mapping-plans"
+    || pathname.includes("/mapping-plan")
+    || pathname.endsWith("/mapping-recommendations")
+    || pathname.endsWith("/canonicalization-eligibility")
+    || pathname.endsWith("/water-wastewater/mapping-candidates");
 }
 
 function clone<T>(data: T): T {

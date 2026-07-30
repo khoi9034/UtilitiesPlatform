@@ -32,3 +32,5 @@ python scripts\demo\validate_demo_data.py --demo-root frontend\demo-data --prote
 ```
 
 Demo review decisions use session storage only. `Reset Demo Session` clears them. Production review persistence remains in the local backend and requires authentication and identity-based audit logging before deployment.
+
+Water & Wastewater Mapping Review demo plans are deterministic TypeScript definitions, not copied source metadata. They may demonstrate field edits, coded-value normalization, blockers, preview, and approval, but canonical creation remains disabled pending synthetic staging approval. The demo provider handles the entire workflow in `sessionStorage` while browser tests abort every `/api/` request.

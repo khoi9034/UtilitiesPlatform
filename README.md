@@ -368,6 +368,18 @@ The static portfolio demo follows the same routes using synthetic assets and `se
 
 Water & Wastewater V1 adds conservative source classification, 18 Water QA rules, 20 Wastewater QA rules, six Water topology traces, seven Wastewater topology traces, proposed-edit and work-order catalogs, and a fully synthetic offline demo. These are topology/connectivity workflows, not hydraulic simulation. See `docs/water-wastewater-domain-v1.md`.
 
+## Water & Wastewater Mapping Review V1
+
+Reviewed Water and Wastewater source layers can now be prepared through explicit, versioned source-to-canonical mapping plans:
+
+```text
+http://localhost:3001/utilities/water-wastewater/mapping-plans
+```
+
+The workflow reviews stored source evidence, domain and role, canonical class, deterministic field and value mappings, geometry compatibility, owner and jurisdiction, coordinate and sensitivity gates, aggregate-only preview, eligibility, approval, and immutable history. Plan approval does not approve staging or create canonical assets. Current real Water/Wastewater creation remains blocked because final staging approvals are 0.
+
+The public demo supplies eight fully synthetic plans, persists edits in `sessionStorage`, resets with the demo session, and makes no backend requests. See `docs/water-wastewater-mapping-review-v1.md`.
+
 ## Connectivity QA Engine V1
 
 All four utility verticals share one versioned connectivity-readiness engine over canonical assets and explicit stored relationships. Profiles run 8 shared rules plus 15 Electric, 16 Telecom, 18 Water, or 20 Wastewater rules. Runs preserve deterministic fingerprints, isolate rule failures, support human review with immutable history, and export safe summaries.

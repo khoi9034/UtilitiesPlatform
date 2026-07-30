@@ -18,11 +18,19 @@ QA_STATES = ("not_evaluated", "passed", "warning", "failed", "blocked", "acknowl
 OWNER_STATES = ("unknown", "candidate", "provisional", "confirmed", "disputed")
 ELECTRIC_OPERATIONAL_STATES = ("energized", "de_energized", "normally_open", "normally_closed", "open", "closed", "unknown")
 TELECOM_OPERATIONAL_STATES = ("proposed", "installed", "active", "reserved", "unavailable", "retired", "unknown")
-WATER_OPERATIONAL_STATES = ("open", "closed", "active", "inactive", "available", "unavailable", "unknown")
-WASTEWATER_OPERATIONAL_STATES = ("active", "inactive", "operating", "not_operating", "available", "unavailable", "unknown")
+WATER_OPERATIONAL_STATES = (
+    "open", "closed", "active", "inactive", "in_service", "out_of_service",
+    "available", "unavailable", "unknown",
+)
+WASTEWATER_OPERATIONAL_STATES = (
+    "active", "inactive", "in_service", "out_of_service", "gravity",
+    "pressurized", "operating", "not_operating", "available", "unavailable", "unknown",
+)
 SOURCE_ROLES = (
-    "operational_inventory", "proposed_design", "planning_context",
-    "service_availability", "funding_area", "reference_boundary", "unknown",
+    "operational_inventory", "reference_inventory", "facility_inventory",
+    "network_context", "service_area", "boundary", "planning_context",
+    "historical", "deprecated", "proposed_design", "service_availability",
+    "funding_area", "reference_boundary", "unknown",
 )
 RELATIONSHIP_TYPES = (
     "connects_to", "upstream_of", "downstream_of", "contained_in", "mounted_on",
@@ -34,8 +42,10 @@ RELATIONSHIP_TYPES = (
 )
 RELATIONSHIP_SOURCES = ("source", "spatially_inferred", "rule_inferred", "human_confirmed")
 TRANSFORMATION_TYPES = (
-    "direct", "renamed", "normalized_text", "normalized_identifier", "boolean_mapping",
-    "lifecycle_mapping", "unit_conversion", "numeric_parse", "domain_mapping", "inferred", "unmapped",
+    "direct", "renamed", "normalized_text", "normalized_identifier", "numeric_parse",
+    "unit_conversion", "boolean_mapping", "lifecycle_mapping",
+    "operational_status_mapping", "domain_mapping", "subtype_mapping", "date_parse",
+    "null_normalization", "safe_constant", "inferred_with_review", "inferred", "unmapped",
 )
 
 SHARED_FIELDS = (
@@ -90,11 +100,13 @@ WATER_CLASSES = (
     "water_system_boundary", "easement", "facility_site",
 )
 WATER_FIELDS = (
-    "water_system_id", "pressure_zone_id", "from_node_id", "to_node_id",
-    "diameter", "diameter_unit", "material", "installation_date",
-    "facility_id", "valve_state", "meter_id", "hydrant_id", "service_id",
-    "elevation", "elevation_unit", "capacity", "capacity_unit",
-    "owner", "jurisdiction", "source_document_id",
+    "water_system_id", "water_system_name", "main_id", "service_line_id",
+    "valve_id", "hydrant_id", "meter_id", "facility_id", "pressure_zone_id",
+    "from_node_id", "to_node_id", "nominal_diameter", "diameter", "diameter_unit",
+    "material", "installation_date", "main_type", "placement_type", "valve_type",
+    "valve_state", "hydrant_status", "meter_type", "pump_type", "storage_type",
+    "facility_type", "source_asset_id", "elevation", "elevation_unit", "capacity",
+    "capacity_unit", "owner", "jurisdiction", "source_document_id",
 )
 WASTEWATER_CLASSES = (
     "gravity_main", "force_main", "pressure_sewer", "service_lateral",
@@ -107,12 +119,13 @@ WASTEWATER_CLASSES = (
     "easement", "overflow_area", "wastewater_system_boundary",
 )
 WASTEWATER_FIELDS = (
-    "wastewater_system_id", "basin_id", "from_node_id", "to_node_id",
-    "upstream_structure_id", "downstream_structure_id", "diameter",
-    "diameter_unit", "material", "installation_date", "upstream_invert",
-    "downstream_invert", "rim_elevation", "elevation_unit", "slope",
-    "flow_direction", "facility_id", "lift_station_id", "owner",
-    "jurisdiction", "source_document_id",
+    "wastewater_system_id", "sewer_basin_id", "basin_id", "gravity_main_id",
+    "force_main_id", "lateral_id", "manhole_id", "lift_station_id", "facility_id",
+    "outfall_id", "from_node_id", "to_node_id", "upstream_structure_id",
+    "downstream_structure_id", "nominal_diameter", "diameter", "diameter_unit",
+    "material", "rim_elevation", "upstream_invert", "downstream_invert",
+    "elevation_unit", "slope", "flow_direction", "main_type", "installation_date",
+    "owner", "jurisdiction", "source_document_id",
 )
 
 VERTICAL_PROFILES = {
@@ -199,7 +212,8 @@ def validate_mapping(mapping: dict[str, Any]) -> dict[str, Any]:
     transformation = str(mapping.get("transformation_type", ""))
     if transformation not in TRANSFORMATION_TYPES:
         raise ValueError("Transformation type must use the deterministic allowlist.")
-    if any(key in mapping for key in ("expression", "script", "python", "sql", "command", "url")):
+    unsafe = {"expression", "script", "python", "sql", "command", "url", "path", "credentials"}
+    if unsafe & {str(key).casefold() for key in mapping}:
         raise ValueError("Executable mappings and external references are not accepted.")
     canonical_field = str(mapping.get("canonical_field", ""))
     valid_fields = set(SHARED_FIELDS)

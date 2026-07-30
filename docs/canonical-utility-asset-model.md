@@ -43,6 +43,8 @@ Valid evidence sources are source-provided, spatially inferred, rule-inferred, a
 
 Only allowlisted transformations are accepted. SQL, Python, shell commands, executable expressions, external URLs, and source-provided rule files are rejected.
 
+Water & Wastewater Mapping Review V1 adds a pre-staging, versioned review plan beside the existing generic canonicalization workflow. It separates field mappings, coded-value mappings, aggregate-only preview receipts, eligibility gates, fingerprints, and append-only history. Mapping approval is not canonicalization execution: the existing create-assets route blocks real Water and Wastewater sources until final staging approval and remains disabled for this phase. See `water-wastewater-mapping-review-v1.md`.
+
 ## Current Real Submission
 
 The current reviewed submission is not eligible for canonicalization because human source-review and staging blockers remain unresolved. No plan or canonical asset is created automatically, and existing review decisions remain unchanged.

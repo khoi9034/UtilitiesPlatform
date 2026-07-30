@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const routes = ["/", "/utilities", "/utilities/electric", "/utilities/electric/assets", "/utilities/electric/connectivity-qa", "/utilities/electric/network-trace", "/utilities/electric/proposed-edits", "/utilities/electric/work-orders", "/utilities/telecom", "/utilities/telecom/assets", "/utilities/telecom/connectivity-qa", "/utilities/telecom/network-trace", "/utilities/telecom/proposed-edits", "/utilities/telecom/work-orders", "/utilities/water-wastewater", "/utilities/water-wastewater/assets", "/utilities/water-wastewater/connectivity-qa", "/utilities/water-wastewater/network-trace", "/utilities/water-wastewater/proposed-edits", "/utilities/water-wastewater/work-orders", "/command-center", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/data-health", "/network-intelligence", "/cad-intake", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/projects", "/maintenance", "/methodology"];
+const routes = ["/", "/utilities", "/utilities/electric", "/utilities/electric/assets", "/utilities/electric/connectivity-qa", "/utilities/electric/network-trace", "/utilities/electric/proposed-edits", "/utilities/electric/work-orders", "/utilities/telecom", "/utilities/telecom/assets", "/utilities/telecom/connectivity-qa", "/utilities/telecom/network-trace", "/utilities/telecom/proposed-edits", "/utilities/telecom/work-orders", "/utilities/water-wastewater", "/utilities/water-wastewater/assets", "/utilities/water-wastewater/mapping-plans", "/utilities/water-wastewater/connectivity-qa", "/utilities/water-wastewater/network-trace", "/utilities/water-wastewater/proposed-edits", "/utilities/water-wastewater/work-orders", "/command-center", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/data-health", "/network-intelligence", "/cad-intake", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/projects", "/maintenance", "/methodology"];
 const basePath = process.env.DEMO_BASE_PATH ?? "";
 
 test.setTimeout(120_000);
@@ -248,6 +248,32 @@ test.describe("portfolio demo mode", () => {
     await page.getByRole("button", { name: "Create canonical assets" }).first().click();
     await expect(page.getByText(/Creation simulation complete: 3 assets created/)).toBeVisible();
     expect(await page.evaluate(() => sessionStorage.getItem("utilities-platform-demo-canonical-assets-v1"))).toContain("DEMO-ELECTRIC-PLAN");
+  });
+
+  test("reviews synthetic Water and Wastewater mappings without backend requests", async ({ page }) => {
+    await page.goto(`${basePath}/utilities/water-wastewater/mapping-plans`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("DEMO-WATER-MAIN-PLAN")).toBeVisible();
+    await expect(page.getByText("DEMO-WW-GRAVITY-PLAN")).toBeVisible();
+    await page.getByRole("button", { name: "Review" }).first().click();
+    await page.getByRole("button", { name: /Field Mapping/ }).click();
+    await page.getByLabel("Canonical field for SOURCE_ID").fill("display_name");
+    await page.getByRole("button", { name: "Save field mappings" }).click();
+    await page.getByRole("button", { name: /Value Mapping/ }).click();
+    await page.getByLabel("Target value for MATERIAL PVC").fill("ductile_iron");
+    await page.getByRole("button", { name: "Save value mappings" }).click();
+    await page.getByRole("navigation", { name: "Mapping review steps" }).getByRole("button", { name: /Preview/ }).click();
+    await page.getByRole("button", { name: "Generate safe preview" }).click();
+    await expect(page.getByText("Preview only - no canonical asset has been created.").first()).toBeVisible();
+    await page.getByRole("navigation", { name: "Mapping review steps" }).getByRole("button", { name: /Review/ }).click();
+    await page.getByRole("button", { name: "Approve Mapping Plan" }).click();
+    await expect(page.getByText(/canonical asset creation remains disabled/i).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Create Canonical Assets" })).toBeDisabled();
+    expect(await page.evaluate(() => sessionStorage.getItem("utilities-platform-demo-mapping-review-v1"))).toContain("approved_plan");
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByText("Approved Plan")).toBeVisible();
+    await page.getByRole("button", { name: "Reset Demo Session" }).click();
+    expect(await page.evaluate(() => sessionStorage.getItem("utilities-platform-demo-mapping-review-v1"))).toBeNull();
   });
 
   test("selects synthetic vertical workspaces without API requests", async ({ page }) => {

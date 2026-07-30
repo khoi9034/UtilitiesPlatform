@@ -105,6 +105,7 @@ Routes:
 
 - `/utilities/water-wastewater`
 - `/utilities/water-wastewater/assets`
+- `/utilities/water-wastewater/mapping-plans`
 - `/utilities/water-wastewater/connectivity-qa`
 - `/utilities/water-wastewater/network-trace`
 - `/utilities/water-wastewater/proposed-edits`
@@ -138,3 +139,9 @@ python scripts\data_storage\validate_data_storage.py
 ```
 
 The local developer runtime root is `C:\UtilitiesPlatform_Data`. Static demo state is `sessionStorage`; the public build never receives that local path.
+
+## Source-To-Canonical Mapping Review
+
+Mapping Review V1 extends stored source-inspection evidence into explicit versioned plans before final staging approval. It covers Water and Wastewater class recommendations, deterministic field and coded-value mappings, geometry compatibility, owner and jurisdiction confirmation, independent eligibility gates, aggregate-only local preview, and immutable history.
+
+An approved mapping plan remains blocked from canonical asset creation until a separate future final staging approval and explicit creation action. No flow direction, gravity or force-main status, elevation, pressure zone, ownership, jurisdiction, connectivity, or geometry is invented. See `water-wastewater-mapping-review-v1.md`.

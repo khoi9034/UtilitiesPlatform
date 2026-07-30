@@ -15,3 +15,5 @@ Flow:
 7. Human review may approve, defer, exclude, or request confirmation.
 
 Adapters are registered behind one provider-facing workflow. File geodatabase ZIP is ArcPy-capable; shapefile, CAD, GeoPackage, spreadsheet, and PDF adapters normalize existing lightweight inspection behavior for V1.
+
+Water & Wastewater Mapping Review V1 consumes this stored metadata rather than rerunning source enumeration. It uses safe names, aliases, geometry and field profiles, taxonomy candidates, automated-review decisions, and gate states to prepare an explicit draft. Recommendation generation cannot approve staging, create canonical assets, or change source or staged data.

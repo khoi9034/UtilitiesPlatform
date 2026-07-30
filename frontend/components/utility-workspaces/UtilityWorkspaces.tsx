@@ -9,6 +9,7 @@ import { ConnectivityQAWorkspace } from "../connectivity-qa/ConnectivityQAWorksp
 import { NetworkTraceWorkspace } from "../network-trace/NetworkTraceWorkspace";
 import { ProposedEditWorkspace } from "../proposed-edits/ProposedEditWorkspace";
 import { WorkOrderWorkspace } from "../work-orders/WorkOrderWorkspace";
+import { MappingReviewWorkspace } from "../mapping-review/MappingReviewWorkspace";
 import styles from "./utility-workspaces.module.css";
 
 export function UtilitiesLanding() {
@@ -107,6 +108,8 @@ export function UtilityVerticalWorkspace({ verticalId, view }: { verticalId: Uti
       </nav>
       {view === "connectivity-qa" ? (
         <ConnectivityQAWorkspace config={activeVertical} />
+      ) : view === "mapping-plans" ? (
+        <MappingReviewWorkspace />
       ) : view === "network-trace" ? (
         <NetworkTraceWorkspace config={activeVertical} />
       ) : view === "proposed-edits" ? (

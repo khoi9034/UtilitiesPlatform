@@ -8,6 +8,7 @@ export type UtilityWorkspaceView =
   | "relationships"
   | "source-data"
   | "canonicalization"
+  | "mapping-plans"
   | "data-quality"
   | "connectivity-qa"
   | "network-trace"
@@ -43,6 +44,12 @@ const sharedNavigation: UtilityVerticalConfig["navigation"] = [
   { view: "proposed-edits", label: "Proposed Edits" },
   { view: "work-orders", label: "Work Orders" },
   { view: "review-history", label: "Review History" },
+];
+
+const waterWastewaterNavigation: UtilityVerticalConfig["navigation"] = [
+  ...sharedNavigation.slice(0, 5),
+  { view: "mapping-plans", label: "Mapping Plans" },
+  ...sharedNavigation.slice(5),
 ];
 
 export const utilityVerticals: UtilityVerticalConfig[] = [
@@ -86,7 +93,7 @@ export const utilityVerticals: UtilityVerticalConfig[] = [
     routeBase: "/utilities/water-wastewater",
     capabilities: ["Water distribution", "Wastewater collection", "Topology QA", "Controlled work planning"],
     operationalFocus: ["Mains and services", "Valves and hydrants", "Gravity and force mains", "Manholes and lift stations", "Facilities and system context"],
-    navigation: sharedNavigation,
+    navigation: waterWastewaterNavigation,
     futureModules: ["Hydraulic model adapters", "Inspection integrations", "Vendor integrations"],
   },
 ];

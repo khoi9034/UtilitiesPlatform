@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const routes = ["/", "/utilities", "/utilities/electric", "/utilities/electric/assets", "/utilities/electric/connectivity-qa", "/utilities/electric/network-trace", "/utilities/electric/proposed-edits", "/utilities/electric/work-orders", "/utilities/telecom", "/utilities/telecom/assets", "/utilities/telecom/connectivity-qa", "/utilities/telecom/network-trace", "/utilities/telecom/proposed-edits", "/utilities/telecom/work-orders", "/utilities/water-wastewater", "/utilities/water-wastewater/assets", "/utilities/water-wastewater/connectivity-qa", "/utilities/water-wastewater/network-trace", "/utilities/water-wastewater/proposed-edits", "/utilities/water-wastewater/work-orders", "/command-center", "/data-health", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/network-intelligence", "/cad-intake", "/projects", "/maintenance", "/methodology"];
+const routes = ["/", "/utilities", "/utilities/electric", "/utilities/electric/assets", "/utilities/electric/connectivity-qa", "/utilities/electric/network-trace", "/utilities/electric/proposed-edits", "/utilities/electric/work-orders", "/utilities/telecom", "/utilities/telecom/assets", "/utilities/telecom/connectivity-qa", "/utilities/telecom/network-trace", "/utilities/telecom/proposed-edits", "/utilities/telecom/work-orders", "/utilities/water-wastewater", "/utilities/water-wastewater/assets", "/utilities/water-wastewater/mapping-plans", "/utilities/water-wastewater/connectivity-qa", "/utilities/water-wastewater/network-trace", "/utilities/water-wastewater/proposed-edits", "/utilities/water-wastewater/work-orders", "/command-center", "/data-health", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/network-intelligence", "/cad-intake", "/projects", "/maintenance", "/methodology"];
 const viewports = [
   { width: 1440, height: 900 },
   { width: 1280, height: 800 },
@@ -80,6 +80,15 @@ test.describe("enterprise shell", () => {
     await expect(page).toHaveURL(/\/utilities\/electric$/);
     await page.getByRole("navigation", { name: "Switch utility workspace" }).getByRole("link", { name: "All utilities" }).click();
     await expect(page).toHaveURL(/\/utilities$/);
+  });
+
+  test("mapping review stays usable on mobile and by keyboard", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/utilities/water-wastewater/mapping-plans");
+    await expect(page.getByRole("heading", { name: "Mapping plans" })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)).toBe(false);
+    await page.getByLabel("Domain").focus();
+    await expect(page.getByLabel("Domain")).toBeFocused();
   });
 
   test("runs and inspects electric connectivity QA through FastAPI", async ({ page }) => {
