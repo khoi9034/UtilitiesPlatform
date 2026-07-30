@@ -10,10 +10,17 @@ _COMPLETE_REASONS = {"target_reached", "source_reached", "terminal_reached"}
 _EXHAUSTIVE_TRACES = {
     "ELEC-TRACE-004", "ELEC-TRACE-006",
     "TEL-TRACE-003", "TEL-TRACE-004", "TEL-TRACE-006", "TEL-TRACE-008",
+    "WATER-TRACE-001", "WATER-TRACE-004", "WATER-TRACE-005", "WATER-TRACE-006",
+    "WW-TRACE-002", "WW-TRACE-006", "WW-TRACE-007",
 }
-_SOURCE_CLASSES = {"substation", "feeder_breaker", "feeder", "network_hub", "central_office", "fiber_cabinet"}
+_SOURCE_CLASSES = {
+    "electric_distribution": {"substation", "feeder_breaker", "feeder"},
+    "telecom_fiber": {"network_hub", "central_office", "fiber_cabinet"},
+    "water": {"treatment_facility", "well", "reservoir", "storage_tank", "elevated_tank"},
+    "wastewater": set(),
+}
 _OPEN_STATES = {"open", "normally_open"}
-_INACTIVE_OPERATIONAL = {"inactive", "de_energized", "unavailable", "retired"}
+_INACTIVE_OPERATIONAL = {"inactive", "de_energized", "unavailable", "retired", "not_operating"}
 
 
 @dataclass
@@ -297,7 +304,7 @@ def _asset_stop(
         request["operational_mode"] == "respect_state"
         and request["direction"] in {"downstream", "toward_terminal"}
         and (operational in _OPEN_STATES or _attributes(asset).get("normally_open") is True)
-        and not (is_start and request["trace_type"] == "ELEC-TRACE-004")
+        and not (is_start and request["trace_type"] in {"ELEC-TRACE-004", "WATER-TRACE-004", "WATER-TRACE-005"})
     ):
         return "open_device"
     if (
@@ -327,7 +334,7 @@ def _transition_stop(current: dict[str, Any], next_asset: dict[str, Any], reques
         left_feeder, right_feeder = str(left.get("feeder_id") or ""), str(right.get("feeder_id") or "")
         if left_feeder and right_feeder and left_feeder != right_feeder:
             return "feeder_conflict"
-    else:
+    elif request["utility_vertical"] == "telecom_fiber":
         left_route, right_route = str(left.get("route_id") or ""), str(right.get("route_id") or "")
         if left_route and right_route and left_route != right_route:
             return "route_conflict"
@@ -342,6 +349,20 @@ def _transition_stop(current: dict[str, Any], next_asset: dict[str, Any], reques
                 strand_end = _number(attributes.get("strand_end"))
                 if fiber_count is not None and strand_end is not None and strand_end > fiber_count:
                     return "strand_conflict"
+    elif request["utility_vertical"] == "water":
+        left_system, right_system = str(left.get("water_system_id") or ""), str(right.get("water_system_id") or "")
+        if left_system and right_system and left_system != right_system:
+            return "system_conflict"
+        left_zone, right_zone = str(left.get("pressure_zone_id") or ""), str(right.get("pressure_zone_id") or "")
+        if left_zone and right_zone and left_zone != right_zone:
+            return "pressure_zone_conflict"
+    elif request["utility_vertical"] == "wastewater":
+        left_system, right_system = str(left.get("wastewater_system_id") or ""), str(right.get("wastewater_system_id") or "")
+        if left_system and right_system and left_system != right_system:
+            return "system_conflict"
+        left_basin, right_basin = str(left.get("basin_id") or ""), str(right.get("basin_id") or "")
+        if left_basin and right_basin and left_basin != right_basin:
+            return "basin_conflict"
     return ""
 
 
@@ -385,7 +406,7 @@ def _terminal_reason(
         return "target_reached"
     terminal_classes = set(definition["terminal_asset_classes"])
     if depth and asset.get("asset_class") in terminal_classes:
-        if asset.get("asset_class") in {"substation", "feeder", "feeder_breaker", "network_hub", "central_office", "fiber_cabinet"}:
+        if asset.get("asset_class") in _SOURCE_CLASSES[request["utility_vertical"]]:
             return "source_reached"
         return "terminal_reached"
     return ""
@@ -472,6 +493,9 @@ def _path_result(path: PathState, nodes: dict[str, dict[str, Any]], rank: int) -
                 "feeder_or_route_context": str(
                     _attributes(nodes.get(asset_id, {})).get("feeder_id")
                     or _attributes(nodes.get(asset_id, {})).get("route_id")
+                    or _attributes(nodes.get(asset_id, {})).get("water_system_id")
+                    or _attributes(nodes.get(asset_id, {})).get("wastewater_system_id")
+                    or _attributes(nodes.get(asset_id, {})).get("basin_id")
                     or ""
                 ),
                 "qa_issue_group_ids": sorted(set(path.qa_issue_group_ids)) if index == len(path.asset_ids) - 1 else [],
@@ -559,6 +583,9 @@ def _stop_message(reason: str, asset: dict[str, Any]) -> str:
         "voltage_conflict": f"Voltage evidence changes without a represented transformer at {name}.",
         "feeder_conflict": f"Feeder membership conflicts at {name}.",
         "route_conflict": f"Route membership conflicts at {name}.",
+        "system_conflict": f"Utility-system identity conflicts at {name}.",
+        "pressure_zone_conflict": f"Pressure-zone membership conflicts at {name}.",
+        "basin_conflict": f"Sewer-basin membership conflicts at {name}.",
         "strand_conflict": f"Strand evidence is inconsistent at {name}.",
         "capacity_conflict": f"Capacity evidence is inconsistent at {name}.",
         "no_traversable_edge": f"No allowlisted operational relationship continues from {name}.",

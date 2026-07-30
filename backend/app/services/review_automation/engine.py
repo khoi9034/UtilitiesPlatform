@@ -295,6 +295,8 @@ def geometry_compatible(geometry: str, candidate: ClassificationCandidate) -> bo
         "pipe": {"polyline"}, "disposal_line": {"polyline"}, "access_structure": {"point"},
         "tank": {"point"}, "well": {"point"}, "treatment_component": {"point"},
         "disposal_area": {"polygon", "polyline"}, "boundary": {"polygon", "polyline"},
+        "device": {"point"}, "service_asset": {"point", "polyline"},
+        "facility": {"point", "polygon"}, "structure": {"point"},
     }
     return geometry.lower() in expected.get(candidate.asset_category, {geometry.lower()})
 
@@ -311,6 +313,15 @@ def corroborating_fields(layer: SourceLayer, candidate: ClassificationCandidate)
         "private_well_point": {"welldepthfeet", "casingdepth", "groutdepth", "welldriller", "gpmflow"},
         "final_well_head": {"welldepthfeet", "casingdepth", "welldriller"},
         "storage_tank": {"capacity", "tanksize", "tanktype", "tankmanufacturer"},
+        "hydrant": {"assetid", "hydrantid", "facilityid", "status", "owner"},
+        "valve": {"assetid", "valveid", "facilityid", "status", "diameter", "size"},
+        "service_line": {"assetid", "serviceid", "meterid", "diameter", "material"},
+        "pressure_zone": {"zoneid", "pressurezone", "systemid"},
+        "pressure_sewer": {"diameter", "material", "fromnode", "tonode", "facilityid"},
+        "lift_station": {"facilityid", "stationid", "pumpid", "status"},
+        "cleanout": {"assetid", "facilityid", "status"},
+        "outfall": {"facilityid", "outfallid", "dischargeid", "status"},
+        "sewer_basin": {"basinid", "systemid", "owner"},
         "distribution_box": {"boxtype", "distributionbox", "boxid"},
         "septic_drain_line": {"trenchwidth", "lineid", "drainfieldid"},
         "pretreatment_unit": {"unittype", "manufacturer", "capacity"},
@@ -734,11 +745,23 @@ def summary(submission_id: str) -> dict[str, object]:
     grouped: dict[str, list[dict[str, Any]]] = {
         "taxonomy_ambiguity": [], "coordinate_conflict": [], "duplicate_candidate": [],
         "owner_uncertainty": [], "sensitivity_escalation": [], "unsupported_source": [],
-        "out_of_scope_recommendation": [],
+        "out_of_scope_recommendation": [], "water_wastewater_ambiguity": [],
+        "gravity_force_main_ambiguity": [], "missing_node_relationships": [],
+        "suspicious_elevation_or_slope": [], "disconnected_pipe": [], "facility_uncertainty": [],
     }
     for row in states:
         if row["taxonomy_status"] == "deferred":
             grouped["taxonomy_ambiguity"].append(row)
+            decision_text = " ".join(
+                str(row.get(key, "")) for key in (
+                    "approved_utility_system", "approved_network_group",
+                    "approved_asset_subcategory", "taxonomy_decision",
+                )
+            ).lower()
+            if "water" in decision_text:
+                grouped["water_wastewater_ambiguity"].append(row)
+            if any(token in decision_text for token in ("gravity", "force_main", "pressurized")):
+                grouped["gravity_force_main_ambiguity"].append(row)
         if row["coordinate_blocker"]:
             grouped["coordinate_conflict"].append(row)
         if row["duplicate_status"] == "potential_duplicate":

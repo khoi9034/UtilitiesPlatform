@@ -520,6 +520,18 @@ def submission_stage_item(row: dict[str, Any]) -> dict[str, object]:
     inspection = source_inspection_registry.inspection_status(get_storage_paths().root, str(row.get("submission_id", ""))) or {}
     automation_summary = review_automation.summary(str(row.get("submission_id", "")))
     automation = automation_summary["latest_run"]
+    reviewed_layers = automation_summary.get("layers", [])
+    domains = sorted({
+        str(item.get("approved_utility_system", ""))
+        for item in reviewed_layers
+        if item.get("approved_utility_system") not in {None, "", "review_required", "out_of_scope"}
+    })
+    confidence_rank = {"unavailable": 0, "low": 1, "medium": 2, "high": 3}
+    domain_confidence = min(
+        (str(item.get("taxonomy_confidence", "unavailable")) for item in reviewed_layers),
+        key=lambda value: confidence_rank.get(value, 0),
+        default="unavailable",
+    )
     raw_registered = bool(row.get("raw_registered_at")) and row.get("current_status") != "duplicate_detected"
     inspection_complete = inspection.get("inspection_status") in {"complete", "inspection_complete"}
     return {
@@ -554,6 +566,20 @@ def submission_stage_item(row: dict[str, Any]) -> dict[str, object]:
         "coordinate_issue_count": inspection.get("coordinate_issues", 0),
         "automated_review_status": automation.get("status", "not_started"),
         "human_exception_count": automation_summary.get("exception_count", 0),
+        "detected_domains": domains,
+        "domain_confidence": domain_confidence,
+        "candidate_water_layers": sum(item.get("approved_utility_system") == "water" for item in reviewed_layers),
+        "candidate_wastewater_layers": sum(item.get("approved_utility_system") == "wastewater" for item in reviewed_layers),
+        "ambiguous_layer_count": sum(
+            item.get("taxonomy_status") != "approved"
+            or item.get("approved_utility_system") in {"review_required", "water_wastewater", "multi_utility"}
+            for item in reviewed_layers
+        ),
+        "duplicate_candidate_count": sum(
+            item.get("duplicate_status") in {"candidate", "potential_duplicate"} for item in reviewed_layers
+        ),
+        "owner_uncertainty_count": sum(item.get("owner_status") not in {"confirmed", "not_applicable"} for item in reviewed_layers),
+        "coordinate_blocker_count": sum(item.get("coordinate_blocker") not in {None, ""} for item in reviewed_layers),
         "staging_ready_count": automation.get("staging_ready", 0),
         "final_staging_approval_count": 0,
         "duplicate_of_submission_id": row.get("duplicate_of_submission_id", ""),

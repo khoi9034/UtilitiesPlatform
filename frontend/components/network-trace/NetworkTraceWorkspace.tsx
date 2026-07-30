@@ -14,6 +14,7 @@ import type {
   TraceStep,
   TraceType,
 } from "../../lib/network-trace";
+import { traceDisclaimer } from "../../lib/network-trace";
 import type { UtilityAsset } from "../../lib/utility-assets";
 import type { UtilityVerticalConfig } from "../../lib/utility-verticals";
 import { EmptyState, LoadingSkeleton, MetricTile, OfflineState, Panel, StatusBadge, workspaceStyles as ws } from "../ui/Primitives";
@@ -186,9 +187,12 @@ export function NetworkTraceWorkspace({ config }: { config: UtilityVerticalConfi
   const estimatedConfidence = !readiness?.qa_evaluated ? "Indeterminate"
     : readiness.blockers.length ? "Low"
       : readiness.provisional_relationships || readiness.warnings.length ? "Medium" : "High";
-  const verticalDisclaimer = config.id === "electric"
-    ? "Electric traces are vendor-neutral analytical results based on synthetic canonical relationships. They are not operational switching instructions, engineering studies, outage predictions, or authoritative utility-network traces."
-    : "Telecom traces are vendor-neutral analytical results based on synthetic canonical relationships. They are not authoritative inventory, provisioning, construction, or service-impact records.";
+  const verticalDisclaimer = {
+    electric_distribution: "Electric traces are vendor-neutral analytical results based on synthetic canonical relationships. They are not operational switching instructions, engineering studies, outage predictions, or authoritative utility-network traces.",
+    telecom_fiber: "Telecom traces are vendor-neutral analytical results based on synthetic canonical relationships. They are not authoritative inventory, provisioning, construction, or service-impact records.",
+    water: traceDisclaimer,
+    wastewater: traceDisclaimer,
+  }[config.canonicalValue];
 
   return (
     <div className={styles.workspace}>

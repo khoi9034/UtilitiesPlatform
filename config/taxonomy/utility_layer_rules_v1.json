@@ -21,6 +21,8 @@
     "shared_reference",
     "environmental_regulatory",
     "planning_reference",
+    "water_wastewater",
+    "multi_utility",
     "unknown",
     "review_required",
     "out_of_scope"
@@ -266,6 +268,169 @@
       "confidence": "high",
       "score": 0.88,
       "evidence": "Layer name references final well head."
+    },
+    {
+      "rule_code": "ULR_WATER_HYDRANT",
+      "name_patterns": ["hydrants?"],
+      "candidate": {
+        "utility_system": "water",
+        "network_group": "distribution_network",
+        "asset_category": "device",
+        "asset_subcategory": "hydrant",
+        "operational_role": "network_asset"
+      },
+      "confidence": "high",
+      "score": 0.91,
+      "evidence": "Layer name references hydrants; fields and point geometry must corroborate the candidate."
+    },
+    {
+      "rule_code": "ULR_WATER_VALVE",
+      "name_patterns": ["water[_ -]?(?:isolation[_ -]?|control[_ -]?|prv[_ -]?|air[_ -]?release[_ -]?)?valves?"],
+      "candidate": {
+        "utility_system": "water",
+        "network_group": "distribution_network",
+        "asset_category": "device",
+        "asset_subcategory": "valve",
+        "operational_role": "network_asset"
+      },
+      "confidence": "high",
+      "score": 0.91,
+      "evidence": "Layer name references a water valve; fields and point geometry must corroborate the candidate."
+    },
+    {
+      "rule_code": "ULR_WATER_SERVICE",
+      "name_patterns": ["water[_ -]?(?:service[_ -]?lines?|services?|meters?)"],
+      "candidate": {
+        "utility_system": "water",
+        "network_group": "service_network",
+        "asset_category": "service_asset",
+        "asset_subcategory": "service_line",
+        "operational_role": "service_location"
+      },
+      "confidence": "medium",
+      "score": 0.78,
+      "evidence": "Layer name references a water service or meter; geometry and fields determine the final class."
+    },
+    {
+      "rule_code": "ULR_WATER_FACILITY",
+      "name_patterns": ["water[_ -]?(?:treatment|pump[_ -]?station|reservoir|elevated[_ -]?tank)"],
+      "candidate": {
+        "utility_system": "water",
+        "network_group": "facilities",
+        "asset_category": "facility",
+        "asset_subcategory": "treatment_facility",
+        "operational_role": "facility"
+      },
+      "confidence": "medium",
+      "score": 0.8,
+      "evidence": "Layer name references a water facility; the specific facility class requires field or alias corroboration."
+    },
+    {
+      "rule_code": "ULR_WATER_PRESSURE_ZONE",
+      "name_patterns": ["pressure[_ -]?zones?", "water[_ -]?system[_ -]?boundar(?:y|ies)"],
+      "candidate": {
+        "utility_system": "water",
+        "network_group": "operational_areas",
+        "asset_category": "boundary",
+        "asset_subcategory": "pressure_zone",
+        "operational_role": "administrative_reference"
+      },
+      "confidence": "high",
+      "score": 0.88,
+      "evidence": "Layer name references water operational-area context; polygon geometry must corroborate the candidate."
+    },
+    {
+      "rule_code": "ULR_WW_PRESSURE_SEWER",
+      "name_patterns": ["pressure[_ -]?sewers?"],
+      "candidate": {
+        "utility_system": "wastewater",
+        "network_group": "pressurized_network",
+        "asset_category": "pipe",
+        "asset_subcategory": "pressure_sewer",
+        "operational_role": "network_asset"
+      },
+      "confidence": "high",
+      "score": 0.92,
+      "evidence": "Layer name explicitly references pressure sewer; field evidence must corroborate the candidate."
+    },
+    {
+      "rule_code": "ULR_WW_LIFT_STATION",
+      "name_patterns": ["lift[_ -]?stations?", "wastewater[_ -]?pump[_ -]?stations?"],
+      "candidate": {
+        "utility_system": "wastewater",
+        "network_group": "pressurized_network",
+        "asset_category": "facility",
+        "asset_subcategory": "lift_station",
+        "operational_role": "facility"
+      },
+      "confidence": "high",
+      "score": 0.92,
+      "evidence": "Layer name references a wastewater lift or pump station."
+    },
+    {
+      "rule_code": "ULR_WW_CLEANOUT",
+      "name_patterns": ["cleanouts?"],
+      "candidate": {
+        "utility_system": "wastewater",
+        "network_group": "structures",
+        "asset_category": "access_structure",
+        "asset_subcategory": "cleanout",
+        "operational_role": "structure"
+      },
+      "confidence": "high",
+      "score": 0.89,
+      "evidence": "Layer name references cleanouts; point geometry and identifiers must corroborate the candidate."
+    },
+    {
+      "rule_code": "ULR_WW_OUTFALL",
+      "name_patterns": ["wastewater[_ -]?outfalls?", "sewer[_ -]?outfalls?", "discharge[_ -]?points?"],
+      "candidate": {
+        "utility_system": "wastewater",
+        "network_group": "discharge",
+        "asset_category": "facility",
+        "asset_subcategory": "outfall",
+        "operational_role": "facility"
+      },
+      "confidence": "medium",
+      "score": 0.82,
+      "evidence": "Layer name references wastewater discharge context; final classification requires source confirmation."
+    },
+    {
+      "rule_code": "ULR_WW_SEWER_LINE_AMBIGUOUS",
+      "name_patterns": ["(?:sanitary[_ -]?)?sewer[_ -]?(?:mains?|lines?|pipes?)"],
+      "candidates": [
+        {
+          "utility_system": "wastewater",
+          "network_group": "gravity_network",
+          "asset_category": "pipe",
+          "asset_subcategory": "gravity_main",
+          "operational_role": "network_asset"
+        },
+        {
+          "utility_system": "wastewater",
+          "network_group": "pressurized_network",
+          "asset_category": "pipe",
+          "asset_subcategory": "force_main",
+          "operational_role": "network_asset"
+        }
+      ],
+      "confidence": "low",
+      "score": 0.58,
+      "evidence": "Generic sewer naming does not establish gravity or pressure behavior; node, invert, slope, and facility evidence are required."
+    },
+    {
+      "rule_code": "ULR_WW_BASIN",
+      "name_patterns": ["sewer[_ -]?basins?", "wastewater[_ -]?(?:collection|service)[_ -]?areas?"],
+      "candidate": {
+        "utility_system": "wastewater",
+        "network_group": "operational_areas",
+        "asset_category": "boundary",
+        "asset_subcategory": "sewer_basin",
+        "operational_role": "administrative_reference"
+      },
+      "confidence": "medium",
+      "score": 0.8,
+      "evidence": "Layer name references wastewater operational-area context; source role and polygon geometry require confirmation."
     },
     {
       "rule_code": "ULR_ENV_WATER_SUPPLY_WATERSHED",

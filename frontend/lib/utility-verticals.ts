@@ -1,6 +1,7 @@
 import type { Icon } from "@esri/calcite-components/components/calcite-icon/customElement";
 
-export type UtilityVerticalId = "electric" | "telecom";
+export type UtilityVerticalId = "electric" | "telecom" | "water-wastewater";
+export type CanonicalUtilityVertical = "electric_distribution" | "telecom_fiber" | "water" | "wastewater";
 export type UtilityWorkspaceView =
   | "overview"
   | "assets"
@@ -16,7 +17,8 @@ export type UtilityWorkspaceView =
 
 export type UtilityVerticalConfig = {
   id: UtilityVerticalId;
-  canonicalValue: "electric_distribution" | "telecom_fiber";
+  canonicalValue: CanonicalUtilityVertical;
+  canonicalValues?: CanonicalUtilityVertical[];
   title: string;
   shortTitle: string;
   description: string;
@@ -72,16 +74,43 @@ export const utilityVerticals: UtilityVerticalConfig[] = [
     navigation: sharedNavigation,
     futureModules: ["Construction Workflow enhancements", "Network Snapshots", "Vendor Integrations"],
   },
+  {
+    id: "water-wastewater",
+    canonicalValue: "water",
+    canonicalValues: ["water", "wastewater"],
+    title: "Water & Wastewater",
+    shortTitle: "Water & Wastewater",
+    description: "Vendor-neutral water distribution and wastewater collection asset readiness, QA, topology tracing, and controlled work planning.",
+    cardDescription: "Review water and wastewater sources, network assets, topology evidence, proposed changes, and controlled job workflows.",
+    icon: "utilityNetwork",
+    routeBase: "/utilities/water-wastewater",
+    capabilities: ["Water distribution", "Wastewater collection", "Topology QA", "Controlled work planning"],
+    operationalFocus: ["Mains and services", "Valves and hydrants", "Gravity and force mains", "Manholes and lift stations", "Facilities and system context"],
+    navigation: sharedNavigation,
+    futureModules: ["Hydraulic model adapters", "Inspection integrations", "Vendor integrations"],
+  },
 ];
 
 export function getUtilityVertical(id: string) {
   return utilityVerticals.find((vertical) => vertical.id === id);
 }
 
+export function getUtilityVerticalByCanonical(vertical: CanonicalUtilityVertical) {
+  return utilityVerticals.find((item) => item.canonicalValues?.includes(vertical) || item.canonicalValue === vertical);
+}
+
 export function utilityVerticalFromPath(pathname: string) {
   return utilityVerticals.find((vertical) => pathname === vertical.routeBase || pathname.startsWith(`${vertical.routeBase}/`));
 }
 
-export function utilityViewPath(vertical: UtilityVerticalConfig, view: UtilityWorkspaceView) {
-  return view === "overview" ? vertical.routeBase : `${vertical.routeBase}/${view}`;
+export function utilityViewPath(
+  vertical: UtilityVerticalConfig,
+  view: UtilityWorkspaceView,
+  params: Record<string, string> = {},
+) {
+  const path = view === "overview" ? vertical.routeBase : `${vertical.routeBase}/${view}`;
+  const query = new URLSearchParams(params);
+  if (vertical.id === "water-wastewater" && vertical.canonicalValue === "wastewater") query.set("system", "wastewater");
+  const suffix = query.toString();
+  return suffix ? `${path}?${suffix}` : path;
 }

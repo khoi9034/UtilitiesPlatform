@@ -53,7 +53,7 @@ export type ProposedEdit = {
   proposal_id: string;
   proposal_version: number;
   scenario_code: string;
-  utility_vertical: "electric_distribution" | "telecom_fiber";
+  utility_vertical: "electric_distribution" | "telecom_fiber" | "water" | "wastewater";
   proposal_type: string;
   title: string;
   summary: string;
@@ -93,6 +93,9 @@ const lifecycle = ["draft", "validation_failed", "ready_for_analysis", "analyzin
 const sharedTypes = ["connectivity_correction", "attribute_correction", "relationship_correction", "lifecycle_change", "operational_state_proposal", "containment_association", "structure_association", "asset_replacement", "asset_retirement", "proposed_asset_addition", "route_or_feeder_assignment", "data_quality_correction", "manual_investigation", "multi_operation_change_set"];
 const electricTypes = ["connect_conductor_endpoint", "assign_transformer_feeder", "correct_phase", "correct_voltage", "associate_conductor_conduit", "confirm_or_change_device_state", "replace_transformer", "replace_pole", "correct_upstream_downstream", "add_protective_relationship", "retire_electric_asset", "add_proposed_electric_asset"];
 const telecomTypes = ["assign_cable_endpoint", "add_splice_relationship", "correct_strand_assignment", "correct_capacity", "associate_cable_conduit", "associate_aerial_support", "connect_terminal", "correct_route_membership", "close_proposed_route_gap", "replace_cable", "retire_telecom_asset", "add_proposed_telecom_asset"];
+const waterTypes = ["add_main", "replace_main", "retire_main", "add_valve", "replace_valve", "add_hydrant", "relocate_hydrant", "add_service", "replace_meter", "update_pressure_zone_relationship", "repair_water_connectivity", "update_water_asset_attributes"];
+const wastewaterTypes = ["add_gravity_main", "replace_gravity_main", "add_force_main", "add_manhole", "relocate_manhole", "add_lateral", "replace_lift_station_relationship", "update_invert_or_rim", "update_flow_direction_relationship", "retire_abandoned_wastewater_asset", "repair_wastewater_connectivity"];
+const verticalTypes = { electric_distribution: electricTypes, telecom_fiber: telecomTypes, water: waterTypes, wastewater: wastewaterTypes };
 const operationTypes = ["add_asset", "update_asset_attribute", "update_asset_attributes", "change_lifecycle_status", "change_operational_status", "add_relationship", "remove_relationship", "replace_relationship", "update_relationship", "confirm_provisional_relationship", "mark_relationship_provisional", "assign_membership", "remove_membership", "retire_asset", "replace_asset", "associate_container", "remove_container_association", "associate_structure", "remove_structure_association", "add_note", "request_manual_investigation"];
 
 type Vertical = ProposedEdit["utility_vertical"];
@@ -119,6 +122,14 @@ const seeds: Record<Vertical, Seed[]> = {
     ["T-EDIT-007", "Close proposed route gap", "close_proposed_route_gap", "demo-telecom_fiber-proposed_construction_segment-1", [{ operation_type: "update_asset_attribute", target_asset_id: "demo-telecom_fiber-proposed_construction_segment-1", field_name: "to_structure_id", proposed_value: "STRUCT-08" }]],
     ["T-EDIT-008", "Replace retired cable relationship", "replace_cable", "demo-telecom_fiber-fiber_cable-3", [{ operation_type: "add_asset", new_asset_temporary_id: "PROP-T-EDIT-008-1", proposed_values: { asset_class: "fiber_cable", lifecycle_status: "proposed" } }, { operation_type: "remove_relationship", target_relationship_id: "synthetic-retired-cable-relation" }, { operation_type: "add_relationship", from_asset_id: "PROP-T-EDIT-008-1", to_asset_id: "demo-telecom_fiber-terminal-1", relationship_type: "terminates_at" }]],
     ["T-EDIT-009", "Unsafe strand proposal", "correct_strand_assignment", "demo-telecom_fiber-fiber_cable-2", [{ operation_type: "update_asset_attributes", target_asset_id: "demo-telecom_fiber-fiber_cable-2", proposed_values: { strand_start: 300, strand_end: 400 } }]],
+  ],
+  water: [
+    ["W-EDIT-001", "Repair disconnected service relationship", "repair_water_connectivity", "demo-water-service_line-2", [{ operation_type: "add_relationship", from_asset_id: "demo-water-distribution_main-1", to_asset_id: "demo-water-service_line-2", relationship_type: "feeds" }]],
+    ["W-EDIT-002", "Propose distribution main replacement", "replace_main", "demo-water-distribution_main-1", [{ operation_type: "add_asset", new_asset_temporary_id: "PROP-W-EDIT-002-1", proposed_values: { asset_class: "distribution_main", lifecycle_status: "proposed" } }]],
+  ],
+  wastewater: [
+    ["WW-EDIT-001", "Correct gravity-main invert evidence", "update_invert_or_rim", "demo-wastewater-gravity_main-2", [{ operation_type: "update_asset_attributes", target_asset_id: "demo-wastewater-gravity_main-2", proposed_values: { upstream_invert: 97, downstream_invert: 96, slope: 0.02 } }]],
+    ["WW-EDIT-002", "Repair disconnected manhole relationship", "repair_wastewater_connectivity", "demo-wastewater-manhole-3", [{ operation_type: "add_relationship", from_asset_id: "demo-wastewater-manhole-3", to_asset_id: "demo-wastewater-gravity_main-2", relationship_type: "flows_to" }]],
   ],
 };
 
@@ -156,7 +167,12 @@ function seedStore(): ProposedEdit[] {
       locked: false,
       approved_not_implemented: false,
       implementation_status: "not_implemented",
-      trace_type: vertical === "electric_distribution" ? "ELEC-TRACE-002" : "TEL-TRACE-002",
+      trace_type: {
+        electric_distribution: "ELEC-TRACE-002",
+        telecom_fiber: "TEL-TRACE-002",
+        water: "WATER-TRACE-005",
+        wastewater: "WW-TRACE-001",
+      }[vertical],
       trace_start_asset_id: start,
       operations: values.map((item, index) => operation(code, index, item)),
       trace_comparisons: [],
@@ -260,8 +276,8 @@ function update(proposal: ProposedEdit) {
 
 export function demoProposalTypes(vertical?: Vertical) {
   return vertical
-    ? { utility_vertical: vertical, proposal_types: [...sharedTypes, ...(vertical === "electric_distribution" ? electricTypes : telecomTypes)], operation_types: operationTypes, lifecycle_states: lifecycle, disclaimer: proposalDisclaimer }
-    : { utility_verticals: ["electric_distribution", "telecom_fiber"], shared_proposal_types: sharedTypes, vertical_proposal_types: { electric_distribution: electricTypes, telecom_fiber: telecomTypes }, lifecycle_states: lifecycle, disclaimer: proposalDisclaimer };
+    ? { utility_vertical: vertical, proposal_types: [...sharedTypes, ...verticalTypes[vertical]], operation_types: operationTypes, lifecycle_states: lifecycle, disclaimer: proposalDisclaimer }
+    : { utility_verticals: Object.keys(verticalTypes), shared_proposal_types: sharedTypes, vertical_proposal_types: verticalTypes, lifecycle_states: lifecycle, disclaimer: proposalDisclaimer };
 }
 
 export function demoOperationTypes() {

@@ -327,7 +327,7 @@ See `AGENTS.md` and `docs/dual-mode-feature-parity.md`.
 
 ## Canonical Utility Asset Model V1
 
-The platform now has one shared canonical asset architecture for Electric Distribution and Telecom/Fiber. It includes vertical taxonomies, separate lifecycle and operational states, source lineage, provisional relationships, deterministic field mapping, human-approved canonicalization plans, immutable history, and synthetic asset explorers.
+The platform has one shared canonical asset architecture for Electric Distribution, Telecom/Fiber, Water, and Wastewater. It includes vertical taxonomies, separate lifecycle and operational states, source lineage, provisional relationships, deterministic field mapping, human-approved canonicalization plans, immutable history, and synthetic asset explorers.
 
 No real submission is eligible for canonicalization until source-review and staging blockers are resolved. Plan approval and asset creation are separate explicit actions. Neither action edits source or staged geometry or publishes a service.
 
@@ -346,29 +346,36 @@ The local workspace uses FastAPI and the external application registry. The publ
 
 See `docs/canonical-utility-asset-model.md`.
 
-## Electric and Telecom Workspaces
+## Multi-Utility Workspaces
 
-UtilitiesPlatform now opens with a route-based utility selection experience shared by two operational workspaces:
+UtilitiesPlatform uses one route-based workspace architecture for Electric Distribution, Telecom/Fiber, and the Water & Wastewater domain family:
 
 - `http://localhost:3001/utilities` - choose a utility environment
 - `http://localhost:3001/utilities/electric` - Electric Distribution overview
 - `http://localhost:3001/utilities/electric/assets` - electric asset explorer
 - `http://localhost:3001/utilities/telecom` - Telecom/Fiber overview
 - `http://localhost:3001/utilities/telecom/assets` - telecom asset explorer
+- `http://localhost:3001/utilities/water-wastewater` - Water & Wastewater overview
+- `http://localhost:3001/utilities/water-wastewater/assets?system=water` - water asset explorer
+- `http://localhost:3001/utilities/water-wastewater/assets?system=wastewater` - wastewater asset explorer
 - `http://localhost:3001/command-center` - existing aggregate Command Center
 
 Electric Distribution uses Pike-relevant concepts such as feeders, protective devices, transformers, poles, conductors, and conduit. Telecom/Fiber uses TDS-relevant concepts such as routes, cables, cabinets, splice closures, terminals, and capacity. These are vendor-neutral career-readiness workspaces; UtilitiesPlatform is not affiliated with Pike, TDS Telecom, Esri, Schneider Electric, or GE.
 
-Both workspaces use the same canonical asset core, source-governance registry, lineage model, approval controls, and audit principles. Future ArcFM, GE Smallworld, Esri Utility Network, and telecom inventory integrations are adapter targets rather than copied interfaces. Utility selection is encoded in the URL, so direct links and refreshes retain context.
+All workspaces use the same canonical asset core, source-governance registry, lineage model, approval controls, and audit principles. Future licensed-system integrations are adapter targets rather than copied interfaces. Utility selection is encoded in the URL, so direct links and refreshes retain context.
 
 The static portfolio demo follows the same routes using synthetic assets and `sessionStorage` only. It does not call the local FastAPI backend or include real utility infrastructure.
 
+Water & Wastewater V1 adds conservative source classification, 18 Water QA rules, 20 Wastewater QA rules, six Water topology traces, seven Wastewater topology traces, proposed-edit and work-order catalogs, and a fully synthetic offline demo. These are topology/connectivity workflows, not hydraulic simulation. See `docs/water-wastewater-domain-v1.md`.
+
 ## Connectivity QA Engine V1
 
-Electric Distribution and Telecom/Fiber now share one versioned connectivity-readiness engine over canonical assets and explicit stored relationships. It runs 8 shared rules plus 15 electric or 16 telecom rules, preserves deterministic run and finding fingerprints, isolates rule failures, supports human review with immutable history, and exports a safe JSON summary.
+All four utility verticals share one versioned connectivity-readiness engine over canonical assets and explicit stored relationships. Profiles run 8 shared rules plus 15 Electric, 16 Telecom, 18 Water, or 20 Wastewater rules. Runs preserve deterministic fingerprints, isolate rule failures, support human review with immutable history, and export safe summaries.
 
 - `http://localhost:3001/utilities/electric/connectivity-qa`
 - `http://localhost:3001/utilities/telecom/connectivity-qa`
+- `http://localhost:3001/utilities/water-wastewater/connectivity-qa?system=water`
+- `http://localhost:3001/utilities/water-wastewater/connectivity-qa?system=wastewater`
 
 Start both services, open either route, and select **Run Connectivity QA**:
 
@@ -404,10 +411,12 @@ UtilitiesPlatform currently uses its own vendor-neutral canonical asset and rela
 
 ## Network Trace Engine V1
 
-Electric Distribution and Telecom/Fiber share one read-only analytical trace engine over the canonical graph and calibrated Connectivity QA evidence.
+Electric Distribution, Telecom/Fiber, Water, and Wastewater share one read-only analytical trace engine over the canonical graph and calibrated Connectivity QA evidence.
 
 - `http://localhost:3001/utilities/electric/network-trace`
 - `http://localhost:3001/utilities/telecom/network-trace`
+- `http://localhost:3001/utilities/water-wastewater/network-trace?system=water`
+- `http://localhost:3001/utilities/water-wastewater/network-trace?system=wastewater`
 - FastAPI: `http://127.0.0.1:8001/docs`
 
 Start the local frontend and backend:
@@ -460,10 +469,12 @@ See `docs/network-trace-calibration.md`.
 
 ## Proposed Edit Workspace V1
 
-Electric Distribution and Telecom/Fiber share one vendor-neutral proposed-change workflow:
+Electric Distribution, Telecom/Fiber, Water, and Wastewater share one vendor-neutral proposed-change workflow:
 
 - `http://localhost:3001/utilities/electric/proposed-edits`
 - `http://localhost:3001/utilities/telecom/proposed-edits`
+- `http://localhost:3001/utilities/water-wastewater/proposed-edits?system=water`
+- `http://localhost:3001/utilities/water-wastewater/proposed-edits?system=wastewater`
 - `http://127.0.0.1:8001/api/proposed-edits/types`
 
 Start both local services:
@@ -481,10 +492,12 @@ See `docs/proposed-edit-workspace.md`.
 
 ## Work Order and Job Package V1
 
-Approved synthetic Proposed Edits can now become structured Electric or Telecom job packages:
+Approved synthetic Proposed Edits can become structured Electric, Telecom, Water, or Wastewater job packages:
 
 - `http://localhost:3001/utilities/electric/work-orders`
 - `http://localhost:3001/utilities/telecom/work-orders`
+- `http://localhost:3001/utilities/water-wastewater/work-orders?system=water`
+- `http://localhost:3001/utilities/water-wastewater/work-orders?system=wastewater`
 - `http://127.0.0.1:8001/api/work-orders/types`
 
 The shared workflow stores independent design, field, GIS implementation, inspection, QA, trace, review, and closeout states. It manages roles, prerequisites, ordered job steps, inspections, safe evidence metadata, synthetic implementation overlays, approved-versus-recorded conformance, reused post-work Connectivity QA and Network Trace evidence, release gates, closeout gates, immutable versions, descriptive job packages, and completion receipts.

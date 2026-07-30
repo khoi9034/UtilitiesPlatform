@@ -1,0 +1,20 @@
+{
+  "source_type": "nrel_smart_ds",
+  "source_role": "operational_inventory",
+  "domain": "electric_distribution",
+  "datasets": [
+    { "source_asset_type": "medium_voltage_line", "record_count": 4 },
+    { "source_asset_type": "transformer", "record_count": 2 },
+    { "source_asset_type": "switch", "record_count": 1 }
+  ],
+  "field_mappings": {
+    "phase": "phase",
+    "feeder": "feeder_id",
+    "nominal_voltage": "nominal_voltage"
+  },
+  "relationship_mappings": ["feeds"],
+  "metadata": {
+    "fixture": "synthetic",
+    "coordinates": false
+  }
+}

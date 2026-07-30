@@ -1,6 +1,6 @@
 export type UtilityAsset = {
   asset_id: string;
-  utility_vertical: "electric_distribution" | "telecom_fiber";
+  utility_vertical: "electric_distribution" | "telecom_fiber" | "water" | "wastewater";
   asset_class: string;
   asset_subtype: string;
   canonical_name: string;
@@ -87,10 +87,22 @@ export const electricCounts: Record<string, number> = {
 };
 
 export const telecomCounts: Record<string, number> = {
-  network_hub: 1, fiber_cabinet: 2, fiber_route: 3, fiber_cable: 4, pole: 8,
+  headend: 1, olt: 1, network_hub: 1, fiber_cabinet: 2, fiber_route: 3,
+  fiber_cable: 4, feeder_cable: 1, distribution_cable: 1, pole: 8,
   conduit: 3, handhole: 4, manhole: 1, splice_closure: 3, splitter: 3, terminal: 6,
-  proposed_construction_segment: 1, service_area: 1, telecom_structure: 2,
+  service_drop: 2, customer_location: 2, proposed_construction_segment: 1,
+  service_area: 1, telecom_structure: 2,
   reference_boundary: 1,
+};
+
+export const waterCounts: Record<string, number> = {
+  treatment_facility: 1, transmission_main: 1, distribution_main: 1,
+  isolation_valve: 2, hydrant: 1, service_line: 2, meter: 1,
+};
+
+export const wastewaterCounts: Record<string, number> = {
+  manhole: 3, gravity_main: 2, service_lateral: 1, lift_station: 1,
+  force_main: 1, treatment_facility: 1, outfall: 1,
 };
 
 const assetSessionKey = "utilities-platform-demo-canonical-assets-v1";
@@ -100,6 +112,8 @@ export function demoAssets(): UtilityAsset[] {
   const base = [
     ...makeVertical("electric_distribution", electricCounts),
     ...makeVertical("telecom_fiber", telecomCounts),
+    ...makeVertical("water", waterCounts),
+    ...makeVertical("wastewater", wastewaterCounts),
     ...readSession<UtilityAsset[]>(assetSessionKey, []),
   ];
   const relationships = makeDemoRelationships(base);
@@ -114,7 +128,18 @@ export function demoAssets(): UtilityAsset[] {
 }
 
 function makeVertical(vertical: UtilityAsset["utility_vertical"], counts: Record<string, number>): UtilityAsset[] {
-  const prefix = vertical === "electric_distribution" ? "ELEC" : "FIBER";
+  const prefix = {
+    electric_distribution: "ELEC",
+    telecom_fiber: "FIBER",
+    water: "WATER",
+    wastewater: "WW",
+  }[vertical];
+  const submission = {
+    electric_distribution: "DEMO-ELECTRIC-001",
+    telecom_fiber: "DEMO-TELECOM-001",
+    water: "DEMO-WATER-001",
+    wastewater: "DEMO-WASTEWATER-001",
+  }[vertical];
   return Object.entries(counts).flatMap(([assetClass, count]) =>
     Array.from({ length: count }, (_, offset) => {
       const index = offset + 1;
@@ -123,7 +148,10 @@ function makeVertical(vertical: UtilityAsset["utility_vertical"], counts: Record
         && ((assetClass === "transformer" && index >= 7) || (assetClass === "underground_conductor" && index === 3) || (assetClass === "overhead_conductor" && index === 8));
       const telecomWarning = vertical === "telecom_fiber"
         && ((assetClass === "fiber_cable" && index >= 3) || (assetClass === "terminal" && index === 6) || assetClass === "proposed_construction_segment");
-      const warning = electricWarning || telecomWarning;
+      const waterWarning = vertical === "water" && assetClass === "service_line";
+      const wastewaterWarning = vertical === "wastewater"
+        && ((assetClass === "gravity_main" && index === 2) || (assetClass === "manhole" && index === 3));
+      const warning = electricWarning || telecomWarning || waterWarning || wastewaterWarning;
       const retired = (vertical === "electric_distribution" && assetClass === "attachment" && index === 2)
         || (vertical === "telecom_fiber" && assetClass === "fiber_cable" && index === 3);
       const normallyOpen = vertical === "electric_distribution" && assetClass === "switch" && index === 3;
@@ -135,15 +163,15 @@ function makeVertical(vertical: UtilityAsset["utility_vertical"], counts: Record
         asset_subtype: "synthetic_v1",
         canonical_name: name,
         display_name: name,
-        geometry_type: ["feeder", "overhead_conductor", "underground_conductor", "secondary_conductor", "conduit", "fiber_route", "fiber_cable", "proposed_construction_segment"].includes(assetClass) ? "polyline" : ["reference_boundary", "service_area"].includes(assetClass) ? "polygon" : "point",
+        geometry_type: ["feeder", "overhead_conductor", "underground_conductor", "secondary_conductor", "conduit", "fiber_route", "fiber_cable", "feeder_cable", "distribution_cable", "service_drop", "proposed_construction_segment", "transmission_main", "distribution_main", "service_line", "gravity_main", "service_lateral", "force_main"].includes(assetClass) ? "polyline" : ["reference_boundary", "service_area"].includes(assetClass) ? "polygon" : "point",
         lifecycle_status: retired ? "retired" : proposed ? "proposed" : "active",
         operational_status: retired ? "retired" : proposed ? "proposed" : normallyOpen ? "normally_open" : vertical === "electric_distribution" ? "energized" : "active",
         owner_status: "confirmed",
         source_system: "synthetic_generator",
-        source_submission_id: vertical === "electric_distribution" ? "DEMO-ELECTRIC-001" : "DEMO-TELECOM-001",
+        source_submission_id: submission,
         source_layer_id: `demo-${vertical}-${assetClass}`,
         source_record_id: String(index),
-        source_asset_identifier: name,
+        source_asset_identifier: vertical === "water" && assetClass === "service_line" ? "WATER-SERVICE-DUPLICATE-CANDIDATE" : name,
         source_fingerprint: `synthetic-${vertical}-${assetClass}-v1`,
         qa_status: warning || retired ? "warning" : "passed",
         review_status: warning ? "needs_review" : "approved",
@@ -151,17 +179,68 @@ function makeVertical(vertical: UtilityAsset["utility_vertical"], counts: Record
         confidence: "high",
         notes: "Synthetic training asset with no customer, address, subscriber, or production data.",
         source_attributes_json: { synthetic_source_id: name },
-        canonical_attributes_json: vertical === "electric_distribution"
-          ? { feeder_id: assetClass === "transformer" && index === 8 ? "" : `FEEDER-${1 + index % 2}`, phase: assetClass === "transformer" && index === 7 ? "AX" : "ABC", normally_open: normallyOpen, conduit_id: assetClass === "underground_conductor" && index === 3 ? "" : "CONDUIT-1" }
-          : { route_id: `ROUTE-${1 + index % 3}`, fiber_count: index % 2 ? 144 : 288, strand_start: 1, strand_end: index % 2 ? 144 : 288, placement_type: "underground", from_structure_id: `STRUCT-${index}`, to_structure_id: (assetClass === "fiber_cable" && index === 4) || assetClass === "proposed_construction_segment" ? "" : `STRUCT-${index + 1}`, total_capacity: 32, used_capacity: 24, reserved_capacity: 4, available_capacity: assetClass === "terminal" && index === 6 ? 9 : 4 },
+        canonical_attributes_json: syntheticAttributes(vertical, assetClass, index, normallyOpen),
         evidence_json: { value_provenance: "synthetic", rule_version: "synthetic-assets-v1" },
         geometry_summary_json: { geometry_type: "safe_summary_only" },
-        relationship_count: vertical === "electric_distribution" && assetClass === "overhead_conductor" && index === 8 ? 0 : index === count ? 1 : 2,
+        relationship_count: warning ? 0 : index === count ? 1 : 2,
         has_provisional_relationships: (vertical === "electric_distribution" && assetClass === "recloser") || (vertical === "telecom_fiber" && assetClass === "splice_closure" && index === 1),
         is_synthetic: true,
       };
     }),
   );
+}
+
+function syntheticAttributes(
+  vertical: UtilityAsset["utility_vertical"],
+  assetClass: string,
+  index: number,
+  normallyOpen: boolean,
+): Record<string, unknown> {
+  if (vertical === "electric_distribution") {
+    return {
+      feeder_id: assetClass === "transformer" && index === 8 ? "" : `FEEDER-${1 + index % 2}`,
+      phase: assetClass === "transformer" && index === 7 ? "AX" : "ABC",
+      normally_open: normallyOpen,
+      conduit_id: assetClass === "underground_conductor" && index === 3 ? "" : "CONDUIT-1",
+    };
+  }
+  if (vertical === "telecom_fiber") {
+    return {
+      route_id: `ROUTE-${1 + index % 3}`,
+      fiber_count: index % 2 ? 144 : 288,
+      strand_start: 1,
+      strand_end: index % 2 ? 144 : 288,
+      placement_type: "underground",
+      from_structure_id: `STRUCT-${index}`,
+      to_structure_id: (assetClass === "fiber_cable" && index === 4) || assetClass === "proposed_construction_segment" ? "" : `STRUCT-${index + 1}`,
+      total_capacity: 32,
+      used_capacity: 24,
+      reserved_capacity: 4,
+      available_capacity: assetClass === "terminal" && index === 6 ? 9 : 4,
+    };
+  }
+  if (vertical === "water") {
+    return {
+      water_system_id: "SYNTHETIC-WATER-SYSTEM",
+      pressure_zone_id: "SYNTHETIC-ZONE-1",
+      diameter: ["transmission_main", "distribution_main", "service_line"].includes(assetClass) ? (assetClass === "service_line" ? 1 : 12) : undefined,
+      diameter_unit: "inch",
+      material: "synthetic_pvc",
+      valve_state: assetClass === "isolation_valve" ? "open" : undefined,
+    };
+  }
+  return {
+    wastewater_system_id: "SYNTHETIC-WASTEWATER-SYSTEM",
+    basin_id: "SYNTHETIC-BASIN-1",
+    diameter: ["gravity_main", "force_main", "service_lateral"].includes(assetClass) ? (assetClass === "service_lateral" ? 4 : 8) : undefined,
+    diameter_unit: "inch",
+    material: "synthetic_pvc",
+    upstream_structure_id: assetClass === "gravity_main" ? `WW-MANHOLE-${String(index).padStart(3, "0")}` : undefined,
+    downstream_structure_id: assetClass === "gravity_main" ? (index === 1 ? "WW-MANHOLE-002" : "WW-LIFT-STATION-001") : undefined,
+    upstream_invert: assetClass === "gravity_main" ? 100 - index : undefined,
+    downstream_invert: assetClass === "gravity_main" ? (index === 2 ? 100 : 98 - index) : undefined,
+    slope: assetClass === "gravity_main" ? (index === 2 ? -0.02 : 0.02) : undefined,
+  };
 }
 
 export function demoRelationships(assetId: string): AssetRelationship[] {
@@ -177,6 +256,8 @@ export function demoAllRelationships(): AssetRelationship[] {
   const assets = [
     ...makeVertical("electric_distribution", electricCounts),
     ...makeVertical("telecom_fiber", telecomCounts),
+    ...makeVertical("water", waterCounts),
+    ...makeVertical("wastewater", wastewaterCounts),
     ...readSession<UtilityAsset[]>(assetSessionKey, []),
   ];
   return makeDemoRelationships(assets);
@@ -207,6 +288,41 @@ function makeDemoRelationships(assets: UtilityAsset[]): AssetRelationship[] {
       });
     });
   }
+  const domainPairs: Array<[string, string, string]> = [
+    ["WATER-TREATMENT-FACILITY-001", "WATER-TRANSMISSION-MAIN-001", "feeds"],
+    ["WATER-TRANSMISSION-MAIN-001", "WATER-ISOLATION-VALVE-001", "connects_to"],
+    ["WATER-ISOLATION-VALVE-001", "WATER-DISTRIBUTION-MAIN-001", "connects_to"],
+    ["WATER-DISTRIBUTION-MAIN-001", "WATER-ISOLATION-VALVE-002", "connects_to"],
+    ["WATER-DISTRIBUTION-MAIN-001", "WATER-HYDRANT-001", "served_by"],
+    ["WATER-DISTRIBUTION-MAIN-001", "WATER-SERVICE-LINE-001", "feeds"],
+    ["WATER-SERVICE-LINE-001", "WATER-METER-001", "terminates_at"],
+    ["WW-MANHOLE-001", "WW-GRAVITY-MAIN-001", "flows_to"],
+    ["WW-GRAVITY-MAIN-001", "WW-MANHOLE-002", "flows_to"],
+    ["WW-SERVICE-LATERAL-001", "WW-MANHOLE-001", "flows_to"],
+    ["WW-MANHOLE-002", "WW-GRAVITY-MAIN-002", "flows_to"],
+    ["WW-GRAVITY-MAIN-002", "WW-LIFT-STATION-001", "flows_to"],
+    ["WW-LIFT-STATION-001", "WW-FORCE-MAIN-001", "flows_to"],
+    ["WW-FORCE-MAIN-001", "WW-TREATMENT-FACILITY-001", "flows_to"],
+    ["WW-TREATMENT-FACILITY-001", "WW-OUTFALL-001", "flows_to"],
+  ];
+  domainPairs.forEach(([fromName, toName, relationshipType], index) => {
+    const left = assets.find((asset) => asset.canonical_name === fromName);
+    const right = assets.find((asset) => asset.canonical_name === toName);
+    if (!left || !right) return;
+    relationships.push({
+      relationship_id: `demo-rel-water-wastewater-${index + 1}`,
+      from_asset_id: left.asset_id,
+      to_asset_id: right.asset_id,
+      relationship_type: relationshipType,
+      direction: "forward",
+      confidence: "high",
+      source: "synthetic_topology",
+      provisional: false,
+      connected_asset_name: right.canonical_name,
+      connected_asset_class: right.asset_class,
+      evidence_json: { synthetic: true },
+    });
+  });
   const pairs = [
     ["ELEC-ATTACHMENT-002", "ELEC-OVERHEAD-CONDUCTOR-001", "reference_for"],
     ["FIBER-FIBER-CABLE-003", "FIBER-TERMINAL-001", "terminates_at"],
@@ -263,6 +379,8 @@ export function demoPlans(): CanonicalizationPlan[] {
   const base: CanonicalizationPlan[] = [
     makePlan("DEMO-ELECTRIC-PLAN", "electric_distribution", "transformer", "approved", true),
     makePlan("DEMO-TELECOM-PLAN", "telecom_fiber", "fiber_cable", "mapping_review", false),
+    makePlan("DEMO-WATER-PLAN", "water", "distribution_main", "mapping_review", false),
+    makePlan("DEMO-WASTEWATER-PLAN", "wastewater", "gravity_main", "mapping_review", false),
   ];
   const updates = readSession<Record<string, Partial<CanonicalizationPlan>>>(planSessionKey, {});
   return base.map((plan) => ({ ...plan, ...updates[plan.plan_id] }));

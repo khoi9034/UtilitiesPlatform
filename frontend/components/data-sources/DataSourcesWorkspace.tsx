@@ -17,6 +17,16 @@ const workflow = [
   ["Export", "Controlled output packages"],
 ];
 type RawView = "all_raw" | "uploaded_packages" | "registered_layers" | "needs_attention" | "duplicates";
+type DomainFilter = "all" | "electric_distribution" | "telecom_fiber" | "water" | "wastewater" | "multi_utility" | "unknown";
+const domainFilters: Array<[DomainFilter, string]> = [
+  ["all", "All"],
+  ["electric_distribution", "Electric"],
+  ["telecom_fiber", "Telecom"],
+  ["water", "Water"],
+  ["wastewater", "Wastewater"],
+  ["multi_utility", "Multi-utility"],
+  ["unknown", "Unknown"],
+];
 
 export function DataSourcesWorkspace({ initialTab: _initialTab }: { initialTab?: string } = {}) {
   void _initialTab;
@@ -30,6 +40,7 @@ export function DataSourcesWorkspace({ initialTab: _initialTab }: { initialTab?:
   const [selectedId, setSelectedId] = useState("");
   const [rawView, setRawView] = useState<RawView>("all_raw");
   const [showTestRecords, setShowTestRecords] = useState(false);
+  const [domainFilter, setDomainFilter] = useState<DomainFilter>(() => initialDomainFilter());
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<string[]>([]);
@@ -90,8 +101,9 @@ export function DataSourcesWorkspace({ initialTab: _initialTab }: { initialTab?:
   const stageRows = manifest?.stages ?? stages.map((stage) => ({ stage, label: label(stage), item_count: 0, description: "" }));
   const activity = manifest?.activity_counts ?? {};
   const visibleItems = useMemo(
-    () => activeStage === "raw" ? filterRawItems(items, rawView, showTestRecords) : items,
-    [activeStage, items, rawView, showTestRecords],
+    () => (activeStage === "raw" ? filterRawItems(items, rawView, showTestRecords) : items)
+      .filter((item) => matchesDomain(item, domainFilter)),
+    [activeStage, domainFilter, items, rawView, showTestRecords],
   );
   const visibleSelectedItem = visibleItems.find((item) => item.item_id === selectedId) ?? visibleItems[0];
   const allFailed = !loading && errors.length >= 5 && !manifest && !status && !summary;
@@ -137,6 +149,13 @@ export function DataSourcesWorkspace({ initialTab: _initialTab }: { initialTab?:
         {stages.map((stage) => (
           <button className={styles.tabButton} role="tab" aria-selected={activeStage === stage} key={stage} onClick={() => selectStage(stage)}>
             {label(stage)} <span className={styles.muted}>{compactNumber(stageCount(stageRows, stage))}</span>
+          </button>
+        ))}
+      </div>
+      <div className={ws.buttonRow} aria-label="Utility domain filters">
+        {domainFilters.map(([value, text]) => (
+          <button className={ws.button} type="button" aria-pressed={domainFilter === value} key={value} onClick={() => setDomainFilter(value)}>
+            {text}
           </button>
         ))}
       </div>
@@ -258,6 +277,14 @@ function Inspector({ item, status, runs, onInspect }: { item?: DataSourceItem; s
         {item.item_type === "source_package" ? <div><dt>Inspection</dt><dd><StatusBadge value={item.inspection_status ?? "not_started"} /></dd></div> : null}
         {item.item_type === "source_package" ? <div><dt>Automated Review</dt><dd><StatusBadge value={item.automated_review_status ?? "not_started"} /></dd></div> : null}
         {item.item_type === "source_package" ? <div><dt>Human Exceptions</dt><dd>{compactNumber(item.human_exception_count)}</dd></div> : null}
+        {item.item_type === "source_package" ? <div><dt>Detected domains</dt><dd>{item.detected_domains?.map(label).join(", ") || "Unknown"}</dd></div> : null}
+        {item.item_type === "source_package" ? <div><dt>Domain confidence</dt><dd><StatusBadge value={item.domain_confidence ?? "unavailable"} /></dd></div> : null}
+        {item.item_type === "source_package" ? <div><dt>Water candidates</dt><dd>{compactNumber(item.candidate_water_layers)}</dd></div> : null}
+        {item.item_type === "source_package" ? <div><dt>Wastewater candidates</dt><dd>{compactNumber(item.candidate_wastewater_layers)}</dd></div> : null}
+        {item.item_type === "source_package" ? <div><dt>Ambiguous layers</dt><dd>{compactNumber(item.ambiguous_layer_count)}</dd></div> : null}
+        {item.item_type === "source_package" ? <div><dt>Coordinate blockers</dt><dd>{compactNumber(item.coordinate_blocker_count)}</dd></div> : null}
+        {item.item_type === "source_package" ? <div><dt>Duplicate candidates</dt><dd>{compactNumber(item.duplicate_candidate_count)}</dd></div> : null}
+        {item.item_type === "source_package" ? <div><dt>Owner / jurisdiction uncertainty</dt><dd>{compactNumber(item.owner_uncertainty_count)}</dd></div> : null}
         {item.item_type === "source_package" ? <div><dt>Staging Readiness</dt><dd>{compactNumber(item.staging_ready_count)}</dd></div> : null}
         {item.item_type === "source_package" ? <div><dt>Final Approval</dt><dd>{compactNumber(item.final_staging_approval_count)}</dd></div> : null}
         <div><dt>Spatial reference</dt><dd>{safeText(item.coordinate_system)}</dd></div>
@@ -315,8 +342,27 @@ export function recordDisplay(item: DataSourceItem) {
   return compactNumber(String(item.record_count ?? ""));
 }
 
+export function matchesDomain(item: DataSourceItem, expected: DomainFilter) {
+  if (expected === "all") return true;
+  const values = new Set(
+    [item.utility_system, ...(item.detected_domains ?? [])]
+      .filter((value): value is string => typeof value === "string" && Boolean(value.trim()))
+      .map((value) => ({ electric: "electric_distribution", telecom: "telecom_fiber" })[value.toLowerCase()] ?? value.toLowerCase()),
+  );
+  const classified = new Set([...values].filter((value) => !["unknown", "review_required", "out_of_scope"].includes(value)));
+  if (expected === "multi_utility") return [...values].some((value) => ["multi_utility", "mixed", "water_wastewater"].includes(value)) || classified.size > 1;
+  if (expected === "unknown") return classified.size === 0;
+  return values.has(expected);
+}
+
 function initialStage(): PrimaryDataStage {
   if (typeof window === "undefined") return "raw";
   const requested = new URLSearchParams(window.location.search).get("stage") as PrimaryDataStage | null;
   return requested && stages.includes(requested) ? requested : "raw";
+}
+
+function initialDomainFilter(): DomainFilter {
+  if (typeof window === "undefined") return "all";
+  const requested = new URLSearchParams(window.location.search).get("utility_vertical") as DomainFilter | null;
+  return requested && domainFilters.some(([value]) => value === requested) ? requested : "all";
 }

@@ -10,7 +10,7 @@ Work Order and Job Package V1 invokes the same graph builder, rules, and calibra
 
 ## Purpose and Boundary
 
-Connectivity QA Engine V1 evaluates canonical Electric Distribution and Telecom/Fiber assets before future tracing, editing, and vendor integration. It identifies review candidates from safe canonical attributes and explicit stored relationships.
+Connectivity QA Engine V1 evaluates canonical Electric Distribution, Telecom/Fiber, Water, and Wastewater assets before tracing, editing, and vendor integration. It identifies review candidates from safe canonical attributes and explicit stored relationships.
 
 Network Trace Calibration consumes exact issue groups referenced by the immutable trace run. It may classify a group as path-specific, branch-specific, background, excluded, or unrelated for that one trace objective. This does not alter the QA finding, issue group, technical severity, blocking state, trace impact, or review history.
 
@@ -18,7 +18,7 @@ It does not itself traverse a requested path, implement ArcFM, GE Smallworld, Es
 
 ## Shared Graph Model
 
-One graph model supports both utility verticals. Canonical assets are graph nodes and `utility_asset_relationships` records are graph edges. Nodes retain safe identity, class, subtype, lifecycle, operational state, canonical attributes, and lineage references. Edges retain relationship type, direction, confidence, source, provisional state, and evidence.
+One graph model supports all utility verticals. Canonical assets are graph nodes and `utility_asset_relationships` records are graph edges. Nodes retain safe identity, class, subtype, lifecycle, operational state, canonical attributes, and lineage references. Edges retain relationship type, direction, confidence, source, provisional state, and evidence.
 
 Only explicit stored relationships enter the graph. A spatially inferred or rule-inferred relationship can participate when it has already been persisted, but its provisional and evidence fields remain visible. Crossings, coordinate proximity, and digitized line direction do not create hidden edges.
 
@@ -30,8 +30,10 @@ Built-in profiles are:
 
 - `electric_distribution_v1`
 - `telecom_fiber_v1`
+- `water_v1`
+- `wastewater_v1`
 
-Both execute `SHARED-001` through `SHARED-008`. Electric executes `ELEC-001` through `ELEC-015`; telecom executes `TEL-001` through `TEL-016`.
+Electric and Telecom execute `SHARED-001` through `SHARED-008`, plus their vertical rules. Water executes `WATER-001` through `WATER-018`; Wastewater executes `WW-001` through `WW-020`. A rule with unavailable required evidence is skipped or unable to determine rather than converted into an automatic defect.
 
 Definitions are allowlisted Python structures with code, name, category, severity, blocking state, scope, description, action, limitation, and version. APIs do not accept executable rules, Python, SQL, shell commands, external URLs, or source-provided expressions.
 
@@ -132,6 +134,8 @@ Local mode calls FastAPI and persists runs, findings, reviews, and history in th
 
 - `http://localhost:3001/utilities/electric/connectivity-qa`
 - `http://localhost:3001/utilities/telecom/connectivity-qa`
+- `http://localhost:3001/utilities/water-wastewater/connectivity-qa?system=water`
+- `http://localhost:3001/utilities/water-wastewater/connectivity-qa?system=wastewater`
 
 Static demo mode uses deterministic synthetic assets and relationships. It derives findings in the browser, persists runs and review decisions in `sessionStorage`, supports refresh and safe JSON summary downloads, and makes no backend requests. It contains no real utility infrastructure or local metadata.
 

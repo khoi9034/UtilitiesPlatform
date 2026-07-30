@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-VERTICALS = ("electric_distribution", "telecom_fiber")
+VERTICALS = ("electric_distribution", "telecom_fiber", "water", "wastewater")
 OUTCOMES = (
     "complete",
     "complete_with_warnings",
@@ -32,6 +32,9 @@ STOPPING_REASONS = (
     "voltage_conflict",
     "feeder_conflict",
     "route_conflict",
+    "system_conflict",
+    "pressure_zone_conflict",
+    "basin_conflict",
     "strand_conflict",
     "capacity_conflict",
     "lifecycle_conflict",

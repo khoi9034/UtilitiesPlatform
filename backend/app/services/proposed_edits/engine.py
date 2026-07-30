@@ -35,6 +35,10 @@ from app.services.utility_assets.domain import (
     TELECOM_FIELDS,
     TELECOM_OPERATIONAL_STATES,
     UTILITY_VERTICALS,
+    WATER_FIELDS,
+    WATER_OPERATIONAL_STATES,
+    WASTEWATER_FIELDS,
+    WASTEWATER_OPERATIONAL_STATES,
     stable_fingerprint,
     stable_id,
     validate_vertical_and_class,
@@ -95,6 +99,18 @@ VERTICAL_PROPOSAL_TYPES = {
         "connect_terminal", "correct_route_membership", "close_proposed_route_gap",
         "replace_cable", "retire_telecom_asset", "add_proposed_telecom_asset",
     ),
+    "water": (
+        "add_main", "replace_main", "retire_main", "add_valve", "replace_valve",
+        "add_hydrant", "relocate_hydrant", "add_service", "replace_meter",
+        "update_pressure_zone_relationship", "repair_water_connectivity",
+        "update_water_asset_attributes",
+    ),
+    "wastewater": (
+        "add_gravity_main", "replace_gravity_main", "add_force_main", "add_manhole",
+        "relocate_manhole", "add_lateral", "replace_lift_station_relationship",
+        "update_invert_or_rim", "update_flow_direction_relationship",
+        "retire_abandoned_wastewater_asset", "repair_wastewater_connectivity",
+    ),
 }
 OPERATION_TYPES = (
     "add_asset", "update_asset_attribute", "update_asset_attributes",
@@ -109,11 +125,15 @@ EDITABLE_STATES = {"draft", "validation_failed", "ready_for_analysis", "analysis
 FIELD_ALLOWLIST = {
     "electric_distribution": set(SHARED_FIELDS) | set(ELECTRIC_FIELDS),
     "telecom_fiber": set(SHARED_FIELDS) | set(TELECOM_FIELDS),
+    "water": set(SHARED_FIELDS) | set(WATER_FIELDS),
+    "wastewater": set(SHARED_FIELDS) | set(WASTEWATER_FIELDS),
 }
 NUMERIC_FIELDS = {
     "nominal_voltage", "operating_voltage", "transformer_rating_kva", "conductor_count",
     "customer_count_safe_aggregate", "fiber_count", "strand_start", "strand_end",
     "total_capacity", "used_capacity", "reserved_capacity", "available_capacity",
+    "diameter", "elevation", "capacity", "upstream_invert", "downstream_invert",
+    "rim_elevation", "slope",
 }
 BOOLEAN_FIELDS = {"normally_open"}
 LIFECYCLE_TRANSITIONS = {
@@ -386,7 +406,12 @@ def validate_operations(
             elif (current, proposed) in STRONG_REVIEW_TRANSITIONS:
                 warnings.append(_problem(operation_id, "strong_lifecycle_review", "This lifecycle transition requires explicit technical and final review."))
         elif kind == "change_operational_status":
-            allowed = ELECTRIC_OPERATIONAL_STATES if vertical == "electric_distribution" else TELECOM_OPERATIONAL_STATES
+            allowed = {
+                "electric_distribution": ELECTRIC_OPERATIONAL_STATES,
+                "telecom_fiber": TELECOM_OPERATIONAL_STATES,
+                "water": WATER_OPERATIONAL_STATES,
+                "wastewater": WASTEWATER_OPERATIONAL_STATES,
+            }[vertical]
             if operation.get("proposed_value") not in allowed:
                 errors.append(_problem(operation_id, "invalid_operational_state", "The proposed operational state is not allowlisted for this utility vertical."))
             if vertical == "electric_distribution":
@@ -824,7 +849,7 @@ def _validate_relationship(
         errors.append(_problem(operation_id, "invalid_relationship_type", "Relationship type must use the canonical allowlist."))
     if relationship_type == "routed_through" and right.get("asset_class") != "conduit":
         errors.append(_problem(operation_id, "invalid_container", "A routed-through relationship must target a conduit."))
-    if relationship_type == "mounted_on" and right.get("asset_class") not in {"pole", "electric_structure", "telecom_structure"}:
+    if relationship_type == "mounted_on" and right.get("asset_class") not in {"pole", "electric_structure", "telecom_structure", "structure", "vault"}:
         errors.append(_problem(operation_id, "invalid_structure", "A mounted-on relationship must target a supported structure."))
     if any(
         item.get("from_asset_id") == from_id
@@ -854,7 +879,7 @@ def _validate_effective_values(
             nominal, operating = attrs.get("nominal_voltage"), attrs.get("operating_voltage")
             if isinstance(nominal, (int, float)) and isinstance(operating, (int, float)) and abs(nominal - operating) > 0.001:
                 errors.append(_problem("", "voltage_conflict", "The proposal creates a nominal and operating voltage conflict."))
-        else:
+        elif vertical == "telecom_fiber":
             start, end, count = attrs.get("strand_start"), attrs.get("strand_end"), attrs.get("fiber_count")
             if all(isinstance(value, (int, float)) for value in (start, end, count)) and (start < 1 or end < start or end > count):
                 errors.append(_problem("", "invalid_strand_range", "The proposal creates a strand range outside the cable fiber count."))
@@ -867,6 +892,14 @@ def _validate_effective_values(
                     errors.append(_problem("", "capacity_conflict", "The proposal allocates more capacity than the total."))
                 if isinstance(available, (int, float)) and abs(available - (total - used - reserved)) > 0.001:
                     errors.append(_problem("", "capacity_arithmetic", "Available capacity does not reconcile with total, used, and reserved values."))
+        else:
+            diameter = attrs.get("diameter")
+            if isinstance(diameter, (int, float)) and diameter <= 0:
+                errors.append(_problem("", "invalid_diameter", "The proposal creates a non-positive pipe diameter."))
+            if vertical == "wastewater" and asset.get("asset_class") == "gravity_main":
+                upstream, downstream = attrs.get("upstream_invert"), attrs.get("downstream_invert")
+                if isinstance(upstream, (int, float)) and isinstance(downstream, (int, float)) and upstream <= downstream:
+                    errors.append(_problem("", "invert_contradiction", "The proposal conflicts with the explicit mapped gravity-flow direction."))
 
 
 def _temporary_asset(vertical: str, asset_id: str, values: dict[str, Any]) -> dict[str, Any]:

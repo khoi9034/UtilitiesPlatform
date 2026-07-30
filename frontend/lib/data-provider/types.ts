@@ -156,6 +156,14 @@ export type DataSourceItem = Record<string, unknown> & {
   human_exception_count?: number;
   staging_ready_count?: number;
   final_staging_approval_count?: number;
+  detected_domains?: string[];
+  domain_confidence?: string;
+  candidate_water_layers?: number;
+  candidate_wastewater_layers?: number;
+  ambiguous_layer_count?: number;
+  duplicate_candidate_count?: number;
+  owner_uncertainty_count?: number;
+  coordinate_blocker_count?: number;
 };
 export type StageManifest = { generated_at: string; stages: DataSourceStage[]; items: DataSourceItem[]; counts: Record<PrimaryDataStage, number>; activity_counts?: Record<string, number>; message: string };
 export type DataSourceItemsResponse = { items: DataSourceItem[]; pagination: Pagination };

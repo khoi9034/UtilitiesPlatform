@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { isDemoMode } from "../../lib/data-provider/provider";
-import { getUtilityVertical, utilityVerticals, utilityViewPath, type UtilityVerticalConfig, type UtilityVerticalId, type UtilityWorkspaceView } from "../../lib/utility-verticals";
+import { getUtilityVertical, utilityVerticals, utilityViewPath, type CanonicalUtilityVertical, type UtilityVerticalConfig, type UtilityVerticalId, type UtilityWorkspaceView } from "../../lib/utility-verticals";
 import { UtilityAssetsWorkspace } from "../utility-assets/UtilityAssetsWorkspace";
 import { ConnectivityQAWorkspace } from "../connectivity-qa/ConnectivityQAWorkspace";
 import { NetworkTraceWorkspace } from "../network-trace/NetworkTraceWorkspace";
@@ -53,6 +53,11 @@ function VerticalCard({ vertical }: { vertical: UtilityVerticalConfig }) {
 export function UtilityVerticalWorkspace({ verticalId, view }: { verticalId: UtilityVerticalId; view: UtilityWorkspaceView }) {
   const searchParams = useSearchParams();
   const vertical = getUtilityVertical(verticalId)!;
+  const requestedSystem = searchParams.get("system") as CanonicalUtilityVertical | null;
+  const canonicalValue = vertical.canonicalValues?.includes(requestedSystem as CanonicalUtilityVertical)
+    ? requestedSystem as CanonicalUtilityVertical
+    : vertical.canonicalValue;
+  const activeVertical = { ...vertical, canonicalValue };
   const assetId = searchParams.get("asset_id") ?? "";
 
   return (
@@ -76,11 +81,24 @@ export function UtilityVerticalWorkspace({ verticalId, view }: { verticalId: Uti
         </nav>
       </header>
       {isDemoMode ? <DemoNotice /> : null}
+      {vertical.canonicalValues ? (
+        <nav className={styles.domainTabs} aria-label="Water and wastewater system">
+          {vertical.canonicalValues.map((system) => {
+            const item = { ...vertical, canonicalValue: system };
+            return (
+              <Link key={system} href={utilityViewPath(item, view)} aria-current={system === canonicalValue ? "page" : undefined}>
+                {system === "water" ? "Water" : "Wastewater"}
+              </Link>
+            );
+          })}
+          <span>Topology only. Not a hydraulic simulation.</span>
+        </nav>
+      ) : null}
       <nav className={styles.workspaceNav} aria-label={`${vertical.title} workspace`}>
         {vertical.navigation.map((item) => (
           <Link
             key={item.view}
-            href={utilityViewPath(vertical, item.view)}
+            href={utilityViewPath(activeVertical, item.view)}
             aria-current={item.view === view ? "page" : undefined}
           >
             {item.view === "assets" ? `${vertical.shortTitle} Assets` : item.view === "relationships" ? `${vertical.shortTitle} Relationships` : item.label}
@@ -88,18 +106,18 @@ export function UtilityVerticalWorkspace({ verticalId, view }: { verticalId: Uti
         ))}
       </nav>
       {view === "connectivity-qa" ? (
-        <ConnectivityQAWorkspace config={vertical} />
+        <ConnectivityQAWorkspace config={activeVertical} />
       ) : view === "network-trace" ? (
-        <NetworkTraceWorkspace config={vertical} />
+        <NetworkTraceWorkspace config={activeVertical} />
       ) : view === "proposed-edits" ? (
-        <ProposedEditWorkspace config={vertical} />
+        <ProposedEditWorkspace config={activeVertical} />
       ) : view === "work-orders" ? (
-        <WorkOrderWorkspace config={vertical} />
+        <WorkOrderWorkspace config={activeVertical} />
       ) : (
         <UtilityAssetsWorkspace
           detailAssetId={assetId}
           routeBase={vertical.routeBase}
-          vertical={vertical.canonicalValue}
+          vertical={activeVertical.canonicalValue}
           view={view}
         />
       )}

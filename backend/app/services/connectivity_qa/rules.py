@@ -10,6 +10,8 @@ RULE_VERSION = "connectivity-qa-rules-v2"
 PROFILES = {
     "electric_distribution": "electric_distribution_v1",
     "telecom_fiber": "telecom_fiber_v1",
+    "water": "water_v1",
+    "wastewater": "wastewater_v1",
 }
 SEVERITIES = ("info", "warning", "error", "critical")
 RUN_STATUSES = ("not_started", "running", "succeeded", "partially_failed", "failed", "blocked", "skipped")
@@ -30,12 +32,21 @@ def _rule(
     description: str,
     recommendation: str,
     limitation: str,
+    applicable_asset_classes: tuple[str, ...] = (),
+    required_any_fields: tuple[str, ...] = (),
 ) -> dict[str, Any]:
+    category = (
+        "shared" if code.startswith("SHARED") else
+        "electric" if code.startswith("ELEC") else
+        "telecom" if code.startswith("TEL") else
+        "water" if code.startswith("WATER") else
+        "wastewater"
+    )
     return {
         "rule_code": code,
         "name": name,
         "utility_vertical": vertical,
-        "category": "shared" if code.startswith("SHARED") else "electric" if code.startswith("ELEC") else "telecom",
+        "category": category,
         "severity": severity,
         "blocking": blocking,
         "scope": scope,
@@ -44,6 +55,9 @@ def _rule(
         "limitation": limitation,
         "rule_version": RULE_VERSION,
         "enabled": True,
+        "applicable_asset_classes": list(applicable_asset_classes),
+        "required_any_fields": list(required_any_fields),
+        "result_states": ["blocking", "warning", "informational", "unable_to_determine"],
     }
 
 
@@ -95,12 +109,85 @@ TELECOM_RULES = (
     _rule("TEL-016", "Telecom placement contradiction", "telecom_fiber", "warning", False, "asset", "Telecom asset class and placement type conflict.", "Confirm aerial, underground, or structure placement.", "Mixed placement routes require segment-level review."),
 )
 
+WATER_LINE_CLASSES = (
+    "water_main", "transmission_main", "distribution_main", "service_line",
+    "hydrant_lateral", "raw_water_main", "reclaimed_water_main",
+    "abandoned_water_main", "unknown_water_line",
+)
+WATER_RULES = (
+    _rule("WATER-001", "Blank asset identifier", "water", "error", True, "asset", "A water asset lacks a source asset identifier.", "Confirm a durable identifier with the data owner.", "A generated registry key is not treated as an operational identifier."),
+    _rule("WATER-002", "Duplicate asset identifier", "water", "error", True, "asset", "Two water assets share the same normalized source identifier.", "Review both source records before selecting an authoritative identifier.", "This is a duplicate candidate, not an automatic merge."),
+    _rule("WATER-003", "Invalid or unsupported geometry", "water", "error", True, "asset", "Asset geometry is missing or incompatible with the represented class.", "Confirm geometry type without repairing or projecting the source.", "Only stored geometry metadata is evaluated."),
+    _rule("WATER-004", "Unknown spatial reference", "water", "warning", True, "asset", "Spatial-reference metadata is unavailable.", "Confirm the coordinate system with the source owner.", "No coordinate system is defined or inferred."),
+    _rule("WATER-005", "Suspicious extent", "water", "warning", False, "asset", "Stored geometry metadata flags a suspicious extent.", "Review source coordinate metadata and extent.", "Coordinates are not transformed during QA."),
+    _rule("WATER-006", "Invalid diameter", "water", "error", True, "asset", "A represented water line has a non-positive or nonnumeric diameter.", "Confirm diameter value and unit.", "The rule is unable to determine a result when diameter is absent from the schema.", WATER_LINE_CLASSES, ("diameter",)),
+    _rule("WATER-007", "Invalid material", "water", "warning", False, "asset", "A represented water line has an empty or explicitly unknown material code.", "Confirm the material code list with the data owner.", "The rule does not invent code translations.", WATER_LINE_CLASSES, ("material",)),
+    _rule("WATER-008", "Invalid lifecycle status", "water", "warning", False, "asset", "Lifecycle status is unknown or outside the canonical allowlist.", "Confirm lifecycle state.", "Unknown can be an honest source limitation."),
+    _rule("WATER-009", "Disconnected main endpoint", "water", "error", True, "asset", "A water main has fewer than two explicit network relationships.", "Review endpoint and source-coverage evidence; do not snap geometry.", "Connectivity is based only on explicit canonical relationships.", WATER_LINE_CLASSES),
+    _rule("WATER-010", "Isolated service line", "water", "error", True, "asset", "A service line has no explicit network relationship.", "Confirm the serving main and endpoint relationship.", "Service extracts may omit customer-side context.", ("service_line",)),
+    _rule("WATER-011", "Hydrant lacks plausible main relationship", "water", "warning", False, "asset", "A hydrant has no explicit relationship to a water main or hydrant lateral.", "Confirm the hydrant lateral or serving-main relationship.", "Spatial proximity is not inferred.", ("hydrant",)),
+    _rule("WATER-012", "Valve lacks main relationship", "water", "warning", False, "asset", "A valve has no explicit relationship to a water main.", "Confirm valve placement and network relationship.", "Coincidence is not calculated from hidden geometry.", ("valve", "isolation_valve", "control_valve", "pressure_reducing_valve", "air_release_valve")),
+    _rule("WATER-013", "Invalid pressure-zone reference", "water", "warning", False, "asset", "A pressure-zone identifier does not resolve to represented context.", "Confirm pressure-zone membership.", "A missing pressure-zone layer may explain this finding.", (), ("pressure_zone_id",)),
+    _rule("WATER-014", "Missing owner or jurisdiction", "water", "warning", False, "asset", "Owner and jurisdiction evidence are unavailable.", "Confirm ownership or jurisdiction before operational use.", "Ownership is not inferred from geography alone."),
+    _rule("WATER-015", "Invalid facility reference", "water", "warning", False, "asset", "A facility identifier does not resolve to a represented facility.", "Confirm the facility relationship.", "A missing dependent facility layer may explain this finding.", (), ("facility_id",)),
+    _rule("WATER-016", "Active asset connected only to retired assets", "water", "error", True, "asset", "An active water asset has relationships only to retired or abandoned assets.", "Review lifecycle and connectivity evidence.", "Historical associations can be legitimate."),
+    _rule("WATER-017", "Service line lacks endpoint", "water", "warning", False, "asset", "A service line has no represented meter or service endpoint.", "Confirm the safe endpoint relationship.", "No customer names, addresses, or accounts are evaluated.", ("service_line",)),
+    _rule("WATER-018", "Conflicting water-system identity", "water", "warning", False, "relationship", "Connected water assets carry conflicting represented system identifiers.", "Review system boundaries and source mappings.", "Boundary connections may be expected.", (), ("water_system_id",)),
+)
+
+WASTEWATER_LINE_CLASSES = (
+    "gravity_main", "force_main", "pressure_sewer", "service_lateral",
+    "interceptor", "trunk_sewer", "outfall_pipe", "abandoned_sewer",
+    "unknown_wastewater_line",
+)
+WASTEWATER_RULES = (
+    _rule("WW-001", "Blank asset identifier", "wastewater", "error", True, "asset", "A wastewater asset lacks a source asset identifier.", "Confirm a durable identifier with the data owner.", "A generated registry key is not an operational identifier."),
+    _rule("WW-002", "Duplicate asset identifier", "wastewater", "error", True, "asset", "Two wastewater assets share a normalized source identifier.", "Review duplicate candidates without merging automatically.", "Identifier equality alone does not prove duplicate geometry."),
+    _rule("WW-003", "Invalid geometry", "wastewater", "error", True, "asset", "Asset geometry is missing or incompatible with its represented class.", "Confirm geometry type without repairing source geometry.", "Only stored geometry metadata is evaluated."),
+    _rule("WW-004", "Unknown spatial reference", "wastewater", "warning", True, "asset", "Spatial-reference metadata is unavailable.", "Confirm the coordinate system.", "No projection is defined or inferred."),
+    _rule("WW-005", "Suspicious extent", "wastewater", "warning", False, "asset", "Stored geometry metadata flags a suspicious extent.", "Review coordinate metadata and extent.", "Coordinates are not transformed."),
+    _rule("WW-006", "Gravity main lacks structures", "wastewater", "error", True, "asset", "A gravity main lacks valid represented upstream or downstream structures.", "Confirm structure identifiers or explicit relationships.", "Polyline geometry alone does not establish gravity flow.", ("gravity_main",)),
+    _rule("WW-007", "Gravity segment has identical endpoints", "wastewater", "error", True, "asset", "A gravity main has identical represented upstream and downstream identifiers.", "Confirm node identifiers and source mapping.", "Digitized direction is not treated as authoritative.", ("gravity_main",), ("upstream_structure_id", "downstream_structure_id", "from_node_id", "to_node_id")),
+    _rule("WW-008", "Invalid or zero diameter", "wastewater", "error", True, "asset", "A wastewater line has a non-positive or nonnumeric diameter.", "Confirm diameter and unit.", "The rule is unable to determine a result when diameter is absent.", WASTEWATER_LINE_CLASSES, ("diameter",)),
+    _rule("WW-009", "Invalid material", "wastewater", "warning", False, "asset", "A wastewater line has an empty or explicitly unknown material code.", "Confirm the material code list.", "No code meaning is invented.", WASTEWATER_LINE_CLASSES, ("material",)),
+    _rule("WW-010", "Suspicious slope", "wastewater", "warning", False, "asset", "A represented gravity-main slope is zero, negative, or implausibly large.", "Confirm slope convention, units, and flow direction.", "The rule does not infer authoritative flow from geometry.", ("gravity_main",), ("slope",)),
+    _rule("WW-011", "Missing expected invert elevation", "wastewater", "warning", False, "asset", "A gravity main is missing an invert value expected by the represented schema.", "Confirm whether invert fields are operationally required.", "Missing schema fields are source limitations, not automatic asset defects.", ("gravity_main",), ("upstream_invert", "downstream_invert")),
+    _rule("WW-012", "Upstream/downstream invert contradiction", "wastewater", "error", True, "asset", "Represented upstream and downstream invert values conflict with the stated downstream direction.", "Confirm invert units, datum, and flow-direction mapping.", "Digitized direction is not used as authoritative flow.", ("gravity_main",), ("upstream_invert", "downstream_invert")),
+    _rule("WW-013", "Force main carries gravity-only attributes", "wastewater", "warning", False, "asset", "A force main contains populated gravity-only slope or invert attributes.", "Confirm pressure-versus-gravity classification and source schema.", "Populated fields may be legacy metadata.", ("force_main",), ("slope", "upstream_invert", "downstream_invert")),
+    _rule("WW-014", "Gravity main attached to pressure equipment", "wastewater", "error", True, "relationship", "A gravity main is directly related to pressure-only equipment.", "Review the transition and missing lift-station or wet-well context.", "A valid modeled transition may require an intermediate asset.", ("gravity_main",)),
+    _rule("WW-015", "Lateral lacks receiving main", "wastewater", "error", True, "asset", "A service lateral has no represented receiving main.", "Confirm the receiving-main relationship.", "Source coverage may omit private or external connections.", ("service_lateral",)),
+    _rule("WW-016", "Disconnected manhole", "wastewater", "error", True, "asset", "A manhole has no explicit relationship to a wastewater main.", "Confirm network relationships without snapping geometry.", "Inspection-only structure layers may omit connectivity.", ("manhole",)),
+    _rule("WW-017", "Lift station lacks downstream force main", "wastewater", "error", True, "asset", "A lift station has no represented downstream force-main relationship.", "Confirm downstream pressure-network evidence.", "A missing force-main layer may explain this finding.", ("lift_station",)),
+    _rule("WW-018", "Active asset connected only to retired assets", "wastewater", "error", True, "asset", "An active wastewater asset has relationships only to retired or abandoned assets.", "Review lifecycle and connectivity evidence.", "Historical associations can be legitimate."),
+    _rule("WW-019", "Invalid basin or system reference", "wastewater", "warning", False, "asset", "A basin or system identifier does not resolve to represented context.", "Confirm basin and system membership.", "A missing basin layer may explain this finding.", (), ("basin_id", "wastewater_system_id")),
+    _rule("WW-020", "Missing owner or jurisdiction", "wastewater", "warning", False, "asset", "Owner and jurisdiction evidence are unavailable.", "Confirm ownership or jurisdiction before operational use.", "Ownership is not inferred from geography alone."),
+)
+
 
 def rule_profile(vertical: str) -> list[dict[str, Any]]:
     if vertical not in PROFILES:
         raise ValueError("Unsupported utility vertical.")
-    specific = ELECTRIC_RULES if vertical == "electric_distribution" else TELECOM_RULES
+    specific = {
+        "electric_distribution": ELECTRIC_RULES,
+        "telecom_fiber": TELECOM_RULES,
+        "water": WATER_RULES,
+        "wastewater": WASTEWATER_RULES,
+    }[vertical]
     return [dict(rule) for rule in (*SHARED_RULES, *specific)]
+
+
+def rule_availability(rule: dict[str, Any], graph: dict[str, Any]) -> tuple[bool, str]:
+    classes = set(rule.get("applicable_asset_classes", []))
+    assets = [
+        asset for asset in graph["selected"]
+        if not classes or asset.get("asset_class") in classes
+    ]
+    if classes and not assets:
+        return False, "Unable to determine: no applicable canonical assets are represented."
+    fields = set(rule.get("required_any_fields", []))
+    if fields and not any(fields & set((asset.get("canonical_attributes_json") or {})) for asset in assets):
+        return False, f"Unable to determine: required evidence is unavailable ({', '.join(sorted(fields))})."
+    return True, ""
 
 
 def graph_fingerprint(
@@ -384,6 +471,173 @@ def evaluate_rule(rule: dict[str, Any], graph: dict[str, Any]) -> list[dict[str,
             contradiction = (asset.get("asset_class") == "pole" and placement == "underground") or (asset.get("asset_class") == "conduit" and placement == "aerial")
             if contradiction:
                 add(asset, f"Asset class conflicts with placement type {placement!r}.")
+    elif code in {"WATER-001", "WW-001"}:
+        for asset in assets:
+            if not str(asset.get("source_asset_identifier") or "").strip():
+                add(asset, "The source asset identifier is blank.")
+    elif code in {"WATER-002", "WW-002"}:
+        seen_identifiers: dict[str, dict[str, Any]] = {}
+        for asset in assets:
+            identifier = str(asset.get("source_asset_identifier") or "").strip().casefold()
+            if not identifier:
+                continue
+            if identifier in seen_identifiers:
+                add(asset, "The normalized source asset identifier is shared by another asset.", related=seen_identifiers[identifier], evidence={"normalized_identifier": identifier})
+            else:
+                seen_identifiers[identifier] = asset
+    elif code in {"WATER-003", "WW-003"}:
+        line_classes = set(WATER_LINE_CLASSES if code.startswith("WATER") else WASTEWATER_LINE_CLASSES)
+        area_classes = {
+            "pressure_zone", "service_area", "treatment_area", "water_system_boundary",
+            "sewer_basin", "collection_area", "treatment_service_area",
+            "overflow_area", "wastewater_system_boundary", "easement", "facility_site",
+        }
+        for asset in assets:
+            geometry = str(asset.get("geometry_type") or "").lower()
+            expected = "polyline" if asset.get("asset_class") in line_classes else "polygon" if asset.get("asset_class") in area_classes else "point"
+            if geometry != expected:
+                add(asset, f"Geometry type {geometry or 'missing'} is incompatible with expected {expected}.", evidence={"geometry_type": geometry, "expected": expected})
+    elif code in {"WATER-004", "WW-004"}:
+        for asset in assets:
+            geometry = asset.get("geometry_summary_json") or {}
+            spatial_reference = geometry.get("spatial_reference") or geometry.get("spatial_reference_name")
+            if not spatial_reference or str(spatial_reference).lower() == "unknown":
+                add(asset, "Spatial-reference evidence is unavailable.")
+    elif code in {"WATER-005", "WW-005"}:
+        for asset in assets:
+            geometry = asset.get("geometry_summary_json") or {}
+            if geometry.get("suspicious_extent") is True or geometry.get("extent_valid") is False:
+                add(asset, "Stored geometry metadata marks the extent for coordinate review.")
+    elif code in {"WATER-006", "WW-008"}:
+        classes = set(WATER_LINE_CLASSES if code.startswith("WATER") else WASTEWATER_LINE_CLASSES)
+        for asset in _class_assets(assets, classes):
+            value = _number(_attr(asset, "diameter"))
+            if value is None or value <= 0:
+                add(asset, "Diameter is nonnumeric, zero, or negative.", evidence={"diameter": _attr(asset, "diameter"), "diameter_unit": _attr(asset, "diameter_unit")})
+    elif code in {"WATER-007", "WW-009"}:
+        classes = set(WATER_LINE_CLASSES if code.startswith("WATER") else WASTEWATER_LINE_CLASSES)
+        for asset in _class_assets(assets, classes):
+            value = str(_attr(asset, "material") or "").strip().casefold()
+            if value in {"", "unknown", "n/a", "na", "unsupported"}:
+                add(asset, "Material is blank or explicitly unknown.", evidence={"material": value})
+    elif code == "WATER-008":
+        for asset in assets:
+            if asset.get("lifecycle_status") == "unknown" or asset.get("lifecycle_status") not in LIFECYCLE_STATES:
+                add(asset, f"Lifecycle state is {asset.get('lifecycle_status') or 'missing'}.")
+    elif code == "WATER-009":
+        for asset in _class_assets(assets, set(WATER_LINE_CLASSES) - {"service_line", "hydrant_lateral"}):
+            degree = len(adjacency.get(asset["asset_id"], set()))
+            if degree < 2:
+                add(asset, f"The represented main has {degree} explicit connected asset(s).", evidence={"relationship_degree": degree})
+    elif code == "WATER-010":
+        for asset in _class_assets(assets, {"service_line"}):
+            if not edge_by_asset.get(asset["asset_id"]):
+                add(asset, "The service line has no explicit canonical relationship.")
+    elif code == "WATER-011":
+        for asset in _class_assets(assets, {"hydrant"}):
+            if not _related_to_class(asset, edge_by_asset, nodes, set(WATER_LINE_CLASSES), ""):
+                add(asset, "The hydrant has no represented water-main or hydrant-lateral relationship.")
+    elif code == "WATER-012":
+        valves = {"valve", "isolation_valve", "control_valve", "pressure_reducing_valve", "air_release_valve"}
+        for asset in _class_assets(assets, valves):
+            if not _related_to_class(asset, edge_by_asset, nodes, set(WATER_LINE_CLASSES), ""):
+                add(asset, "The valve has no represented water-main relationship.")
+    elif code in {"WATER-013", "WATER-015", "WW-019"}:
+        fields = {
+            "WATER-013": ("pressure_zone_id", {"pressure_zone"}),
+            "WATER-015": ("facility_id", {"pump_station", "storage_tank", "elevated_tank", "reservoir", "treatment_facility", "well"}),
+            "WW-019": ("basin_id", {"sewer_basin", "collection_area", "wastewater_system_boundary"}),
+        }
+        field, target_classes = fields[code]
+        represented = {
+            str(value) for target in _class_assets(assets, target_classes)
+            for value in (target.get("asset_id"), target.get("source_asset_identifier"), _attr(target, field))
+            if value
+        }
+        for asset in assets:
+            value = str(_attr(asset, field) or "")
+            if value and value not in represented:
+                add(asset, f"The represented {field.replace('_', ' ')} does not resolve to available context.", evidence={field: value})
+        if code == "WW-019":
+            systems = {
+                str(_attr(asset, "wastewater_system_id")) for asset in assets
+                if _attr(asset, "wastewater_system_id")
+            }
+            if len(systems) > 1:
+                add(assets[0], "Multiple wastewater-system identities are represented without an explicit boundary relationship.", evidence={"wastewater_system_ids": sorted(systems)})
+    elif code in {"WATER-014", "WW-020"}:
+        for asset in assets:
+            if not str(asset.get("owner_candidate") or _attr(asset, "owner") or "").strip() and not str(asset.get("jurisdiction") or _attr(asset, "jurisdiction") or "").strip():
+                add(asset, "Owner and jurisdiction evidence are unavailable.")
+    elif code in {"WATER-016", "WW-018"}:
+        for asset in assets:
+            related = [nodes.get(item) for item in adjacency.get(asset["asset_id"], set())]
+            if _active_or_retired(asset) == "active" and related and all(item and _active_or_retired(item) == "retired" for item in related):
+                add(asset, "Every represented connected asset is retired, removed, or abandoned.", evidence={"related_asset_count": len(related)})
+    elif code == "WATER-017":
+        for asset in _class_assets(assets, {"service_line"}):
+            if not _related_to_class(asset, edge_by_asset, nodes, {"meter", "meter_vault", "service_point"}, ""):
+                add(asset, "The service line has no represented meter or service endpoint.")
+    elif code == "WATER-018":
+        for relationship in relationships:
+            left, right = nodes.get(relationship.get("from_asset_id")), nodes.get(relationship.get("to_asset_id"))
+            left_system, right_system = _attr(left, "water_system_id"), _attr(right, "water_system_id")
+            if left and right and left_system and right_system and left_system != right_system:
+                add(left, "Connected water assets carry different water-system identifiers.", related=right, relationship=relationship, evidence={"from_system": left_system, "to_system": right_system})
+    elif code == "WW-006":
+        structures = {"manhole", "cleanout", "junction", "lift_station", "wet_well"}
+        for asset in _class_assets(assets, {"gravity_main"}):
+            attrs = asset.get("canonical_attributes_json") or {}
+            identifiers = [attrs.get(key) for key in ("upstream_structure_id", "downstream_structure_id", "from_node_id", "to_node_id")]
+            related_count = sum(1 for item in adjacency.get(asset["asset_id"], set()) if nodes.get(item, {}).get("asset_class") in structures)
+            if len({str(item) for item in identifiers if item}) < 2 and related_count < 2:
+                add(asset, "The gravity main lacks two represented endpoint structures.", evidence={"related_structure_count": related_count})
+    elif code == "WW-007":
+        for asset in _class_assets(assets, {"gravity_main"}):
+            attrs = asset.get("canonical_attributes_json") or {}
+            upstream = attrs.get("upstream_structure_id") or attrs.get("from_node_id")
+            downstream = attrs.get("downstream_structure_id") or attrs.get("to_node_id")
+            if upstream and downstream and str(upstream) == str(downstream):
+                add(asset, "The upstream and downstream structure identifiers are identical.", evidence={"endpoint_id": upstream})
+    elif code == "WW-010":
+        for asset in _class_assets(assets, {"gravity_main"}):
+            slope = _number(_attr(asset, "slope"))
+            if slope is not None and (slope <= 0 or abs(slope) > 1):
+                add(asset, "Slope is zero, negative, or outside the conservative V1 range.", evidence={"slope": slope})
+    elif code == "WW-011":
+        for asset in _class_assets(assets, {"gravity_main"}):
+            missing = [field for field in ("upstream_invert", "downstream_invert") if _attr(asset, field) in (None, "")]
+            if missing:
+                add(asset, f"Expected invert evidence is missing: {', '.join(missing)}.", evidence={"missing_fields": missing})
+    elif code == "WW-012":
+        for asset in _class_assets(assets, {"gravity_main"}):
+            upstream, downstream = _number(_attr(asset, "upstream_invert")), _number(_attr(asset, "downstream_invert"))
+            if upstream is not None and downstream is not None and upstream <= downstream:
+                add(asset, "Upstream invert is not above downstream invert under the explicit mapped direction.", evidence={"upstream_invert": upstream, "downstream_invert": downstream})
+    elif code == "WW-013":
+        for asset in _class_assets(assets, {"force_main"}):
+            populated = {field: _attr(asset, field) for field in ("slope", "upstream_invert", "downstream_invert") if _attr(asset, field) not in (None, "")}
+            if populated:
+                add(asset, "The force main carries populated gravity-only attributes.", evidence=populated)
+    elif code == "WW-014":
+        pressure_only = {"lift_station", "pump", "air_release_valve"}
+        for relationship in relationships:
+            left, right = nodes.get(relationship.get("from_asset_id")), nodes.get(relationship.get("to_asset_id"))
+            if left and right and {left.get("asset_class"), right.get("asset_class")} & {"gravity_main"} and {left.get("asset_class"), right.get("asset_class")} & pressure_only:
+                add(left if left.get("asset_class") == "gravity_main" else right, "A gravity main is directly related to pressure-only equipment.", related=right if left.get("asset_class") == "gravity_main" else left, relationship=relationship)
+    elif code == "WW-015":
+        receiving = {"gravity_main", "force_main", "pressure_sewer", "interceptor", "trunk_sewer"}
+        for asset in _class_assets(assets, {"service_lateral"}):
+            if not _related_to_class(asset, edge_by_asset, nodes, receiving, ""):
+                add(asset, "The service lateral has no represented receiving-main relationship.")
+    elif code == "WW-016":
+        for asset in _class_assets(assets, {"manhole"}):
+            if not _related_to_class(asset, edge_by_asset, nodes, set(WASTEWATER_LINE_CLASSES), ""):
+                add(asset, "The manhole has no represented wastewater-main relationship.")
+    elif code == "WW-017":
+        for asset in _class_assets(assets, {"lift_station"}):
+            if not _related_to_class(asset, edge_by_asset, nodes, {"force_main", "pressure_sewer"}, ""):
+                add(asset, "The lift station has no represented downstream force-main relationship.")
 
     unique: dict[str, dict[str, Any]] = {}
     for finding in candidates:
@@ -437,7 +691,7 @@ def _related_to_class(
     relationship_type: str,
 ) -> bool:
     for relationship in edge_by_asset.get(asset["asset_id"], []):
-        if relationship.get("relationship_type") != relationship_type:
+        if relationship_type and relationship.get("relationship_type") != relationship_type:
             continue
         other_id = relationship["to_asset_id"] if relationship["from_asset_id"] == asset["asset_id"] else relationship["from_asset_id"]
         if nodes.get(other_id, {}).get("asset_class") in classes:

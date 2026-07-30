@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const routes = ["/", "/utilities", "/utilities/electric", "/utilities/electric/assets", "/utilities/electric/connectivity-qa", "/utilities/electric/network-trace", "/utilities/electric/proposed-edits", "/utilities/electric/work-orders", "/utilities/telecom", "/utilities/telecom/assets", "/utilities/telecom/connectivity-qa", "/utilities/telecom/network-trace", "/utilities/telecom/proposed-edits", "/utilities/telecom/work-orders", "/command-center", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/data-health", "/network-intelligence", "/cad-intake", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/projects", "/maintenance", "/methodology"];
+const routes = ["/", "/utilities", "/utilities/electric", "/utilities/electric/assets", "/utilities/electric/connectivity-qa", "/utilities/electric/network-trace", "/utilities/electric/proposed-edits", "/utilities/electric/work-orders", "/utilities/telecom", "/utilities/telecom/assets", "/utilities/telecom/connectivity-qa", "/utilities/telecom/network-trace", "/utilities/telecom/proposed-edits", "/utilities/telecom/work-orders", "/utilities/water-wastewater", "/utilities/water-wastewater/assets", "/utilities/water-wastewater/connectivity-qa", "/utilities/water-wastewater/network-trace", "/utilities/water-wastewater/proposed-edits", "/utilities/water-wastewater/work-orders", "/command-center", "/asset-inventory", "/utility-assets", "/utility-assets/detail?asset_id=demo-electric_distribution-substation-1", "/data-health", "/network-intelligence", "/cad-intake", "/trust-pipeline", "/data-sources", "/data-sources/inventory", "/data-sources/upload", "/data-sources/submission", "/projects", "/maintenance", "/methodology"];
 const basePath = process.env.DEMO_BASE_PATH ?? "";
 
 test.setTimeout(120_000);
@@ -89,6 +89,29 @@ test.describe("portfolio demo mode", () => {
     await page.getByRole("button", { name: "Reset Demo Session" }).click();
     expect(await page.evaluate(() => sessionStorage.getItem("utilities-platform-demo-network-trace-v1"))).toBeNull();
     expect(await page.evaluate(() => sessionStorage.getItem("utilities-platform-demo-network-trace-calibration-v1"))).toBeNull();
+  });
+
+  test("uses synthetic water and wastewater assets with no backend", async ({ page }) => {
+    await page.goto(`${basePath}/utilities/water-wastewater/assets`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("WATER-TREATMENT-FACILITY-001", { exact: true })).toBeVisible();
+    await page.getByRole("navigation", { name: "Water and wastewater system" }).getByRole("link", { name: "Wastewater" }).click();
+    await expect(page).toHaveURL(/system=wastewater/);
+    await expect(page.getByText("WW-MANHOLE-001", { exact: true })).toBeVisible();
+
+    await page.goto(`${basePath}/utilities/water-wastewater/connectivity-qa`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("button", { name: /WATER-002/ }).first()).toBeVisible();
+    await page.goto(`${basePath}/utilities/water-wastewater/network-trace?system=wastewater`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByLabel("Trace type")).toHaveValue("WW-TRACE-001");
+    await page.getByLabel("QA policy").selectOption("diagnostic");
+    await page.getByRole("button", { name: "Run Trace" }).click();
+    await expect(page.getByText("Calibrated interpretation", { exact: true })).toBeVisible();
+    await expect(page.getByText(/not a hydraulic simulation/i).first()).toBeVisible();
+
+    await page.goto(`${basePath}/utilities/water-wastewater/proposed-edits?system=wastewater`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("button", { name: /WW-EDIT-001/ })).toBeVisible();
+    await page.goto(`${basePath}/utilities/water-wastewater/work-orders?system=wastewater`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("button", { name: /WW-WO-001/ })).toBeVisible();
+    await expect(page.locator("body")).not.toContainText("C:\\");
   });
 
   test("shows sanitized data-source stages", async ({ page }) => {
@@ -237,7 +260,7 @@ test.describe("portfolio demo mode", () => {
     await expect(page.getByText("FIBER-NETWORK-HUB-001", { exact: true })).toHaveCount(0);
     await page.getByRole("navigation", { name: "Switch utility workspace" }).getByRole("link", { name: "Telecom" }).click();
     await expect(page).toHaveURL(new RegExp(`${basePath}/utilities/telecom/?$`));
-    await expect(page.getByText("43", { exact: true }).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Telecom/Fiber", level: 1 })).toBeVisible();
     await expect(page.locator("body")).not.toContainText("C:\\");
   });
 

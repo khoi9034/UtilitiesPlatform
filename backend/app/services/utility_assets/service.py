@@ -321,11 +321,48 @@ class UtilityAssetService:
         return {
             "total_assets": total, "electric_assets": by_vertical.get("electric_distribution", 0),
             "telecom_assets": by_vertical.get("telecom_fiber", 0), "assets_needing_review": needs_review,
+            "water_assets": by_vertical.get("water", 0),
+            "wastewater_assets": by_vertical.get("wastewater", 0),
             "provisional_relationships": provisional, "canonicalization_plans": plans,
             "active_plans": sum(value for key, value in plans.items() if key not in {"approved", "deferred", "created"}),
             "approved_plans": plans.get("approved", 0), "blocked_plans": plans.get("blocked", 0),
             "lifecycle_distribution": lifecycle, "qa_status_distribution": qa,
             "data_scope": "synthetic", "message": "Local application registry contains synthetic utility assets only.",
+        }
+
+    def domain_summary(self, verticals: tuple[str, ...]) -> dict[str, Any]:
+        placeholders = ",".join("?" for _ in verticals)
+        with self.connect() as connection:
+            assets = _counts_where(connection, "canonical_utility_assets", "utility_vertical", verticals)
+            plans = _counts_where(connection, "canonicalization_plans", "utility_vertical", verticals)
+            counts = {
+                "registered_sources": _count_where(connection, "inspection_containers", "package_utility_system", verticals),
+                "inspected_layers": _count_where(connection, "layer_classification_candidates", "utility_system", verticals, distinct="layer_id"),
+                "proposed_classifications": _count_where(connection, "layer_classification_candidates", "utility_system", verticals),
+                "qa_runs": _count_where(connection, "connectivity_qa_runs", "utility_vertical", verticals),
+                "trace_runs": _count_where(connection, "network_trace_runs", "utility_vertical", verticals),
+                "proposed_edits": _count_where(connection, "proposed_edit_proposals", "utility_vertical", verticals),
+                "work_orders": _count_where(connection, "utility_work_orders", "utility_vertical", verticals),
+            }
+            unresolved = 0
+            if _table_exists(connection, "automated_layer_state"):
+                unresolved = int(connection.execute(
+                    f"""SELECT COUNT(*) FROM automated_layer_state
+                    WHERE approved_utility_system IN ({placeholders})
+                    AND (taxonomy_status != 'approved' OR staging_readiness != 'fully_ready_for_staging_review')""",
+                    verticals,
+                ).fetchone()[0])
+        return {
+            "domain_family": "water_wastewater",
+            "label": "Water & Wastewater",
+            **counts,
+            "water_asset_candidates": assets.get("water", 0),
+            "wastewater_asset_candidates": assets.get("wastewater", 0),
+            "canonical_assets": sum(assets.values()),
+            "canonicalization_plans": sum(plans.values()),
+            "unresolved_exceptions": unresolved,
+            "human_approval_required": True,
+            "message": "Domain summary uses safe local registry counts; no source records or paths are returned.",
         }
 
     def asset(self, asset_id: str) -> dict[str, Any] | None:
@@ -690,6 +727,47 @@ class UtilityAssetService:
 
 def _counts(connection: sqlite3.Connection, table: str, field: str) -> dict[str, int]:
     return {str(row[field]): int(row["count"]) for row in connection.execute(f"SELECT {field}, COUNT(*) count FROM {table} GROUP BY {field}")}
+
+
+def _table_exists(connection: sqlite3.Connection, table: str) -> bool:
+    return connection.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,),
+    ).fetchone() is not None
+
+
+def _count_where(
+    connection: sqlite3.Connection,
+    table: str,
+    field: str,
+    values: tuple[str, ...],
+    *,
+    distinct: str = "",
+) -> int:
+    if not _table_exists(connection, table):
+        return 0
+    placeholders = ",".join("?" for _ in values)
+    expression = f"DISTINCT {distinct}" if distinct else "*"
+    return int(connection.execute(
+        f"SELECT COUNT({expression}) FROM {table} WHERE {field} IN ({placeholders})", values,
+    ).fetchone()[0])
+
+
+def _counts_where(
+    connection: sqlite3.Connection,
+    table: str,
+    field: str,
+    values: tuple[str, ...],
+) -> dict[str, int]:
+    if not _table_exists(connection, table):
+        return {}
+    placeholders = ",".join("?" for _ in values)
+    return {
+        str(row[field]): int(row["count"])
+        for row in connection.execute(
+            f"SELECT {field}, COUNT(*) count FROM {table} WHERE {field} IN ({placeholders}) GROUP BY {field}",
+            values,
+        )
+    }
 
 
 def _dump(value: Any) -> str:

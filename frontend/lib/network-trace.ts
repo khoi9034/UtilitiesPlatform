@@ -13,6 +13,8 @@ export type TraceType = {
   trace_profile_version: string;
   trace_rule_version: string;
   read_only: true;
+  hydraulic_simulation: false;
+  disclaimer: string;
 };
 export type TraceCondition = { code: string; message: string; asset_id: string; relationship_id: string; issue_group_id: string };
 export type TraceStep = {
@@ -190,7 +192,7 @@ export type TraceCalibrationRun = {
   message?: string;
 };
 
-export const traceDisclaimer = "UtilitiesPlatform Network Trace V1 performs read-only analytical traversal of the platform's vendor-neutral canonical asset and relationship model. It is not an operational ArcFM, Smallworld, Esri Utility Network, outage-management, engineering, or telecom-provisioning trace.";
+export const traceDisclaimer = "UtilitiesPlatform Network Trace V1 performs read-only analytical traversal of the platform's vendor-neutral canonical asset and relationship model. This is a topology/connectivity trace and not a hydraulic simulation. It is not an operational ArcFM, Smallworld, Esri Utility Network, outage-management, engineering, or telecom-provisioning trace.";
 
 const profileVersion = "network-trace-profiles-v1";
 const ruleVersion = "network-trace-rules-v1";
@@ -199,6 +201,14 @@ const calibrationStoreKey = "utilities-platform-demo-network-trace-calibration-v
 const traceCalibrationVersion = "network-trace-calibration-v1";
 const electricFlow = ["substation", "feeder", "feeder_breaker", "switch", "fuse", "recloser", "transformer", "overhead_conductor", "underground_conductor", "secondary_conductor", "service_point", "junction"];
 const telecomFlow = ["central_office", "network_hub", "fiber_cabinet", "fiber_route", "fiber_cable", "handhole", "manhole", "splice_closure", "splitter", "terminal", "proposed_construction_segment"];
+const waterFlow = ["treatment_facility", "transmission_main", "distribution_main", "water_main", "isolation_valve", "valve", "hydrant", "service_line", "meter"];
+const wastewaterFlow = ["service_lateral", "manhole", "gravity_main", "lift_station", "force_main", "treatment_facility", "outfall"];
+const flowClasses: Record<UtilityAsset["utility_vertical"], string[]> = {
+  electric_distribution: electricFlow,
+  telecom_fiber: telecomFlow,
+  water: waterFlow,
+  wastewater: wastewaterFlow,
+};
 
 const profileRows: Record<UtilityAsset["utility_vertical"], Array<[string, string, string[], string[], string]>> = {
   electric_distribution: [
@@ -219,6 +229,23 @@ const profileRows: Record<UtilityAsset["utility_vertical"], Array<[string, strin
     ["TEL-TRACE-006", "Affected-network trace", ["fiber_cable", "splice_closure", "fiber_cabinet"], ["terminal"], "downstream"],
     ["TEL-TRACE-007", "Capacity-path trace", ["network_hub", "fiber_cabinet", "fiber_cable", "splitter"], ["terminal"], "toward_terminal"],
     ["TEL-TRACE-008", "Proposed construction continuity trace", ["proposed_construction_segment", "fiber_route"], [], "bidirectional"],
+  ],
+  water: [
+    ["WATER-TRACE-001", "Connected assets from main", ["water_main", "transmission_main", "distribution_main"], [], "bidirectional"],
+    ["WATER-TRACE-002", "Upstream source or facility path", waterFlow, ["treatment_facility"], "toward_source"],
+    ["WATER-TRACE-003", "Service and hydrant reachability", ["water_main", "transmission_main", "distribution_main", "isolation_valve"], ["service_line", "meter", "hydrant"], "downstream"],
+    ["WATER-TRACE-004", "Valve-isolation impact", ["valve", "isolation_valve"], ["service_line", "meter", "hydrant"], "downstream"],
+    ["WATER-TRACE-005", "Affected services after valve closure", ["valve", "isolation_valve"], ["service_line", "meter"], "downstream"],
+    ["WATER-TRACE-006", "Disconnected water assets", waterFlow, [], "bidirectional"],
+  ],
+  wastewater: [
+    ["WW-TRACE-001", "Downstream gravity path", ["gravity_main", "manhole"], ["lift_station", "treatment_facility", "outfall"], "downstream"],
+    ["WW-TRACE-002", "Upstream contributing assets", ["gravity_main", "manhole", "lift_station"], ["service_lateral", "manhole"], "upstream"],
+    ["WW-TRACE-003", "Path to lift station", ["gravity_main", "manhole", "service_lateral"], ["lift_station"], "downstream"],
+    ["WW-TRACE-004", "Force-main path", ["lift_station", "force_main"], ["treatment_facility", "outfall"], "downstream"],
+    ["WW-TRACE-005", "Path to treatment or outfall", wastewaterFlow, ["treatment_facility", "outfall"], "downstream"],
+    ["WW-TRACE-006", "Affected upstream assets after blockage", ["gravity_main", "manhole"], ["service_lateral", "manhole"], "upstream"],
+    ["WW-TRACE-007", "Disconnected wastewater structures", wastewaterFlow, [], "bidirectional"],
   ],
 };
 
@@ -244,6 +271,8 @@ export function demoTraceTypes(vertical?: UtilityAsset["utility_vertical"]): Tra
     profiles: {
       electric_distribution: traceCatalog("electric_distribution"),
       telecom_fiber: traceCatalog("telecom_fiber"),
+      water: traceCatalog("water"),
+      wastewater: traceCatalog("wastewater"),
     },
   };
   return traceCatalog(vertical);
@@ -259,6 +288,7 @@ function traceCatalog(vertical: UtilityAsset["utility_vertical"]): TraceCatalog 
       trace_type, name, utility_vertical: vertical, start_asset_classes, terminal_asset_classes, default_direction,
       description: `${name} uses explicit synthetic canonical relationships and calibrated QA evidence.`,
       trace_profile_version: profileVersion, trace_rule_version: ruleVersion, read_only: true,
+      hydraulic_simulation: false, disclaimer: traceDisclaimer,
     })),
   };
 }
@@ -517,10 +547,13 @@ export function runDemoTraceCalibration(
     blocked_path_ids: run.paths.filter((path) => path.path_status === "blocked").map((path) => path.trace_path_id),
     path_specific_issue_group_ids: [...new Set(calibratedEvents.filter((event) => !["network_background", "unrelated_to_selected_path"].includes(event.scope)).flatMap((event) => event.issue_group_ids))].sort(),
     external_trace_mapping_status: "conceptually_mappable", adapter_required: true,
-    vendor_concept_hints: vertical === "electric_distribution"
-      ? ["downstream connectivity trace", "upstream source trace", "isolation analysis"]
-      : ["route continuity", "splice-sequence analysis", "affected-network analysis"],
-    disclaimer: "UtilitiesPlatform trace calibration interprets immutable vendor-neutral trace evidence for human review. It does not alter utility assets, repair connectivity, execute switching, allocate fiber capacity, predict outages, or reproduce proprietary utility-system traces.",
+    vendor_concept_hints: {
+      electric_distribution: ["downstream connectivity trace", "upstream source trace", "isolation analysis"],
+      telecom_fiber: ["route continuity", "splice-sequence analysis", "affected-network analysis"],
+      water: ["connected-main trace", "source-path trace", "valve-isolation analysis"],
+      wastewater: ["downstream gravity path", "lift-station path", "blockage-impact analysis"],
+    }[vertical],
+    disclaimer: `${traceDisclaimer} Calibration does not alter assets, repair connectivity, operate devices, or reproduce proprietary traces.`,
     created_at: now,
   };
   const calibration: TraceCalibrationRun = {
@@ -678,7 +711,7 @@ function walkSyntheticGraph(
   relationships: AssetRelationship[],
   groups: ConnectivityIssueGroup[],
 ): DemoPath[] {
-  const flowClasses = new Set(start.utility_vertical === "electric_distribution" ? electricFlow : telecomFlow);
+  const allowedClasses = new Set(flowClasses[start.utility_vertical]);
   const queue: Array<{ ids: string[]; rels: string[]; warnings: TraceCondition[]; provisional: boolean }> = [{ ids: [start.asset_id], rels: [], warnings: [], provisional: false }];
   const finished: DemoPath[] = [];
   while (queue.length && finished.length < 20) {
@@ -687,7 +720,13 @@ function walkSyntheticGraph(
     const targetReached = state.rels.length && request.optional_target_asset_id === current.asset_id;
     const terminalReached = state.rels.length && definition.terminal_asset_classes.includes(current.asset_class);
     if (targetReached || terminalReached) {
-      finished.push(demoPath(state, byId, [], targetReached ? "target_reached" : ["substation", "feeder", "feeder_breaker", "network_hub", "central_office", "fiber_cabinet"].includes(current.asset_class) ? "source_reached" : "terminal_reached"));
+      const sources: Record<UtilityAsset["utility_vertical"], string[]> = {
+        electric_distribution: ["substation", "feeder", "feeder_breaker"],
+        telecom_fiber: ["network_hub", "central_office", "fiber_cabinet"],
+        water: ["treatment_facility"],
+        wastewater: [],
+      };
+      finished.push(demoPath(state, byId, [], targetReached ? "target_reached" : sources[start.utility_vertical].includes(current.asset_class) ? "source_reached" : "terminal_reached"));
       continue;
     }
     if (state.rels.length >= request.max_depth || new Set(state.ids).size >= request.max_assets) {
@@ -701,13 +740,13 @@ function walkSyntheticGraph(
       if ((upstream || request.direction === "bidirectional") && relationship.to_asset_id === current.asset_id) return [[relationship, relationship.from_asset_id] as const];
       return [];
     }).filter(([relationship, nextId]) =>
-      ["feeds", "connects_to", "spliced_to", "terminates_at"].includes(relationship.relationship_type)
-      && flowClasses.has(byId.get(nextId)?.asset_class ?? "")
+      ["feeds", "connects_to", "spliced_to", "terminates_at", "served_by", "flows_to", "draws_from"].includes(relationship.relationship_type)
+      && allowedClasses.has(byId.get(nextId)?.asset_class ?? "")
       && !state.ids.includes(nextId)
       && !(relationship.provisional && request.provisional_relationship_policy === "exclude"),
     ).sort(([left], [right]) => left.relationship_id.localeCompare(right.relationship_id));
     if (!candidates.length) {
-      finished.push(demoPath(state, byId, [], state.rels.length && ["ELEC-TRACE-004", "ELEC-TRACE-006", "TEL-TRACE-003", "TEL-TRACE-004", "TEL-TRACE-006", "TEL-TRACE-008"].includes(definition.trace_type) ? "terminal_reached" : "no_traversable_edge"));
+      finished.push(demoPath(state, byId, [], state.rels.length && ["ELEC-TRACE-004", "ELEC-TRACE-006", "TEL-TRACE-003", "TEL-TRACE-004", "TEL-TRACE-006", "TEL-TRACE-008", "WATER-TRACE-001", "WATER-TRACE-004", "WATER-TRACE-005", "WATER-TRACE-006", "WW-TRACE-002", "WW-TRACE-006", "WW-TRACE-007"].includes(definition.trace_type) ? "terminal_reached" : "no_traversable_edge"));
       continue;
     }
     for (const [relationship, nextId] of candidates) {
@@ -760,12 +799,12 @@ function demoPath(
         exited_by_relationship_id: sequence < state.rels.length ? state.rels[sequence] : "",
         step_role: sequence === 0 ? "start" : sequence === state.ids.length - 1 ? "stop" : "traversed",
         operational_state: asset.operational_status, lifecycle_status: asset.lifecycle_status,
-        feeder_or_route_context: String(context.feeder_id ?? context.route_id ?? ""),
+        feeder_or_route_context: String(context.feeder_id ?? context.route_id ?? context.water_system_id ?? context.wastewater_system_id ?? context.basin_id ?? ""),
         qa_issue_group_ids: sequence === state.ids.length - 1 ? [...new Set([...state.warnings, ...blockers].map((item) => item.issue_group_id).filter(Boolean))] : [],
         trace_effect: sequence === state.ids.length - 1 && !complete ? "stopped" : "continued",
         decision: sequence === state.ids.length - 1 ? "stop" : "traverse",
         decision_reason: sequence === state.ids.length - 1 ? stoppingReason : "allowlisted synthetic relationship",
-        asset_context: Object.fromEntries(Object.entries(context).filter(([key]) => ["feeder_id", "circuit_id", "phase", "nominal_voltage", "operating_voltage", "route_id", "cable_id", "fiber_count", "strand_start", "strand_end", "total_capacity", "used_capacity", "reserved_capacity", "available_capacity"].includes(key))),
+        asset_context: Object.fromEntries(Object.entries(context).filter(([key]) => ["feeder_id", "circuit_id", "phase", "nominal_voltage", "operating_voltage", "route_id", "cable_id", "fiber_count", "strand_start", "strand_end", "total_capacity", "used_capacity", "reserved_capacity", "available_capacity", "water_system_id", "pressure_zone_id", "wastewater_system_id", "basin_id", "diameter", "slope"].includes(key))),
       };
     }),
   };

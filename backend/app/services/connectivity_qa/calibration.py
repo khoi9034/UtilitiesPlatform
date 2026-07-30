@@ -92,6 +92,26 @@ RULE_CALIBRATION = {
     "TEL-015": _meta("capacity_consistency", "reconcile_capacity", 7, "stops_trace", "telecom_capacity", "capacity consistency"),
     "TEL-016": _meta("telecom_placement", "confirm_placement", 7, "advisory", "telecom_placement", "network connectivity validation"),
 }
+for _code in ("WATER-009", "WATER-010", "WATER-011", "WATER-012", "WATER-017", "WW-006", "WW-014", "WW-015", "WW-016", "WW-017"):
+    RULE_CALIBRATION[_code] = _meta(
+        "disconnected_network", "repair_connectivity", 2, "stops_trace",
+        "network_connectivity", "vendor-neutral topology validation",
+    )
+for _code in ("WATER-016", "WW-018"):
+    RULE_CALIBRATION[_code] = _meta(
+        "lifecycle_conflict", "confirm_lifecycle", 5, "stops_trace",
+        "lifecycle_integrity", "lifecycle conflict review",
+    )
+for _code in (
+    "WATER-001", "WATER-002", "WATER-003", "WATER-004", "WATER-005", "WATER-006",
+    "WATER-007", "WATER-008", "WATER-013", "WATER-014", "WATER-015", "WATER-018",
+    "WW-001", "WW-002", "WW-003", "WW-004", "WW-005", "WW-007", "WW-008",
+    "WW-009", "WW-010", "WW-011", "WW-012", "WW-013", "WW-019", "WW-020",
+):
+    RULE_CALIBRATION[_code] = _meta(
+        "attribute_conflict", "manual_review", 7, "advisory",
+        "attribute_integrity", "vendor-neutral data validation",
+    )
 
 DEPENDENCIES = {
     "ELEC-002": {"ELEC-001"},
@@ -690,7 +710,10 @@ def _root_key(finding: dict[str, Any], assets: dict[str, dict[str, Any]]) -> str
     code = finding["rule_code"]
     asset_id = str(finding.get("asset_id") or "")
     relationship_id = str(finding.get("relationship_id") or "")
-    family = RULE_CALIBRATION[code][0]
+    family = RULE_CALIBRATION.get(
+        code,
+        _meta("unsupported_condition", "manual_review", 10, "not_evaluated", "unsupported", "vendor-neutral review", "unknown"),
+    )[0]
     if code in {"ELEC-001", "ELEC-002"}:
         return f"conductor_connectivity:{asset_id}"
     if code in {"ELEC-009", "ELEC-010"}:

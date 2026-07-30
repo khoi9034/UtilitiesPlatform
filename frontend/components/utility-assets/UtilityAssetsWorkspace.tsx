@@ -6,7 +6,7 @@ import { getDataProvider, isDemoMode } from "../../lib/data-provider/provider";
 import { label } from "../../lib/formatters";
 import type { ConnectivityFinding, ConnectivityIssueGroup } from "../../lib/connectivity-qa";
 import type { AssetRelationship, CanonicalMapping, CanonicalizationPlan, UtilityAsset } from "../../lib/utility-assets";
-import { getUtilityVertical, utilityViewPath, type UtilityVerticalConfig, type UtilityWorkspaceView } from "../../lib/utility-verticals";
+import { getUtilityVerticalByCanonical, utilityViewPath, type UtilityVerticalConfig, type UtilityWorkspaceView } from "../../lib/utility-verticals";
 import { EmptyState, LoadingSkeleton, MetricTile, OfflineState, PageHeader, Panel, StatusBadge, workspaceStyles as ws } from "../ui/Primitives";
 import styles from "./utility-assets.module.css";
 
@@ -16,6 +16,8 @@ type AssetResponse = {
     total_assets: number;
     electric_assets: number;
     telecom_assets: number;
+    water_assets: number;
+    wastewater_assets: number;
     assets_needing_review: number;
     provisional_relationships: number;
     active_plans: number;
@@ -49,8 +51,20 @@ type AssetTraceReadiness = {
   recent_traces: Array<Record<string, string>>;
   relationship_trace_usage: Record<string, { traces_used: number; traces_stopped: number }>;
 };
+type DomainSummary = {
+  registered_sources: number;
+  inspected_layers: number;
+  proposed_classifications: number;
+  water_asset_candidates: number;
+  wastewater_asset_candidates: number;
+  qa_runs: number;
+  trace_runs: number;
+  proposed_edits: number;
+  work_orders: number;
+  unresolved_exceptions: number;
+};
 
-const tabs = ["Overview", "Electric Distribution", "Telecom/Fiber", "Asset Explorer", "Relationships", "Canonicalization Plans", "Data Quality Preview"] as const;
+const tabs = ["Overview", "Electric Distribution", "Telecom/Fiber", "Water", "Wastewater", "Asset Explorer", "Relationships", "Canonicalization Plans", "Data Quality Preview"] as const;
 type WorkspaceTab = (typeof tabs)[number];
 
 export function UtilityAssetsWorkspace({
@@ -71,9 +85,7 @@ export function UtilityAssetsWorkspace({
   const [taxonomy, setTaxonomy] = useState<Taxonomy | null>(null);
   const [plans, setPlans] = useState<CanonicalizationPlan[]>([]);
   const [activeTab, setActiveTab] = useState<WorkspaceTab>(
-    initialVertical === "electric_distribution" ? "Electric Distribution"
-      : initialVertical === "telecom_fiber" ? "Telecom/Fiber"
-        : "Overview",
+    tabForVertical(initialVertical),
   );
   const [selectedAsset, setSelectedAsset] = useState<UtilityAsset | null>(null);
   const [relationships, setRelationships] = useState<AssetRelationship[]>([]);
@@ -81,6 +93,7 @@ export function UtilityAssetsWorkspace({
   const [assetFindings, setAssetFindings] = useState<ConnectivityFinding[]>([]);
   const [assetIssueGroups, setAssetIssueGroups] = useState<ConnectivityIssueGroup[]>([]);
   const [traceReadiness, setTraceReadiness] = useState<AssetTraceReadiness | null>(null);
+  const [domainSummary, setDomainSummary] = useState<DomainSummary | null>(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [filters, setFilters] = useState<AssetFiltersState>({
@@ -89,7 +102,8 @@ export function UtilityAssetsWorkspace({
   });
   const selectedAssetId = selectedAsset?.asset_id ?? "";
   const currentTab = vertical ? tabForView(view) : activeTab;
-  const verticalConfig = vertical ? getUtilityVertical(vertical === "electric_distribution" ? "electric" : "telecom") : undefined;
+  const baseConfig = vertical ? getUtilityVerticalByCanonical(vertical) : undefined;
+  const verticalConfig = baseConfig && vertical ? { ...baseConfig, canonicalValue: vertical } : undefined;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -105,9 +119,14 @@ export function UtilityAssetsWorkspace({
         const asset = assetData.items.find((item) => item.asset_id === detailAssetId);
         if (asset) setSelectedAsset(asset);
       }
+      if (vertical && ["water", "wastewater"].includes(vertical)) {
+        void provider.get<DomainSummary>("/api/utility-domains/water-wastewater/summary", controller.signal)
+          .then(setDomainSummary)
+          .catch(() => setDomainSummary(null));
+      }
     }).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Utility asset service unavailable."));
     return () => controller.abort();
-  }, [detailAssetId, provider]);
+  }, [detailAssetId, provider, vertical]);
 
   useEffect(() => {
     if (!selectedAssetId) return;
@@ -135,7 +154,7 @@ export function UtilityAssetsWorkspace({
 
   const filtered = useMemo(() => {
     if (!data) return [];
-    const selectedVertical = vertical || (currentTab === "Electric Distribution" ? "electric_distribution" : currentTab === "Telecom/Fiber" ? "telecom_fiber" : filters.vertical);
+    const selectedVertical = vertical || verticalForTab(currentTab) || filters.vertical;
     const needle = filters.search.toLowerCase();
     return data.items.filter((asset) =>
       (!selectedVertical || asset.utility_vertical === selectedVertical)
@@ -154,7 +173,7 @@ export function UtilityAssetsWorkspace({
     );
   }, [currentTab, data, filters, vertical]);
 
-  if (error && !data) return <div className={ws.workspace}><PageHeader eyebrow="Utility Assets" title="Canonical Utility Asset Model" subtitle="Shared electric and telecom asset foundation." /><OfflineState service="Canonical utility asset service" /></div>;
+  if (error && !data) return <div className={ws.workspace}><PageHeader eyebrow="Utility Assets" title="Canonical Utility Asset Model" subtitle="Shared multi-utility asset foundation." /><OfflineState service="Canonical utility asset service" /></div>;
   if (!data || !taxonomy) return <div className={ws.workspace}><LoadingSkeleton /><LoadingSkeleton /></div>;
   if (detailAssetId) return <AssetDetail asset={selectedAsset} relationships={relationships} lineage={lineage} findings={assetFindings} issueGroups={assetIssueGroups} traceReadiness={traceReadiness} backHref={verticalConfig ? utilityViewPath(verticalConfig, "assets") : routeBase} />;
 
@@ -184,7 +203,7 @@ export function UtilityAssetsWorkspace({
 
   return (
     <div className={ws.workspace}>
-      {!vertical ? <PageHeader eyebrow={isDemoMode ? "PORTFOLIO DEMO" : "Operational Asset Model"} title="Utility Assets" subtitle="A shared canonical asset foundation for electric distribution and telecom/fiber operations." /> : null}
+      {!vertical ? <PageHeader eyebrow={isDemoMode ? "PORTFOLIO DEMO" : "Operational Asset Model"} title="Utility Assets" subtitle="A shared canonical asset foundation with domain-specific electric, telecom, water, and wastewater profiles." /> : null}
       {isDemoMode && !vertical ? <div className={styles.demoNotice} role="status">All utility assets, relationships, and canonicalization results in this demo are synthetic and reset with the demo session.</div> : null}
       {!vertical ? <div className={styles.tabs} role="tablist" aria-label="Utility asset workspace">
         {tabs.map((tab) => <button key={tab} type="button" role="tab" aria-selected={activeTab === tab} onClick={() => setActiveTab(tab)}>{tab}</button>)}
@@ -192,9 +211,9 @@ export function UtilityAssetsWorkspace({
       {message ? <div className={styles.notice} role="status">{message}</div> : null}
 
       {currentTab === "Overview" && (!vertical || view === "overview") ? verticalConfig
-        ? <VerticalOverview config={verticalConfig} items={data.items.filter((item) => item.utility_vertical === vertical)} plans={plans.filter((plan) => plan.utility_vertical === vertical)} />
+        ? <VerticalOverview config={verticalConfig} items={data.items.filter((item) => item.utility_vertical === vertical)} plans={plans.filter((plan) => plan.utility_vertical === vertical)} domainSummary={domainSummary} />
         : <Overview data={data} /> : null}
-      {["Electric Distribution", "Telecom/Fiber", "Asset Explorer"].includes(currentTab) ? (
+      {["Electric Distribution", "Telecom/Fiber", "Water", "Wastewater", "Asset Explorer"].includes(currentTab) ? (
         <>
           <AssetFilters
             taxonomy={taxonomy}
@@ -202,7 +221,7 @@ export function UtilityAssetsWorkspace({
             setFilters={setFilters}
             vertical={vertical}
             verticalLocked={Boolean(vertical) || currentTab !== "Asset Explorer"}
-            items={vertical ? data.items.filter((item) => item.utility_vertical === vertical) : currentTab === "Electric Distribution" ? data.items.filter((item) => item.utility_vertical === "electric_distribution") : currentTab === "Telecom/Fiber" ? data.items.filter((item) => item.utility_vertical === "telecom_fiber") : data.items}
+            items={vertical || verticalForTab(currentTab) ? data.items.filter((item) => item.utility_vertical === (vertical || verticalForTab(currentTab))) : data.items}
           />
           <AssetTable items={filtered} routeBase={routeBase} />
         </>
@@ -229,7 +248,25 @@ function tabForView(view: UtilityWorkspaceView): WorkspaceTab {
   return "Overview";
 }
 
-function VerticalOverview({ config, items, plans }: { config: UtilityVerticalConfig; items: UtilityAsset[]; plans: CanonicalizationPlan[] }) {
+function tabForVertical(vertical: string): WorkspaceTab {
+  return ({
+    electric_distribution: "Electric Distribution",
+    telecom_fiber: "Telecom/Fiber",
+    water: "Water",
+    wastewater: "Wastewater",
+  } as Record<string, WorkspaceTab>)[vertical] ?? "Overview";
+}
+
+function verticalForTab(tab: WorkspaceTab): UtilityAsset["utility_vertical"] | "" {
+  return ({
+    "Electric Distribution": "electric_distribution",
+    "Telecom/Fiber": "telecom_fiber",
+    Water: "water",
+    Wastewater: "wastewater",
+  } as Partial<Record<WorkspaceTab, UtilityAsset["utility_vertical"]>>)[tab] ?? "";
+}
+
+function VerticalOverview({ config, items, plans, domainSummary }: { config: UtilityVerticalConfig; items: UtilityAsset[]; plans: CanonicalizationPlan[]; domainSummary: DomainSummary | null }) {
   const active = items.filter((item) => item.lifecycle_status === "active").length;
   const needsReview = items.filter((item) => item.review_status === "needs_review").length;
   const provisional = items.filter((item) => item.has_provisional_relationships).length;
@@ -247,6 +284,7 @@ function VerticalOverview({ config, items, plans }: { config: UtilityVerticalCon
   ];
   return (
     <>
+      {config.id === "water-wastewater" && domainSummary ? <WaterWastewaterSummary summary={domainSummary} /> : null}
       <section className={ws.grid12} aria-label={`${config.title} overview metrics`}>
         <div className={ws.span4}><MetricTile labelText="Canonical assets" value={String(items.length)} detail={`${config.shortTitle} assets in the current registry.`} /></div>
         <div className={ws.span4}><MetricTile labelText="Active assets" value={String(active)} detail="Lifecycle state is active." /></div>
@@ -268,6 +306,26 @@ function VerticalOverview({ config, items, plans }: { config: UtilityVerticalCon
   );
 }
 
+function WaterWastewaterSummary({ summary }: { summary: DomainSummary }) {
+  const metrics: Array<[string, number, string]> = [
+    ["Registered sources", summary.registered_sources, "Safe source-package count"],
+    ["Inspected layers", summary.inspected_layers, "Metadata reviewed"],
+    ["Classifications", summary.proposed_classifications, "Provisional candidates"],
+    ["Water candidates", summary.water_asset_candidates, "Canonical demo or local count"],
+    ["Wastewater candidates", summary.wastewater_asset_candidates, "Canonical demo or local count"],
+    ["QA runs", summary.qa_runs, "Immutable evaluations"],
+    ["Trace runs", summary.trace_runs, "Topology-only receipts"],
+    ["Proposed edits", summary.proposed_edits, "Non-production plans"],
+    ["Work orders", summary.work_orders, "Controlled job records"],
+    ["Open exceptions", summary.unresolved_exceptions, "Human review required"],
+  ];
+  return (
+    <section className={ws.grid12} aria-label="Water and wastewater domain summary">
+      {metrics.map(([name, value, detail]) => <div className={ws.span3} key={name}><MetricTile labelText={name} value={String(value)} detail={detail} /></div>)}
+    </section>
+  );
+}
+
 function Overview({ data }: { data: AssetResponse }) {
   const summary = data.summary;
   return (
@@ -276,6 +334,8 @@ function Overview({ data }: { data: AssetResponse }) {
         <div className={ws.span3}><MetricTile labelText="Canonical assets" value={String(summary.total_assets)} detail={`${label(summary.data_scope)} application registry`} /></div>
         <div className={ws.span3}><MetricTile labelText="Electric distribution" value={String(summary.electric_assets)} detail="Shared-core electric assets" /></div>
         <div className={ws.span3}><MetricTile labelText="Telecom/Fiber" value={String(summary.telecom_assets)} detail="Shared-core telecom assets" /></div>
+        <div className={ws.span3}><MetricTile labelText="Water" value={String(summary.water_assets)} detail="Synthetic demo water assets" /></div>
+        <div className={ws.span3}><MetricTile labelText="Wastewater" value={String(summary.wastewater_assets)} detail="Synthetic demo wastewater assets" /></div>
         <div className={ws.span3}><MetricTile labelText="Needs review" value={String(summary.assets_needing_review)} detail="Candidates, not confirmed defects" /></div>
       </div>
       <div className={ws.grid12}>
@@ -312,8 +372,8 @@ function AssetFilters({ taxonomy, filters, setFilters, vertical, verticalLocked,
         <label>QA status<select value={String(filters.qa)} onChange={(event) => setFilters({ ...filters, qa: event.target.value })}><option value="">All states</option>{taxonomy.qa_states.map((item) => <option key={item}>{item}</option>)}</select></label>
         <label>Review status<select value={String(filters.review)} onChange={(event) => setFilters({ ...filters, review: event.target.value })}><option value="">All states</option>{taxonomy.review_states.map((item) => <option key={item}>{item}</option>)}</select></label>
         <label>Owner status<select value={filters.owner} onChange={(event) => setFilters({ ...filters, owner: event.target.value })}><option value="">All states</option>{owners.map((item) => <option key={item}>{item}</option>)}</select></label>
-        {vertical !== "telecom_fiber" ? <label>Feeder or circuit<select value={filters.feederCircuit} onChange={(event) => setFilters({ ...filters, feederCircuit: event.target.value })}><option value="">All IDs</option>{feederCircuits.map((item) => <option key={item}>{item}</option>)}</select></label> : null}
-        {vertical !== "electric_distribution" ? <label>Telecom route<select value={filters.telecomRoute} onChange={(event) => setFilters({ ...filters, telecomRoute: event.target.value })}><option value="">All routes</option>{routes.map((item) => <option key={item}>{item}</option>)}</select></label> : null}
+        {!vertical || vertical === "electric_distribution" ? <label>Feeder or circuit<select value={filters.feederCircuit} onChange={(event) => setFilters({ ...filters, feederCircuit: event.target.value })}><option value="">All IDs</option>{feederCircuits.map((item) => <option key={item}>{item}</option>)}</select></label> : null}
+        {!vertical || vertical === "telecom_fiber" ? <label>Telecom route<select value={filters.telecomRoute} onChange={(event) => setFilters({ ...filters, telecomRoute: event.target.value })}><option value="">All routes</option>{routes.map((item) => <option key={item}>{item}</option>)}</select></label> : null}
         <label>Source layer<select value={filters.sourceLayer} onChange={(event) => setFilters({ ...filters, sourceLayer: event.target.value })}><option value="">All layers</option>{sourceLayers.map((item) => <option key={item}>{label(item)}</option>)}</select></label>
         <label>Search<input value={String(filters.search)} onChange={(event) => setFilters({ ...filters, search: event.target.value })} placeholder="ID, name, or class" /></label>
         <label className={styles.check}><input type="checkbox" checked={Boolean(filters.provisional)} onChange={(event) => setFilters({ ...filters, provisional: event.target.checked })} />Provisional relationships</label>
@@ -327,12 +387,17 @@ function AssetTable({ items, routeBase = "/utility-assets", title = "Canonical a
   return (
     <Panel title={title} description={description}>
       <div className={ws.tableWrap}><table className={ws.table}><thead><tr><th>Asset</th><th>Vertical</th><th>Class</th><th>Lifecycle</th><th>Operational</th><th>QA</th><th>Review</th><th>Source</th><th>Relations</th></tr></thead>
-        <tbody>{items.map((asset) => <tr key={asset.asset_id}>
-          <td><Link href={`${routeBase}${routeBase === "/utility-assets" ? "/detail" : "/assets"}?asset_id=${encodeURIComponent(asset.asset_id)}`}>{asset.canonical_name}</Link><small className={styles.assetId}>{asset.asset_id}</small></td>
+        <tbody>{items.map((asset) => {
+          const path = `${routeBase}${routeBase === "/utility-assets" ? "/detail" : "/assets"}`;
+          const query = new URLSearchParams({ asset_id: asset.asset_id });
+          if (asset.utility_vertical === "wastewater") query.set("system", "wastewater");
+          return <tr key={asset.asset_id}>
+          <td><Link href={`${path}?${query}`}>{asset.canonical_name}</Link><small className={styles.assetId}>{asset.asset_id}</small></td>
           <td>{label(asset.utility_vertical)}</td><td>{label(asset.asset_class)}</td><td><StatusBadge value={asset.lifecycle_status} /></td>
           <td>{label(asset.operational_status)}</td><td><StatusBadge value={asset.qa_status} tone={asset.qa_status === "passed" ? "success" : "warning"} /></td>
           <td>{label(asset.review_status)}</td><td>{label(asset.source_system)}</td><td>{asset.relationship_count}{asset.has_provisional_relationships ? " provisional" : ""}</td>
-        </tr>)}</tbody></table></div>
+        </tr>;
+        })}</tbody></table></div>
     </Panel>
   );
 }
@@ -405,7 +470,8 @@ function AssetDetail({ asset, relationships, lineage, findings, issueGroups, tra
   if (!asset) return <div className={ws.workspace}><LoadingSkeleton /></div>;
   const source = (lineage?.source ?? {}) as Record<string, unknown>;
   const history = (lineage?.history ?? []) as Array<Record<string, unknown>>;
-  const verticalConfig = getUtilityVertical(asset.utility_vertical === "electric_distribution" ? "electric" : "telecom")!;
+  const baseConfig = getUtilityVerticalByCanonical(asset.utility_vertical)!;
+  const verticalConfig = { ...baseConfig, canonicalValue: asset.utility_vertical };
   const severityRank: Record<string, number> = { critical: 4, error: 3, warning: 2, info: 1 };
   const highestSeverity = findings.reduce((highest, finding) => severityRank[finding.severity] > severityRank[highest] ? finding.severity : highest, "none");
   const blocking = findings.filter((finding) => finding.blocking).length;
@@ -414,7 +480,7 @@ function AssetDetail({ asset, relationships, lineage, findings, issueGroups, tra
   return (
     <div className={ws.workspace}>
       <PageHeader eyebrow={isDemoMode ? "PORTFOLIO DEMO ASSET" : "Canonical Asset"} title={asset.canonical_name} subtitle={`${label(asset.utility_vertical)} / ${label(asset.asset_class)} / ${label(asset.asset_subtype)}`} />
-      <Link href={backHref} className={styles.backLink}>Back to {asset.utility_vertical === "electric_distribution" ? "Electric Assets" : "Telecom Assets"}</Link>
+      <Link href={backHref} className={styles.backLink}>Back to {verticalConfig.shortTitle} Assets</Link>
       {isDemoMode ? <div className={styles.demoNotice}>All utility assets, relationships, QA findings, trace evidence, and calibrated trace results in this demo are synthetic and reset with the demo session.</div> : null}
       <div className={ws.grid12}>
         <div className={ws.span6}><KeyValues title="Identity" values={{ "Asset ID": asset.asset_id, "Canonical name": asset.canonical_name, "Vertical": label(asset.utility_vertical), "Class": label(asset.asset_class), "Subtype": label(asset.asset_subtype), "Lifecycle": label(asset.lifecycle_status), "Operational": label(asset.operational_status) }} /></div>
@@ -429,8 +495,8 @@ function AssetDetail({ asset, relationships, lineage, findings, issueGroups, tra
       </Panel>
       <Panel title="Network Trace" description="Read-only analytical traversal readiness; no device state, relationship, or source evidence is changed.">
         <div className={styles.contextActions}>
-          <Link className={ws.button} href={`${utilityViewPath(verticalConfig, "network-trace")}?start_asset_id=${encodeURIComponent(asset.asset_id)}`}>Start trace from this asset</Link>
-          <Link className={ws.button} href={`${utilityViewPath(verticalConfig, "proposed-edits")}?source_asset_id=${encodeURIComponent(asset.asset_id)}`}>Create proposed edit</Link>
+          <Link className={ws.button} href={utilityViewPath(verticalConfig, "network-trace", { start_asset_id: asset.asset_id })}>Start trace from this asset</Link>
+          <Link className={ws.button} href={utilityViewPath(verticalConfig, "proposed-edits", { source_asset_id: asset.asset_id })}>Create proposed edit</Link>
           <span><strong>Eligible trace types</strong> {traceReadiness?.eligible_trace_types.map((item) => item.name).join(", ") || "None"}</span>
           <span><strong>Trace eligibility</strong> {traceReadiness?.trace_ready ? "Eligible" : "Not eligible"}</span>
           <span><strong>Historical trace count</strong> {traceReadiness?.trace_count ?? 0}</span>

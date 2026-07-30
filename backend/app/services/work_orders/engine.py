@@ -59,6 +59,16 @@ VERTICAL_TYPES = {
         "conduit_installation_or_association", "aerial_support_update", "terminal_connection",
         "cable_replacement", "telecom_asset_retirement", "proposed_construction_completion",
     ),
+    "water": (
+        "hydrant_and_valve_installation", "water_main_replacement", "water_main_abandonment",
+        "service_and_meter_installation", "valve_isolation_repair",
+        "water_main_relocation",
+    ),
+    "wastewater": (
+        "gravity_main_replacement", "manhole_installation", "lateral_repair",
+        "lift_station_and_force_main_installation", "invert_elevation_correction",
+        "legacy_sewer_abandonment", "emergency_blockage_repair",
+    ),
 }
 ROLES = (
     "requester", "planner", "designer", "utility_gis_technician", "field_technician",
@@ -80,6 +90,10 @@ INSPECTION_TYPES = (
     "structure_support_verification", "cable_endpoint_verification", "splice_verification",
     "strand_assignment_verification", "capacity_verification",
     "construction_status_verification", "retirement_verification", "replacement_verification",
+    "diameter_verification", "material_verification", "pressure_zone_verification",
+    "valve_state_verification", "hydrant_verification", "meter_verification",
+    "invert_verification", "rim_elevation_verification", "slope_verification",
+    "flow_direction_verification", "basin_verification",
 )
 EVIDENCE_TYPES = (
     "field_note", "inspection_note", "checklist_result", "identifier_confirmation",
@@ -133,6 +147,9 @@ SCENARIOS: dict[str, tuple[dict[str, Any], ...]] = {
         {"code": "T-WO-006", "proposal": "T-EDIT-008", "type": "cable_replacement", "title": "Review retired cable replacement", "blocked": True},
         {"code": "T-WO-007", "type": "manual_investigation", "title": "Incomplete telecom investigation", "invalid": True},
     ),
+    # Demo-only water scenarios live in the sessionStorage provider; local startup must not seed the real registry.
+    "water": (),
+    "wastewater": (),
 }
 
 
@@ -345,6 +362,12 @@ def default_inspections(
         ("splice", "splice_verification"), ("strand", "strand_assignment_verification"),
         ("capacity", "capacity_verification"), ("endpoint", "cable_endpoint_verification"),
         ("retire", "retirement_verification"), ("replace", "replacement_verification"),
+        ("diameter", "diameter_verification"), ("material", "material_verification"),
+        ("pressure_zone", "pressure_zone_verification"), ("valve", "valve_state_verification"),
+        ("hydrant", "hydrant_verification"), ("meter", "meter_verification"),
+        ("invert", "invert_verification"), ("rim", "rim_elevation_verification"),
+        ("slope", "slope_verification"), ("flow_direction", "flow_direction_verification"),
+        ("basin", "basin_verification"),
     ):
         if token in serialized:
             selected.add(inspection)

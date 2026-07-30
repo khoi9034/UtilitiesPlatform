@@ -91,6 +91,11 @@
   --utility-accent-strong: var(--telecom-accent-strong);
 }
 
+.water-wastewater {
+  --utility-accent: var(--water-wastewater-accent);
+  --utility-accent-strong: var(--water-wastewater-accent-strong);
+}
+
 .cardIcon,
 .workspaceIcon {
   width: 56px;
@@ -177,6 +182,10 @@
   --utility-accent: var(--telecom-accent);
 }
 
+.workspace.water-wastewater {
+  --utility-accent: var(--water-wastewater-accent);
+}
+
 .workspaceHeader {
   display: flex;
   gap: 20px;
@@ -260,6 +269,36 @@
   display: none;
 }
 
+.domainTabs {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.domainTabs a {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xs);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.domainTabs a[aria-current="page"] {
+  border-color: var(--utility-accent);
+  background: color-mix(in srgb, var(--utility-accent) 12%, var(--color-surface-2));
+  color: var(--color-text-primary);
+}
+
+.domainTabs span {
+  margin-left: auto;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
 .workspaceNav a {
   border-radius: 0;
 }
@@ -319,6 +358,15 @@
   .workspaceNav {
     flex-wrap: nowrap;
     overflow-x: auto;
+  }
+
+  .domainTabs {
+    flex-wrap: wrap;
+  }
+
+  .domainTabs span {
+    width: 100%;
+    margin-left: 0;
   }
 }
 

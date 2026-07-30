@@ -18,7 +18,7 @@ The engine does not switch equipment, allocate fiber, infer customer outages, re
 
 ## Shared Architecture
 
-One engine serves Electric Distribution and Telecom/Fiber:
+One engine serves Electric Distribution, Telecom/Fiber, Water, and Wastewater:
 
 1. Validate an allowlisted request.
 2. Read canonical assets and explicit relationships.
@@ -88,6 +88,12 @@ Telecom/Fiber V1 includes:
 - `TEL-TRACE-008`: proposed construction continuity
 
 Operational classes include network hubs, cabinets, routes, cables, represented structures, splice closures, splitters, terminals, and proposed segments when requested. Poles and conduit remain support or containment context. Retired cables are excluded in active-only mode. Proposed segments require `include_proposed`. Missing cable endpoints stop the affected represented direction. Capacity and strand values are reported and checked; the engine never reserves capacity, allocates strands, or predicts subscriber impact.
+
+## Water And Wastewater Profiles
+
+Water includes six profiles for connected-main assets, source paths, service and hydrant reachability, valve isolation, affected services, and disconnected assets. Wastewater includes seven profiles for downstream gravity, upstream contribution, lift-station paths, force-main paths, treatment or outfall paths, blockage impact, and disconnected structures.
+
+Both profiles honor explicit relationships, lifecycle state, represented device state, missing evidence, and bounded traversal. **This is a topology/connectivity trace and not a hydraulic simulation.** See `water-wastewater-domain-v1.md`.
 
 ## QA And Calibration
 

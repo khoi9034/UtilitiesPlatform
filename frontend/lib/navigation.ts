@@ -14,7 +14,7 @@ export type NavigationItem = {
 };
 
 export const navigationItems: NavigationItem[] = [
-  { label: "Utilities", href: "/utilities", icon: "utilityNetwork", group: "OPERATE", status: "Active", description: "Choose an electric or telecom workspace." },
+  { label: "Utilities", href: "/utilities", icon: "utilityNetwork", group: "OPERATE", status: "Active", description: "Choose an electric, telecom, water, or wastewater workspace." },
   { label: "Command Center", href: "/command-center", icon: "dashboard", group: "OPERATE", status: "Active", description: "Aggregate operating picture." },
   { label: "Asset Inventory", href: "/asset-inventory", icon: "layers", group: "OPERATE", status: "Foundation ready", description: "Safe utility asset inventory." },
   { label: "Data Health", href: "/data-health", icon: "checkShield", group: "OPERATE", status: "Active", description: "QA review and calibration." },

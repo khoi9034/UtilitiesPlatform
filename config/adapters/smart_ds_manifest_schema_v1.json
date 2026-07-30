@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "UtilitiesPlatform SMART-DS dry-run import manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["source_type", "source_role", "domain", "datasets"],
+  "properties": {
+    "source_type": { "const": "nrel_smart_ds" },
+    "source_role": { "const": "operational_inventory" },
+    "domain": { "const": "electric_distribution" },
+    "datasets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_asset_type", "record_count"],
+        "properties": {
+          "source_asset_type": {
+            "enum": [
+              "medium_voltage_line", "low_voltage_line", "load", "transformer",
+              "capacitor", "regulator", "fuse", "recloser", "switch",
+              "substation", "source"
+            ]
+          },
+          "record_count": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "field_mappings": { "type": "object" },
+    "relationship_mappings": { "type": "array" },
+    "metadata": { "type": "object" }
+  }
+}

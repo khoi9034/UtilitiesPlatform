@@ -100,6 +100,7 @@ export function WorkOrderWorkspace({ config }: { config: UtilityVerticalConfig }
         <span><strong>Synthetic job package.</strong> No operational utility GIS, field system, work-management system, ArcFM, Smallworld, Esri Utility Network, or telecom inventory system is connected.</span>
       </div>
       {config.id === "electric" ? <div className={styles.operationalWarning}>Device-state review is data verification, not a switching instruction or outage response.</div> : null}
+      {["water", "wastewater"].includes(config.canonicalValue) ? <div className={styles.operationalWarning}>Work packages are synthetic review records. They do not operate valves or pumps, perform field work, or change a hydraulic model.</div> : null}
       {message ? <div className={styles.message} role="status">{message}</div> : null}
       {error ? <div className={styles.error} role="alert">{error}</div> : null}
       <section className={styles.metrics} aria-label="Work-order metrics">
@@ -291,7 +292,7 @@ function Inspections({ item, busy, provider, onChanged, onError }: RecordEditorP
       onChanged();
     } catch (reason) { onError(reason instanceof Error ? reason.message : "Inspection update failed safely."); }
   };
-  return <Panel title={`${item.utility_vertical === "electric_distribution" ? "Electric" : "Telecom"} inspection requirements`} description="V1 stores safe synthetic evidence metadata; no real field photos or EXIF locations are accepted.">
+  return <Panel title={`${label(item.utility_vertical)} inspection requirements`} description="V1 stores safe synthetic evidence metadata; no real field photos or EXIF locations are accepted.">
     <ul className={styles.findings}>{item.inspections.map((inspection) => <li key={String(inspection.inspection_id)}><strong>{String(inspection.title)}</strong><span>{String(inspection.expected_condition)}</span><StatusBadge value={String(inspection.result)} />
       {inspection.result === "not_recorded" ? <div className={styles.reviewActions}><button className={ws.button} disabled={busy} onClick={() => record(inspection, "pass")}>Record pass</button><button disabled={busy} onClick={() => record(inspection, "unable_to_verify")}>Unable to verify</button></div> : null}
     </li>)}</ul>

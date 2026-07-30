@@ -24,6 +24,11 @@ RELATIONSHIP_CATEGORIES = {
     "reference_for": "reference_context",
     "replaces": "historical_context",
     "retires": "historical_context",
+    "belongs_to_pressure_zone": "membership_context",
+    "belongs_to_water_system": "membership_context",
+    "belongs_to_basin": "membership_context",
+    "flows_to": "operational_flow",
+    "draws_from": "operational_flow",
 }
 
 ELECTRIC_FLOW_CLASSES = {
@@ -35,6 +40,22 @@ TELECOM_FLOW_CLASSES = {
     "central_office", "network_hub", "fiber_cabinet", "fiber_route", "fiber_cable",
     "handhole", "manhole", "splice_closure", "splitter", "terminal",
     "proposed_construction_segment",
+}
+WATER_FLOW_CLASSES = {
+    "water_main", "transmission_main", "distribution_main", "service_line",
+    "hydrant_lateral", "raw_water_main", "reclaimed_water_main", "valve",
+    "isolation_valve", "control_valve", "pressure_reducing_valve",
+    "air_release_valve", "blowoff", "hydrant", "meter", "meter_vault",
+    "fitting", "tee", "elbow", "reducer", "coupling", "pump",
+    "pump_station", "storage_tank", "elevated_tank", "reservoir",
+    "treatment_facility", "well", "backflow_device", "vault", "structure",
+}
+WASTEWATER_FLOW_CLASSES = {
+    "gravity_main", "force_main", "pressure_sewer", "service_lateral",
+    "interceptor", "trunk_sewer", "outfall_pipe", "manhole", "cleanout",
+    "fitting", "junction", "lift_station", "pump", "wet_well",
+    "treatment_facility", "outfall", "discharge_point", "valve",
+    "air_release_valve", "vault", "structure",
 }
 
 
@@ -58,6 +79,8 @@ def _trace(
         "trace_profile_version": TRACE_PROFILE_VERSION,
         "trace_rule_version": TRACE_RULE_VERSION,
         "read_only": True,
+        "hydraulic_simulation": False,
+        "disclaimer": "This is a topology/connectivity trace and not a hydraulic simulation."
     }
 
 
@@ -115,6 +138,51 @@ TELECOM_TRACES = (
            "Evaluate represented proposed continuity separately from active service paths."),
 )
 
+WATER_TRACES = (
+    _trace("WATER-TRACE-001", "Connected assets from main", "water",
+           {"water_main", "transmission_main", "distribution_main"}, set(), "bidirectional",
+           "Traverse explicit represented water-network relationships from a selected main."),
+    _trace("WATER-TRACE-002", "Upstream source or facility path", "water",
+           WATER_FLOW_CLASSES, {"treatment_facility", "well", "reservoir", "storage_tank", "elevated_tank"}, "toward_source",
+           "Find represented upstream source or facility candidates without hydraulic inference."),
+    _trace("WATER-TRACE-003", "Service and hydrant reachability", "water",
+           {"water_main", "transmission_main", "distribution_main", "valve", "isolation_valve"}, {"service_line", "meter", "hydrant"}, "downstream",
+           "Identify represented downstream services and hydrants."),
+    _trace("WATER-TRACE-004", "Valve-isolation impact", "water",
+           {"valve", "isolation_valve", "control_valve"}, {"service_line", "meter", "hydrant"}, "downstream",
+           "Treat the selected valve as an analytical isolation boundary and report represented downstream assets."),
+    _trace("WATER-TRACE-005", "Affected services after valve closure", "water",
+           {"valve", "isolation_valve", "control_valve"}, {"service_line", "meter"}, "downstream",
+           "Report represented service reachability after a simulated valve closure; no valve is operated."),
+    _trace("WATER-TRACE-006", "Disconnected water assets", "water",
+           WATER_FLOW_CLASSES, set(), "bidirectional",
+           "Inspect represented connectivity boundaries and missing relationships."),
+)
+
+WASTEWATER_TRACES = (
+    _trace("WW-TRACE-001", "Downstream gravity path", "wastewater",
+           {"gravity_main", "manhole", "cleanout", "junction"}, {"lift_station", "treatment_facility", "outfall", "discharge_point"}, "downstream",
+           "Follow explicit directional relationships; digitized geometry does not establish authoritative flow."),
+    _trace("WW-TRACE-002", "Upstream contributing assets", "wastewater",
+           {"gravity_main", "manhole", "lift_station"}, {"service_lateral", "manhole"}, "upstream",
+           "Find represented upstream contributors from explicit relationship direction."),
+    _trace("WW-TRACE-003", "Path to lift station", "wastewater",
+           {"gravity_main", "manhole", "service_lateral"}, {"lift_station", "wet_well"}, "downstream",
+           "Find a represented downstream path to a lift station or wet well."),
+    _trace("WW-TRACE-004", "Force-main path", "wastewater",
+           {"lift_station", "pump", "force_main", "pressure_sewer"}, {"treatment_facility", "outfall", "discharge_point"}, "downstream",
+           "Traverse explicit pressure-network relationships from represented lift equipment."),
+    _trace("WW-TRACE-005", "Path to treatment or outfall", "wastewater",
+           WASTEWATER_FLOW_CLASSES, {"treatment_facility", "outfall", "discharge_point"}, "downstream",
+           "Find represented downstream treatment or discharge endpoints."),
+    _trace("WW-TRACE-006", "Affected upstream assets after blockage", "wastewater",
+           {"gravity_main", "manhole", "junction"}, {"service_lateral", "manhole"}, "upstream",
+           "Treat the selected asset as an analytical blockage boundary and report represented upstream assets."),
+    _trace("WW-TRACE-007", "Disconnected wastewater structures", "wastewater",
+           WASTEWATER_FLOW_CLASSES, set(), "bidirectional",
+           "Inspect represented connectivity boundaries and missing relationships."),
+)
+
 TRACE_PROFILES = {
     "electric_distribution": {
         "profile_name": "electric_distribution_trace_v1",
@@ -125,6 +193,16 @@ TRACE_PROFILES = {
         "profile_name": "telecom_fiber_trace_v1",
         "flow_classes": TELECOM_FLOW_CLASSES,
         "traces": TELECOM_TRACES,
+    },
+    "water": {
+        "profile_name": "water_trace_v1",
+        "flow_classes": WATER_FLOW_CLASSES,
+        "traces": WATER_TRACES,
+    },
+    "wastewater": {
+        "profile_name": "wastewater_trace_v1",
+        "flow_classes": WASTEWATER_FLOW_CLASSES,
+        "traces": WASTEWATER_TRACES,
     },
 }
 

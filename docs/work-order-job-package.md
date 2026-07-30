@@ -4,7 +4,7 @@ UtilitiesPlatform Work Order and Job Package V1 converts approved vendor-neutral
 
 ## Shared Model
 
-Electric Distribution and Telecom/Fiber use one work-order model with vertical-specific work types and inspections. A work order stores independent overall, design, field-work, GIS-implementation, inspection, QA, trace, review, and closeout states. This prevents field completion from being mistaken for GIS recording, validation, or approved closeout.
+Electric Distribution, Telecom/Fiber, Water, and Wastewater use one work-order model with vertical-specific work types and inspections. A work order stores independent overall, design, field-work, GIS-implementation, inspection, QA, trace, review, and closeout states. This prevents field completion from being mistaken for GIS recording, validation, or approved closeout.
 
 The external application registry persists versioned work orders, role assignments, phases, ordered job steps, prerequisites, inspections, metadata-only evidence, implementation records, conformance runs, post-work QA, post-work traces, immutable history, safe packages, and completion receipts.
 
@@ -55,6 +55,8 @@ Job packages are structured JSON with `executable: false`. They contain proposal
 
 - `/utilities/electric/work-orders`
 - `/utilities/telecom/work-orders`
+- `/utilities/water-wastewater/work-orders?system=water`
+- `/utilities/water-wastewater/work-orders?system=wastewater`
 - `/api/work-orders/types`
 - `/api/work-orders/{utility_vertical}`
 

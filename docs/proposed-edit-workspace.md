@@ -4,7 +4,7 @@ UtilitiesPlatform Proposed Edit Workspace V1 creates isolated vendor-neutral cha
 
 ## Scope
 
-The shared proposal engine supports Electric Distribution and Telecom/Fiber. It stores proposal metadata and operations once, then applies vertical-specific field, lifecycle, operational-state, relationship, phase, voltage, strand, capacity, and containment validation.
+The shared proposal engine supports Electric Distribution, Telecom/Fiber, Water, and Wastewater. It stores proposal metadata and operations once, then applies vertical-specific field, lifecycle, operational-state, relationship, electrical, telecom-capacity, water-system, wastewater-flow, and containment validation.
 
 The workspace does not edit canonical, source, staged, QA, or trace records; edit geometry; create GIS feature classes; execute switching or provisioning; publish a service; invoke a vendor SDK; or create an executable implementation payload.
 
@@ -68,6 +68,8 @@ Frontend routes:
 
 - `/utilities/electric/proposed-edits`
 - `/utilities/telecom/proposed-edits`
+- `/utilities/water-wastewater/proposed-edits?system=water`
+- `/utilities/water-wastewater/proposed-edits?system=wastewater`
 
 Catalog and workflow APIs begin at `/api/proposed-edits`. Local mode uses FastAPI and the external application registry. Demo mode uses synthetic `sessionStorage` state and makes no backend request.
 

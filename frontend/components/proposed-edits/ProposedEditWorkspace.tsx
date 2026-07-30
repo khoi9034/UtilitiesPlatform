@@ -6,7 +6,7 @@ import { getDataProvider, isDemoMode } from "../../lib/data-provider/provider";
 import { label } from "../../lib/formatters";
 import type { ProposedEdit, ProposedOperation } from "../../lib/proposed-edits";
 import type { UtilityAsset } from "../../lib/utility-assets";
-import type { UtilityVerticalConfig } from "../../lib/utility-verticals";
+import { getUtilityVerticalByCanonical, utilityViewPath, type UtilityVerticalConfig } from "../../lib/utility-verticals";
 import { EmptyState, LoadingSkeleton, MetricTile, OfflineState, PageHeader, Panel, StatusBadge, workspaceStyles as ws } from "../ui/Primitives";
 import styles from "./proposed-edits.module.css";
 
@@ -94,6 +94,7 @@ export function ProposedEditWorkspace({ config }: { config: UtilityVerticalConfi
         <span><strong>Proposal workspace only.</strong> Canonical assets, source records, staged geometry, operational states, and vendor systems remain unchanged.</span>
       </div>
       {config.id === "electric" ? <div className={styles.operationalWarning}>This is a proposed data change, not a switching instruction.</div> : null}
+      {["water", "wastewater"].includes(config.canonicalValue) ? <div className={styles.operationalWarning}>This proposal changes review evidence only. It does not operate equipment, edit source geometry, or run a hydraulic simulation.</div> : null}
       {message ? <div className={styles.message} role="status">{message}</div> : null}
       {error ? <div className={styles.error} role="alert">{error}</div> : null}
       <section className={styles.metrics} aria-label="Proposal metrics">
@@ -315,7 +316,11 @@ function ApprovalView({ proposal, busy, run }: { proposal: ProposedEdit; busy: b
         {ready ? <button className={ws.button} disabled={busy} onClick={() => run("approve", { reviewer: "Synthetic Reviewer", reviewer_role: "final_approver", notes: "Reviewed synthetic plan and accepted proposal-only limitations.", acknowledge_new_blockers: false })}><calcite-icon icon="checkCircle" scale="s" aria-hidden="true" /> Approve Change Plan</button> : null}
         {proposal.approval_status === "approved" ? <>
           <strong className={styles.approved}>Approved plan - not implemented in any operational utility system.</strong>
-          <Link className={ws.button} href={`/utilities/${proposal.utility_vertical === "electric_distribution" ? "electric" : "telecom"}/work-orders?proposal_id=${encodeURIComponent(proposal.proposal_id)}`}>Create Work Order</Link>
+          <Link className={ws.button} href={utilityViewPath(
+            { ...getUtilityVerticalByCanonical(proposal.utility_vertical)!, canonicalValue: proposal.utility_vertical },
+            "work-orders",
+            { proposal_id: proposal.proposal_id },
+          )}>Create Work Order</Link>
         </> : null}
       </div>
     </Panel>

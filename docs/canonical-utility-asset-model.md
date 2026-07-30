@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Canonical Utility Asset Model V1 provides one vendor-neutral asset foundation for electric distribution and telecom/fiber. It models concepts used by enterprise utility GIS without copying ArcFM, GE Smallworld, or telecom inventory interfaces and without requiring their licenses.
+Canonical Utility Asset Model V1 provides one vendor-neutral asset foundation for electric distribution, telecom/fiber, water, and wastewater. It models concepts used by enterprise utility GIS without copying proprietary interfaces or requiring their licenses.
 
 This phase does not implement network tracing, source edits, staged edits, publishing, or proprietary adapters.
 
@@ -19,7 +19,7 @@ Source attributes, canonical attributes, geometry summaries, and evidence remain
 
 Canonicalization never overwrites source evidence.
 
-Electric and telecom use the same `canonical_utility_assets`, `utility_asset_relationships`, plan, mapping, and immutable-history tables. Their extension attributes live in `canonical_attributes_json` under allowlisted profiles. The safe schema profile is `config/schemas/canonical_utility_asset_v1.json`.
+All four verticals use the same `canonical_utility_assets`, `utility_asset_relationships`, plan, mapping, and immutable-history tables. Vertical extension attributes live in `canonical_attributes_json` under allowlisted profiles. The safe schema profile is `config/schemas/canonical_utility_asset_v1.json`.
 
 ## Relationships
 
@@ -71,6 +71,8 @@ No subscriber, customer, address, account, or service-order data are present.
 ## Demo Boundary
 
 Static demo assets are generated from committed deterministic synthetic definitions. Plan approval and asset-creation simulations use `sessionStorage` only and reset with the demo session. Demo mode makes no backend requests.
+
+Water and Wastewater demo assets use the same core and explicit relationship model. They are not seeded into the local application registry, so enabling the domain does not change existing real or synthetic registry records. See `water-wastewater-domain-v1.md`.
 
 ## Future Adapters
 

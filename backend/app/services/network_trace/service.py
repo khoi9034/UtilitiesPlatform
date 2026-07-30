@@ -24,7 +24,8 @@ from .profiles import TRACE_PROFILE_VERSION, TRACE_PROFILES, TRACE_RULE_VERSION,
 DISCLAIMER = (
     "UtilitiesPlatform Network Trace V1 performs read-only analytical traversal of the platform's "
     "vendor-neutral canonical asset and relationship model. It is not an operational ArcFM, "
-    "Smallworld, Esri Utility Network, outage-management, engineering, or telecom-provisioning trace."
+    "Smallworld, Esri Utility Network, outage-management, engineering, or telecom-provisioning trace. "
+    "This is a topology/connectivity trace and not a hydraulic simulation."
 )
 
 

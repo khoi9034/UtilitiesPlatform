@@ -17,6 +17,7 @@ from .rules import (
     build_graph,
     evaluate_rule,
     graph_fingerprint,
+    rule_availability,
     rule_profile,
 )
 
@@ -192,42 +193,47 @@ class ConnectivityQaService:
             rules_executed = rules_skipped = error_count = finding_count = blocking_count = 0
             for definition in rule_profile(vertical):
                 rule_started = intake_registry_service.utc_now()
-                try:
-                    findings = evaluate_rule(definition, graph)
-                    status = "failed" if findings and definition["blocking"] else "warning" if findings else "passed"
-                    for finding in findings:
-                        review = connection.execute(
-                            """SELECT review_status, review_comment, reviewed_by, reviewed_at
-                            FROM connectivity_qa_findings WHERE finding_fingerprint = ?
-                            ORDER BY created_at DESC LIMIT 1""", (finding["finding_fingerprint"],),
-                        ).fetchone()
-                        finding_now = intake_registry_service.utc_now()
-                        review_values = dict(review) if review else {"review_status": "open", "review_comment": "", "reviewed_by": "", "reviewed_at": ""}
-                        connection.execute(
-                            """INSERT INTO connectivity_qa_findings
-                            (qa_run_id, finding_id, finding_fingerprint, utility_vertical, rule_code, rule_version,
-                             severity, blocking, asset_id, related_asset_id, relationship_id, asset_class,
-                             short_title, explanation, recommended_action, evidence_json, review_status,
-                             review_comment, reviewed_by, reviewed_at, created_at, updated_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                            (
-                                qa_run_id, finding["finding_id"], finding["finding_fingerprint"], vertical,
-                                definition["rule_code"], RULE_VERSION, definition["severity"], int(definition["blocking"]),
-                                finding["asset_id"], finding["related_asset_id"], finding["relationship_id"],
-                                finding["asset_class"], finding["short_title"], finding["explanation"],
-                                finding["recommended_action"], _dump(finding["evidence_json"]),
-                                review_values["review_status"], review_values["review_comment"],
-                                review_values["reviewed_by"], review_values["reviewed_at"], finding_now, finding_now,
-                            ),
-                        )
-                    rules_executed += 1
-                    finding_count += len(findings)
-                    blocking_count += len(findings) if definition["blocking"] else 0
-                    error_message = ""
-                except Exception as exc:  # A bad rule must not erase other rule results.
-                    status, findings, error_message = "blocked", [], f"{type(exc).__name__}: rule execution failed safely"
+                available, unavailable_reason = rule_availability(definition, graph)
+                if not available:
+                    status, findings, error_message = "skipped", [], unavailable_reason
                     rules_skipped += 1
-                    error_count += 1
+                else:
+                    try:
+                        findings = evaluate_rule(definition, graph)
+                        status = "failed" if findings and definition["blocking"] else "warning" if findings else "passed"
+                        for finding in findings:
+                            review = connection.execute(
+                                """SELECT review_status, review_comment, reviewed_by, reviewed_at
+                                FROM connectivity_qa_findings WHERE finding_fingerprint = ?
+                                ORDER BY created_at DESC LIMIT 1""", (finding["finding_fingerprint"],),
+                            ).fetchone()
+                            finding_now = intake_registry_service.utc_now()
+                            review_values = dict(review) if review else {"review_status": "open", "review_comment": "", "reviewed_by": "", "reviewed_at": ""}
+                            connection.execute(
+                                """INSERT INTO connectivity_qa_findings
+                                (qa_run_id, finding_id, finding_fingerprint, utility_vertical, rule_code, rule_version,
+                                 severity, blocking, asset_id, related_asset_id, relationship_id, asset_class,
+                                 short_title, explanation, recommended_action, evidence_json, review_status,
+                                 review_comment, reviewed_by, reviewed_at, created_at, updated_at)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                (
+                                    qa_run_id, finding["finding_id"], finding["finding_fingerprint"], vertical,
+                                    definition["rule_code"], RULE_VERSION, definition["severity"], int(definition["blocking"]),
+                                    finding["asset_id"], finding["related_asset_id"], finding["relationship_id"],
+                                    finding["asset_class"], finding["short_title"], finding["explanation"],
+                                    finding["recommended_action"], _dump(finding["evidence_json"]),
+                                    review_values["review_status"], review_values["review_comment"],
+                                    review_values["reviewed_by"], review_values["reviewed_at"], finding_now, finding_now,
+                                ),
+                            )
+                        rules_executed += 1
+                        finding_count += len(findings)
+                        blocking_count += len(findings) if definition["blocking"] else 0
+                        error_message = ""
+                    except Exception as exc:  # A bad rule must not erase other rule results.
+                        status, findings, error_message = "blocked", [], f"{type(exc).__name__}: rule execution failed safely"
+                        rules_skipped += 1
+                        error_count += 1
                 completed = intake_registry_service.utc_now()
                 connection.execute(
                     """INSERT INTO connectivity_qa_rule_runs

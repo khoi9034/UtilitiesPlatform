@@ -29,7 +29,8 @@ def test_shared_domain_and_synthetic_registry(tmp_path: Path, monkeypatch) -> No
     assert {"energized", "normally_open"} <= set(ELECTRIC_OPERATIONAL_STATES)
     assert {"active", "reserved"} <= set(TELECOM_OPERATIONAL_STATES)
     assert {"connects_to", "spliced_to", "feeds"} <= set(RELATIONSHIP_TYPES)
-    assert taxonomy["future_verticals"] == ["water", "wastewater", "gas", "stormwater"]
+    assert taxonomy["future_verticals"] == ["gas", "stormwater"]
+    assert {"water", "wastewater"} <= {item["id"] for item in taxonomy["utility_verticals"]}
     assert len(electric) == 71
     assert len(telecom) == 43
     assert sum(item["asset_class"] == "secondary_conductor" for item in electric) == 4

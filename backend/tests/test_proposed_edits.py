@@ -65,7 +65,7 @@ def test_unsafe_operation_and_invalid_vertical_fail_safely(tmp_path: Path, monke
 
     assert unsafe.status_code == 422
     assert path.status_code == 422
-    assert client.get("/api/proposed-edits/water").status_code == 404
+    assert client.get("/api/proposed-edits/gas").status_code == 404
 
 
 def test_create_is_deterministic_and_submitted_version_is_immutable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

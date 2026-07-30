@@ -22,6 +22,8 @@ UTILITY_ABBREVIATIONS = {
     "shared_reference": "ref",
     "environmental_regulatory": "env",
     "planning_reference": "plan",
+    "water_wastewater": "utility",
+    "multi_utility": "utility",
 }
 
 
@@ -70,6 +72,8 @@ def classify_layer(layer: SourceLayer, submission: dict[str, object], *, rules: 
             warnings = []
             if str(rule.get("rule_code", "")).endswith("WATERLINE_AMBIGUOUS"):
                 warnings.append("Ambiguous WaterLine naming requires data-owner or field confirmation.")
+            if str(rule.get("rule_code", "")).endswith("SEWER_LINE_AMBIGUOUS"):
+                warnings.append("Gravity versus force-main classification requires field and facility evidence.")
             if layer.spatial_reference_name == "unknown":
                 warnings.append("Spatial reference unavailable; coordinate review may be required.")
             candidates.append(

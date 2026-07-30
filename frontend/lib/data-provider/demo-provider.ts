@@ -36,7 +36,7 @@ import network from "../../demo-data/network.json";
 import calibration from "../../demo-data/calibration.json";
 import { applyDemoDuplicateGroup, applyDemoLayerReview, applyDemoStagingPlanItem, applyDemoReview, batchUpdateDemoIssues, batchUpdateDemoLayers, createDemoIntakeSubmission, demoAutomatedReviewRuns, demoAutomatedReviewStatus, demoAutomatedReviewSummary, demoIntakeEvents, readDemoIntake, readDemoStagedOutputs, runDemoAutomatedReview, stageDemoApprovedLayers, updateDemoDuplicateGroup, updateDemoIntakeInventory, updateDemoIssue, updateDemoLayerReview, updateDemoStagingPlanItem } from "./demo-review-store";
 import type { AutomationRun, AutomationSummary, CatalogResponse, ClassificationCandidate, ClassificationCandidatesResponse, DataSourceItem, DataSourceItemsResponse, DuplicateGroup, DuplicateGroupsResponse, IntakeCapabilities, IntakeEvent, IntakeSubmission, IntakeSubmissionResponse, IntakeSubmissionsResponse, InventorySummary, PlatformDataProvider, RunsResponse, SourceInspectionStatus, StageManifest, StagingPlanItem, StagingPlanResponse, StorageStatus, SubmissionLayer, SubmissionLayersResponse, TrustPipeline } from "./types";
-import { createDemoCanonicalAssets, demoAssets, demoPlans, demoRelationships, electricCounts, telecomCounts, updateDemoPlan } from "../utility-assets";
+import { createDemoCanonicalAssets, demoAssets, demoPlans, demoRelationships, electricCounts, telecomCounts, updateDemoPlan, waterCounts, wastewaterCounts } from "../utility-assets";
 import type { CanonicalizationPlan } from "../utility-assets";
 import {
   connectivityRules,
@@ -147,12 +147,14 @@ export class DemoDataProvider implements PlatformDataProvider {
         profiles: {
           electric_distribution: { profile_name: "electric_distribution_v1", rules: connectivityRules("electric_distribution") },
           telecom_fiber: { profile_name: "telecom_fiber_v1", rules: connectivityRules("telecom_fiber") },
+          water: { profile_name: "water_v1", rules: connectivityRules("water") },
+          wastewater: { profile_name: "wastewater_v1", rules: connectivityRules("wastewater") },
         },
       }) as T;
     }
     if (pathname.startsWith("/api/connectivity-qa/rules/")) {
       const vertical = demoConnectivityVertical(pathname.split("/").pop());
-      return clone({ utility_vertical: vertical, profile_name: vertical === "electric_distribution" ? "electric_distribution_v1" : "telecom_fiber_v1", model_version: "canonical-connectivity-graph-v1", rule_version: "connectivity-qa-rules-v2", items: connectivityRules(vertical) }) as T;
+      return clone({ utility_vertical: vertical, profile_name: `${vertical}_v1`, model_version: "canonical-connectivity-graph-v1", rule_version: "connectivity-qa-rules-v2", items: connectivityRules(vertical) }) as T;
     }
     if (pathname.startsWith("/api/connectivity-qa/")) {
       const parts = pathname.split("/");
@@ -192,6 +194,33 @@ export class DemoDataProvider implements PlatformDataProvider {
     if (pathname === "/api/utility-assets/canonicalization-plans") return clone({ items: demoPlans() }) as T;
     if (pathname === "/api/utility-assets") return clone(demoAssetResponse(params)) as T;
     if (pathname.startsWith("/api/utility-assets/")) return clone(demoAssetPath(pathname)) as T;
+    if (pathname === "/api/utility-domains/water-wastewater/summary") {
+      const assets = demoAssets();
+      return clone({
+        domain_family: "water_wastewater",
+        label: "Water & Wastewater",
+        registered_sources: 2,
+        inspected_layers: 8,
+        proposed_classifications: 8,
+        water_asset_candidates: assets.filter((item) => item.utility_vertical === "water").length,
+        wastewater_asset_candidates: assets.filter((item) => item.utility_vertical === "wastewater").length,
+        canonical_assets: assets.filter((item) => ["water", "wastewater"].includes(item.utility_vertical)).length,
+        qa_runs: 2,
+        trace_runs: 2,
+        proposed_edits: 2,
+        work_orders: 2,
+        unresolved_exceptions: 4,
+        human_approval_required: true,
+        message: "Synthetic session-only domain summary.",
+      }) as T;
+    }
+    if (pathname === "/api/source-adapters") return clone({
+      items: [
+        { source_type: "nrel_smart_ds", domain: "electric_distribution", mode: "dry_run_contract", creates_assets: false },
+        { source_type: "fcc_broadband_availability", domain: "telecom_fiber", mode: "context_only", creates_assets: false },
+      ],
+      message: "Synthetic adapter catalog; no source data is read.",
+    }) as T;
     if (pathname === "/api/storage/status") return clone(stageSummary) as T;
     if (pathname === "/api/storage/catalog") return clone(stageItems) as T;
     if (pathname === "/api/storage/catalog/summary") return clone({ counts: { wastewater: 2 }, message: "Sanitized demo catalog summary loaded." }) as T;
@@ -420,7 +449,7 @@ export class DemoDataProvider implements PlatformDataProvider {
 }
 
 function demoConnectivityVertical(value: string | undefined): UtilityAsset["utility_vertical"] {
-  if (value === "electric_distribution" || value === "telecom_fiber") return value;
+  if (value === "electric_distribution" || value === "telecom_fiber" || value === "water" || value === "wastewater") return value;
   throw new Error("Unsupported synthetic utility vertical.");
 }
 
@@ -610,6 +639,9 @@ function demoStageManifest(): StageManifest {
   const submissionItems = allDemoSubmissions().map((submission) => {
     const automation = demoAutomatedReviewStatus(submission.submission_id);
     const automated = automation.status !== "not_started";
+    const review = automated ? demoAutomatedReviewSummary(submission.submission_id) : null;
+    const reviewedLayers = review?.layers ?? [];
+    const detectedDomains = [...new Set(reviewedLayers.map((item) => String(item.approved_utility_system ?? "")).filter((value) => value && value !== "review_required"))];
     return {
       item_id: `submission:${submission.submission_id}`,
       name: submission.submission_name,
@@ -628,7 +660,15 @@ function demoStageManifest(): StageManifest {
       record_count: "synthetic",
       inspection_status: "complete",
       automated_review_status: automation.status,
-      human_exception_count: automated ? demoAutomatedReviewSummary(submission.submission_id).exception_count : 0,
+      human_exception_count: review?.exception_count ?? 0,
+      detected_domains: detectedDomains,
+      domain_confidence: reviewedLayers.some((item) => item.taxonomy_confidence === "low") ? "low" : reviewedLayers.some((item) => item.taxonomy_confidence === "medium") ? "medium" : reviewedLayers.length ? "high" : "unavailable",
+      candidate_water_layers: reviewedLayers.filter((item) => item.approved_utility_system === "water").length,
+      candidate_wastewater_layers: reviewedLayers.filter((item) => item.approved_utility_system === "wastewater").length,
+      ambiguous_layer_count: reviewedLayers.filter((item) => item.taxonomy_status !== "approved").length,
+      coordinate_blocker_count: reviewedLayers.filter((item) => Boolean(item.coordinate_blocker)).length,
+      duplicate_candidate_count: reviewedLayers.filter((item) => ["candidate", "potential_duplicate"].includes(item.duplicate_status)).length,
+      owner_uncertainty_count: reviewedLayers.filter((item) => item.owner_status !== "confirmed").length,
       staging_ready_count: automation.staging_ready,
       final_staging_approval_count: 0,
       next_required_action: automated ? "Open Review Exceptions, resolve blockers, and approve selected staging-plan items." : submission.next_required_action,
@@ -731,16 +771,18 @@ function demoAssetTaxonomy(vertical?: string) {
     lifecycle_states: ["proposed", "planned", "approved", "under_construction", "installed", "active", "inactive", "abandoned", "retired", "removed", "unknown"],
     review_states: ["imported", "mapped", "needs_review", "provisionally_approved", "approved", "deferred", "excluded"],
     qa_states: ["not_evaluated", "passed", "warning", "failed", "blocked", "acknowledged"],
-    relationship_types: ["connects_to", "upstream_of", "downstream_of", "contained_in", "mounted_on", "routed_through", "protected_by", "feeds", "served_by", "spliced_to", "terminates_at", "belongs_to_feeder", "belongs_to_circuit", "belongs_to_route", "associated_with_work_order", "replaces", "retires", "reference_for"],
+    relationship_types: ["connects_to", "upstream_of", "downstream_of", "contained_in", "mounted_on", "routed_through", "protected_by", "feeds", "served_by", "spliced_to", "terminates_at", "belongs_to_feeder", "belongs_to_circuit", "belongs_to_route", "belongs_to_pressure_zone", "belongs_to_water_system", "belongs_to_basin", "flows_to", "draws_from", "associated_with_work_order", "replaces", "retires", "reference_for"],
     transformation_types: ["direct", "renamed", "normalized_text", "normalized_identifier", "boolean_mapping", "lifecycle_mapping", "unit_conversion", "numeric_parse", "domain_mapping", "inferred", "unmapped"],
     rule_version: "canonical-assets-v1",
   };
   const profiles = {
     electric_distribution: { label: "Electric Distribution", asset_classes: Object.keys(electricCounts), operational_states: ["energized", "de_energized", "normally_open", "normally_closed", "open", "closed", "unknown"] },
     telecom_fiber: { label: "Telecom/Fiber", asset_classes: Object.keys(telecomCounts), operational_states: ["proposed", "installed", "active", "reserved", "unavailable", "retired", "unknown"] },
+    water: { label: "Water", asset_classes: Object.keys(waterCounts), operational_states: ["open", "closed", "active", "inactive", "available", "unavailable", "unknown"] },
+    wastewater: { label: "Wastewater", asset_classes: Object.keys(wastewaterCounts), operational_states: ["active", "inactive", "operating", "not_operating", "available", "unavailable", "unknown"] },
   };
   if (vertical && vertical in profiles) return { utility_vertical: vertical, ...profiles[vertical as keyof typeof profiles], ...shared };
-  return { utility_verticals: Object.entries(profiles).map(([id, value]) => ({ id, ...value })), future_verticals: ["water", "wastewater", "gas", "stormwater"], ...shared };
+  return { utility_verticals: Object.entries(profiles).map(([id, value]) => ({ id, ...value })), future_verticals: ["gas", "stormwater"], source_utility_domains: ["electric_distribution", "telecom_fiber", "water", "wastewater", "water_wastewater", "multi_utility", "unknown"], ...shared };
 }
 
 function demoAssetResponse(params: URLSearchParams) {
@@ -750,12 +792,19 @@ function demoAssetResponse(params: URLSearchParams) {
   }
   if (params.get("provisional_relationships")) items = items.filter((item) => item.has_provisional_relationships === (params.get("provisional_relationships") === "true"));
   if (params.get("search")) items = items.filter((item) => matchesSearch([item.asset_id, item.canonical_name, item.display_name], params.get("search")));
-  const byVertical = { electric_distribution: items.filter((item) => item.utility_vertical === "electric_distribution").length, telecom_fiber: items.filter((item) => item.utility_vertical === "telecom_fiber").length };
+  const byVertical = Object.fromEntries(
+    ["electric_distribution", "telecom_fiber", "water", "wastewater"].map((vertical) => [
+      vertical,
+      items.filter((item) => item.utility_vertical === vertical).length,
+    ]),
+  );
   return {
     ...pageItems(items, params),
     summary: {
       total_assets: items.length, electric_assets: byVertical.electric_distribution,
-      telecom_assets: byVertical.telecom_fiber, assets_needing_review: items.filter((item) => item.review_status === "needs_review").length,
+      telecom_assets: byVertical.telecom_fiber, water_assets: byVertical.water,
+      wastewater_assets: byVertical.wastewater,
+      assets_needing_review: items.filter((item) => item.review_status === "needs_review").length,
       provisional_relationships: demoAssets().filter((item) => item.has_provisional_relationships).length,
       active_plans: demoPlans().filter((plan) => !["approved", "deferred", "created"].includes(plan.status)).length,
       approved_plans: demoPlans().filter((plan) => plan.approved_for_canonicalization).length,

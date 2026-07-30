@@ -26,6 +26,7 @@ from app.services import wastewater_data_health_service as wastewater_health
 from app.services import intake_service
 from app.services import source_inspection
 from app.services import review_automation
+from app.services import source_adapters
 from app.services.connectivity_qa import ConnectivityQaError, service as connectivity_qa
 from app.services.network_trace import NetworkTraceError, service as network_trace
 from app.services.proposed_edits import ProposedEditError, service as proposed_edits
@@ -165,6 +166,24 @@ def utility_asset_vertical_taxonomy(utility_vertical: str) -> dict[str, object]:
         return utility_assets.taxonomy(utility_vertical)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/utility-domains/water-wastewater/summary")
+def water_wastewater_domain_summary() -> dict[str, object]:
+    return utility_assets.domain_summary(("water", "wastewater"))
+
+
+@router.get("/source-adapters")
+def source_adapter_catalog() -> dict[str, object]:
+    return source_adapters.adapter_catalog()
+
+
+@router.post("/source-adapters/{source_type}/inspect")
+def inspect_source_adapter_manifest(source_type: str, payload: dict[str, object]) -> dict[str, object]:
+    try:
+        return source_adapters.inspect_manifest(source_type, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.get("/utility-assets")

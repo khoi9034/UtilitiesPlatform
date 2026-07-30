@@ -1,6 +1,6 @@
 import type { ProposedEdit } from "./proposed-edits";
 
-export type UtilityVertical = "electric_distribution" | "telecom_fiber";
+export type UtilityVertical = "electric_distribution" | "telecom_fiber" | "water" | "wastewater";
 export type WorkOrderRecord = Record<string, unknown>;
 export type WorkOrder = {
   work_order_id: string;
@@ -77,9 +77,12 @@ const createdAt = "2026-07-28T12:00:00Z";
 const sharedTypes = ["corrective_maintenance", "planned_maintenance", "asset_installation", "asset_replacement", "asset_retirement", "connectivity_correction", "data_correction", "inspection_follow_up", "network_extension", "route_adjustment", "construction_update", "emergency_record_correction", "manual_investigation", "multi_operation_job"];
 const electricTypes = ["transformer_replacement", "pole_replacement", "conductor_connection", "feeder_assignment_correction", "phase_record_correction", "voltage_record_correction", "conduit_installation_or_association", "device_state_verification", "protective_device_record_update", "electric_asset_retirement", "electric_network_extension"];
 const telecomTypes = ["fiber_route_extension", "cable_endpoint_correction", "splice_installation_or_confirmation", "strand_assignment_correction", "capacity_record_correction", "conduit_installation_or_association", "aerial_support_update", "terminal_connection", "cable_replacement", "telecom_asset_retirement", "proposed_construction_completion"];
+const waterTypes = ["hydrant_and_valve_installation", "water_main_replacement", "water_main_abandonment", "service_and_meter_installation", "valve_isolation_repair", "water_main_relocation"];
+const wastewaterTypes = ["gravity_main_replacement", "manhole_installation", "lateral_repair", "lift_station_and_force_main_installation", "invert_elevation_correction", "legacy_sewer_abandonment", "emergency_blockage_repair"];
+const verticalTypes = { electric_distribution: electricTypes, telecom_fiber: telecomTypes, water: waterTypes, wastewater: wastewaterTypes };
 const roles = ["requester", "planner", "designer", "utility_gis_technician", "field_technician", "construction_coordinator", "inspector", "qa_reviewer", "data_steward", "technical_reviewer", "final_approver", "closeout_reviewer", "system"];
 const prerequisiteTypes = ["approved_proposal", "current_baseline", "required_asset_identifiers", "required_relationships", "design_review_complete", "field_access_confirmed", "source_evidence_available", "material_or_equipment_reference", "safety_review_external", "permit_or_authorization_external", "inspection_required", "qa_rules_available", "trace_scenarios_available", "reviewer_assigned", "final_approver_assigned", "external_adapter_required", "external_system_access_required", "manual_investigation_required"];
-const inspectionTypes = ["identifier_verification", "installation_verification", "condition_verification", "location_reference_verification", "relationship_verification", "phase_verification", "voltage_verification", "device_state_verification", "conduit_verification", "structure_support_verification", "cable_endpoint_verification", "splice_verification", "strand_assignment_verification", "capacity_verification", "construction_status_verification", "retirement_verification", "replacement_verification"];
+const inspectionTypes = ["identifier_verification", "installation_verification", "condition_verification", "location_reference_verification", "relationship_verification", "phase_verification", "voltage_verification", "device_state_verification", "conduit_verification", "structure_support_verification", "cable_endpoint_verification", "splice_verification", "strand_assignment_verification", "capacity_verification", "construction_status_verification", "retirement_verification", "replacement_verification", "diameter_verification", "material_verification", "pressure_zone_verification", "valve_state_verification", "hydrant_verification", "meter_verification", "invert_verification", "rim_elevation_verification", "slope_verification", "flow_direction_verification", "basin_verification"];
 const evidenceTypes = ["field_note", "inspection_note", "checklist_result", "identifier_confirmation", "attribute_confirmation", "relationship_confirmation", "installation_record", "retirement_record", "replacement_record", "source_document_reference", "external_ticket_reference", "safe_attachment_metadata", "before_after_summary", "qa_receipt", "trace_receipt", "reviewer_signoff", "implementation_statement", "exception_record"];
 const phaseNames = ["Intake", "Planning", "Design Review", "Pre-Work Validation", "Release", "Field or Construction Work", "GIS Record Update", "Post-Work Inspection", "Post-Work QA", "Post-Work Trace Verification", "Technical Review", "Closeout", "Archive"];
 
@@ -101,6 +104,23 @@ const seeds: Record<UtilityVertical, Seed[]> = {
     { code: "T-WO-005", proposal: "T-EDIT-007", type: "proposed_construction_completion", title: "Review proposed route completion", operationCount: 1 },
     { code: "T-WO-006", proposal: "T-EDIT-008", type: "cable_replacement", title: "Review retired cable replacement", operationCount: 3, blocked: true },
     { code: "T-WO-007", type: "manual_investigation", title: "Incomplete telecom investigation", invalid: true },
+  ],
+  water: [
+    { code: "W-WO-001", proposal: "W-EDIT-001", type: "hydrant_and_valve_installation", title: "Install hydrant and valve", operationCount: 2 },
+    { code: "W-WO-002", proposal: "W-EDIT-002", type: "water_main_replacement", title: "Replace water-main segment", operationCount: 2 },
+    { code: "W-WO-003", type: "water_main_abandonment", title: "Abandon old main", operationCount: 1 },
+    { code: "W-WO-004", type: "service_and_meter_installation", title: "Install service and meter", operationCount: 2 },
+    { code: "W-WO-005", type: "valve_isolation_repair", title: "Repair valve-isolation record", operationCount: 1 },
+    { code: "W-WO-006", type: "water_main_relocation", title: "Relocate main around road construction", operationCount: 2 },
+  ],
+  wastewater: [
+    { code: "WW-WO-001", proposal: "WW-EDIT-001", type: "gravity_main_replacement", title: "Replace gravity-main segment", operationCount: 2 },
+    { code: "WW-WO-002", proposal: "WW-EDIT-002", type: "manhole_installation", title: "Add manhole", operationCount: 1 },
+    { code: "WW-WO-003", type: "lateral_repair", title: "Repair lateral", operationCount: 1 },
+    { code: "WW-WO-004", type: "lift_station_and_force_main_installation", title: "Install lift station and force main", operationCount: 2 },
+    { code: "WW-WO-005", type: "invert_elevation_correction", title: "Correct invert elevations", operationCount: 1 },
+    { code: "WW-WO-006", type: "legacy_sewer_abandonment", title: "Abandon legacy sewer", operationCount: 1 },
+    { code: "WW-WO-007", type: "emergency_blockage_repair", title: "Record emergency blockage repair", operationCount: 2 },
   ],
 };
 
@@ -131,7 +151,13 @@ function buildSeed(vertical: UtilityVertical, seed: Seed): WorkOrder {
     status: blocked && ["approved_proposal", "current_baseline", "reviewer_assigned", "final_approver_assigned"].includes(type) ? "blocked" : "satisfied",
     description: type === "approved_proposal" ? "The linked Proposed Edit is approved and locked." : "Required synthetic planning evidence is available.",
   }));
-  const inspections = ["identifier_verification", vertical === "electric_distribution" ? "relationship_verification" : "cable_endpoint_verification"].map((type) => ({
+  const domainInspection = {
+    electric_distribution: "relationship_verification",
+    telecom_fiber: "cable_endpoint_verification",
+    water: "valve_state_verification",
+    wastewater: "invert_verification",
+  }[vertical];
+  const inspections = ["identifier_verification", domainInspection].map((type) => ({
     inspection_id: `${id}-${type}`, inspection_type: type, title: title(type), required: true,
     status: seed.complete ? "passed" : "pending", result: seed.complete ? "pass" : "not_recorded",
     expected_condition: "Condition agrees with approved evidence.",
@@ -443,7 +469,8 @@ function qaFor() {
 }
 
 function traceFor(code: string) {
-  return { work_order_post_trace_run_id: `demo-post-trace-${code}`, status: "passed", trace_type: code.startsWith("E") ? "ELEC-TRACE-002" : "TEL-TRACE-003", comparison_result: { result: "unchanged", approved: { outcome: "complete_with_warnings", confidence: "medium", objective_reached: true, path_signature: `${code}-approved`, branch_signature: `${code}-branch` }, implemented: { outcome: "complete_with_warnings", confidence: "medium", objective_reached: true, path_signature: `${code}-approved`, branch_signature: `${code}-branch` }, baseline: { outcome: "blocked", confidence: "low", objective_reached: false, path_signature: `${code}-baseline`, branch_signature: `${code}-branch` } } };
+  const traceType = code.startsWith("WW-") ? "WW-TRACE-001" : code.startsWith("W-") ? "WATER-TRACE-005" : code.startsWith("E") ? "ELEC-TRACE-002" : "TEL-TRACE-003";
+  return { work_order_post_trace_run_id: `demo-post-trace-${code}`, status: "passed", trace_type: traceType, comparison_result: { result: "unchanged", approved: { outcome: "complete_with_warnings", confidence: "medium", objective_reached: true, path_signature: `${code}-approved`, branch_signature: `${code}-branch` }, implemented: { outcome: "complete_with_warnings", confidence: "medium", objective_reached: true, path_signature: `${code}-approved`, branch_signature: `${code}-branch` }, baseline: { outcome: "blocked", confidence: "low", objective_reached: false, path_signature: `${code}-baseline`, branch_signature: `${code}-branch` } } };
 }
 
 function comparisonFor(qa?: WorkOrderRecord, traces: WorkOrderRecord[] = []): ThreeStateComparison {
@@ -472,7 +499,7 @@ function receiptFor(item: WorkOrder) {
 }
 
 function catalog(vertical?: UtilityVertical) {
-  return vertical ? { utility_vertical: vertical, work_order_types: [...sharedTypes, ...(vertical === "electric_distribution" ? electricTypes : telecomTypes)], priorities: ["low", "normal", "high", "urgent", "emergency_record_review"], disclaimer: workOrderDisclaimer } : { version: "work-order-v1", utility_verticals: ["electric_distribution", "telecom_fiber"], shared_work_order_types: sharedTypes, vertical_work_order_types: { electric_distribution: electricTypes, telecom_fiber: telecomTypes }, disclaimer: workOrderDisclaimer };
+  return vertical ? { utility_vertical: vertical, work_order_types: [...sharedTypes, ...verticalTypes[vertical]], priorities: ["low", "normal", "high", "urgent", "emergency_record_review"], disclaimer: workOrderDisclaimer } : { version: "work-order-v1", utility_verticals: Object.keys(verticalTypes), shared_work_order_types: sharedTypes, vertical_work_order_types: verticalTypes, disclaimer: workOrderDisclaimer };
 }
 
 function rejectUnsafe(value: unknown) {

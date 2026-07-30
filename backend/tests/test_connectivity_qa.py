@@ -35,7 +35,7 @@ def test_profiles_are_allowlisted_and_complete() -> None:
     assert {item["rule_code"] for item in telecom} >= {"SHARED-001", "TEL-001", "TEL-016"}
     assert {"open", "acknowledged", "accepted_risk", "false_positive", "superseded"} <= set(REVIEW_STATUSES)
     with pytest.raises(ValueError, match="Unsupported"):
-        rule_profile("wastewater")
+        rule_profile("gas")
 
 
 def test_graph_preserves_direction_branches_and_parallel_relationships() -> None:

@@ -226,12 +226,55 @@ const telecom = [
   ["TEL-015", "Splitter capacity inconsistency", "error", true, "asset"],
   ["TEL-016", "Telecom placement contradiction", "warning", false, "asset"],
 ] as const;
+const water = [
+  ["WATER-001", "Blank asset identifier", "error", true, "asset"],
+  ["WATER-002", "Duplicate asset identifier", "error", true, "asset"],
+  ["WATER-003", "Invalid or unsupported geometry", "error", true, "asset"],
+  ["WATER-004", "Unknown spatial reference", "warning", true, "asset"],
+  ["WATER-005", "Suspicious extent", "warning", false, "asset"],
+  ["WATER-006", "Invalid diameter", "error", true, "asset"],
+  ["WATER-007", "Invalid material", "warning", false, "asset"],
+  ["WATER-008", "Invalid lifecycle status", "warning", false, "asset"],
+  ["WATER-009", "Disconnected main endpoint", "error", true, "asset"],
+  ["WATER-010", "Isolated service line", "error", true, "asset"],
+  ["WATER-011", "Hydrant lacks plausible main relationship", "warning", false, "asset"],
+  ["WATER-012", "Valve lacks main relationship", "warning", false, "asset"],
+  ["WATER-013", "Invalid pressure-zone reference", "warning", false, "asset"],
+  ["WATER-014", "Missing owner or jurisdiction", "warning", false, "asset"],
+  ["WATER-015", "Invalid facility reference", "warning", false, "asset"],
+  ["WATER-016", "Active asset connected only to retired assets", "error", true, "asset"],
+  ["WATER-017", "Service line lacks endpoint", "warning", false, "asset"],
+  ["WATER-018", "Conflicting water-system identity", "warning", false, "relationship"],
+] as const;
+const wastewater = [
+  ["WW-001", "Blank asset identifier", "error", true, "asset"],
+  ["WW-002", "Duplicate asset identifier", "error", true, "asset"],
+  ["WW-003", "Invalid geometry", "error", true, "asset"],
+  ["WW-004", "Unknown spatial reference", "warning", true, "asset"],
+  ["WW-005", "Suspicious extent", "warning", false, "asset"],
+  ["WW-006", "Gravity main lacks structures", "error", true, "asset"],
+  ["WW-007", "Gravity segment has identical endpoints", "error", true, "asset"],
+  ["WW-008", "Invalid or zero diameter", "error", true, "asset"],
+  ["WW-009", "Invalid material", "warning", false, "asset"],
+  ["WW-010", "Suspicious slope", "warning", false, "asset"],
+  ["WW-011", "Missing expected invert elevation", "warning", false, "asset"],
+  ["WW-012", "Upstream/downstream invert contradiction", "error", true, "asset"],
+  ["WW-013", "Force main carries gravity-only attributes", "warning", false, "asset"],
+  ["WW-014", "Gravity main attached to pressure equipment", "error", true, "relationship"],
+  ["WW-015", "Lateral lacks receiving main", "error", true, "asset"],
+  ["WW-016", "Disconnected manhole", "error", true, "asset"],
+  ["WW-017", "Lift station lacks downstream force main", "error", true, "asset"],
+  ["WW-018", "Active asset connected only to retired assets", "error", true, "asset"],
+  ["WW-019", "Invalid basin or system reference", "warning", false, "asset"],
+  ["WW-020", "Missing owner or jurisdiction", "warning", false, "asset"],
+] as const;
 
 export function connectivityRules(vertical: UtilityAsset["utility_vertical"]): ConnectivityRule[] {
-  return [...shared, ...(vertical === "electric_distribution" ? electric : telecom)].map(([rule_code, name, severity, blocking, scope]) => ({
+  const profiles = { electric_distribution: electric, telecom_fiber: telecom, water, wastewater };
+  return [...shared, ...profiles[vertical]].map(([rule_code, name, severity, blocking, scope]) => ({
     rule_code,
     name,
-    category: rule_code.startsWith("SHARED") ? "shared" : vertical === "electric_distribution" ? "electric" : "telecom",
+    category: rule_code.startsWith("SHARED") ? "shared" : vertical,
     severity,
     blocking,
     scope,
@@ -272,6 +315,12 @@ const calibrationMeta: Record<string, { family: string; action: string; preceden
   "TEL-012": { family: "proposed_construction", action: "complete_design", precedence: 2, trace: "limits_trace", category: "proposed_connectivity", hint: "cable endpoint validation" },
   "TEL-013": { family: "lifecycle_conflict", action: "confirm_lifecycle", precedence: 5, trace: "stops_trace", category: "lifecycle_integrity", hint: "lifecycle conflict review" },
   "TEL-014": { family: "provisional_evidence", action: "confirm_relationship", precedence: 9, trace: "introduces_ambiguity", category: "evidence_quality", hint: "network connectivity validation" },
+  "WATER-002": { family: "asset_identity", action: "confirm_identifier", precedence: 6, trace: "advisory", category: "water_identity", hint: "asset identity validation" },
+  "WATER-010": { family: "service_connectivity", action: "repair_connectivity", precedence: 2, trace: "stops_trace", category: "water_connectivity", hint: "water topology validation" },
+  "WATER-017": { family: "service_endpoint", action: "confirm_endpoint", precedence: 4, trace: "limits_trace", category: "water_connectivity", hint: "water topology validation" },
+  "WW-010": { family: "gravity_slope", action: "confirm_slope", precedence: 7, trace: "advisory", category: "wastewater_attributes", hint: "gravity-flow evidence review" },
+  "WW-012": { family: "invert_direction", action: "confirm_inverts", precedence: 4, trace: "limits_trace", category: "wastewater_flow_evidence", hint: "gravity-flow evidence review" },
+  "WW-016": { family: "structure_connectivity", action: "repair_connectivity", precedence: 2, trace: "stops_trace", category: "wastewater_connectivity", hint: "wastewater topology validation" },
 };
 const dependencyParents: Record<string, string[]> = {
   "ELEC-002": ["ELEC-001"],
@@ -305,7 +354,7 @@ export function runDemoConnectivityQa(vertical: UtilityAsset["utility_vertical"]
   const run: ConnectivityRun = {
     qa_run_id: qaRunId,
     utility_vertical: vertical,
-    profile_name: vertical === "electric_distribution" ? "electric_distribution_v1" : "telecom_fiber_v1",
+    profile_name: `${vertical}_v1`,
     model_version: "canonical-connectivity-graph-v1",
     rule_version: "connectivity-qa-rules-v2",
     run_fingerprint: fingerprint,
@@ -754,7 +803,7 @@ function deriveFindings(
     assets.filter((asset) => !["", "A", "B", "C", "AB", "AC", "BC", "ABC", "N"].includes(String(asset.canonical_attributes_json?.phase || "").toUpperCase())).forEach((asset) => add("ELEC-005", asset, "The phase code is outside the V1 allowlist.", undefined, undefined, { phase: asset.canonical_attributes_json?.phase }));
     assets.filter((asset) => asset.asset_class === "underground_conductor" && !asset.canonical_attributes_json?.conduit_id).forEach((asset) => add("ELEC-007", asset, "The underground conductor has no conduit evidence."));
     assets.filter((asset) => asset.operational_status === "normally_open" || asset.canonical_attributes_json?.normally_open === true).forEach((asset) => add("ELEC-012", asset, "The switch is normally open and future traces must honor that state."));
-  } else {
+  } else if (vertical === "telecom_fiber") {
     assets.filter((asset) => asset.asset_class === "fiber_cable" && (!asset.canonical_attributes_json?.from_structure_id || !asset.canonical_attributes_json?.to_structure_id)).forEach((asset) => add("TEL-001", asset, "The fiber cable is missing endpoint structure evidence."));
     const cables = assets.filter((asset) => asset.asset_class === "fiber_cable");
     cables.forEach((left, index) => cables.slice(index + 1).forEach((right) => {
@@ -768,6 +817,31 @@ function deriveFindings(
         && Number(value.available_capacity) !== Number(value.total_capacity) - Number(value.used_capacity) - Number(value.reserved_capacity);
     }).forEach((asset) => add("TEL-005", asset, "Available capacity does not reconcile with total, used, and reserved capacity."));
     assets.filter((asset) => asset.asset_class === "proposed_construction_segment" && !asset.canonical_attributes_json?.to_structure_id).forEach((asset) => add("TEL-012", asset, "The proposed segment lacks complete endpoint evidence."));
+  } else if (vertical === "water") {
+    const identifiers = new Map<string, UtilityAsset>();
+    assets.forEach((asset) => {
+      const identifier = asset.source_asset_identifier.trim().toLowerCase();
+      const previous = identifiers.get(identifier);
+      if (identifier && previous) add("WATER-002", asset, "The normalized source identifier is shared by another synthetic asset.", previous);
+      else if (identifier) identifiers.set(identifier, asset);
+    });
+    assets.filter((asset) => asset.asset_class === "service_line" && degree.get(asset.asset_id) === 0)
+      .forEach((asset) => add("WATER-010", asset, "The service line has no explicit canonical relationship."));
+    assets.filter((asset) => asset.asset_class === "service_line" && !relationships.some((item) => {
+      const otherId = item.from_asset_id === asset.asset_id ? item.to_asset_id : item.to_asset_id === asset.asset_id ? item.from_asset_id : "";
+      return otherId && ["meter", "service_point"].includes(byId.get(otherId)?.asset_class ?? "");
+    })).forEach((asset) => add("WATER-017", asset, "The service line has no represented meter or safe service endpoint."));
+  } else {
+    assets.filter((asset) => asset.asset_class === "gravity_main" && Number(asset.canonical_attributes_json?.slope) <= 0)
+      .forEach((asset) => add("WW-010", asset, "The mapped slope is zero or negative; source convention requires review.", undefined, undefined, { slope: asset.canonical_attributes_json?.slope }));
+    assets.filter((asset) => asset.asset_class === "gravity_main"
+      && Number(asset.canonical_attributes_json?.upstream_invert) <= Number(asset.canonical_attributes_json?.downstream_invert))
+      .forEach((asset) => add("WW-012", asset, "Mapped upstream and downstream invert values conflict with the represented direction.", undefined, undefined, {
+        upstream_invert: asset.canonical_attributes_json?.upstream_invert,
+        downstream_invert: asset.canonical_attributes_json?.downstream_invert,
+      }));
+    assets.filter((asset) => asset.asset_class === "manhole" && degree.get(asset.asset_id) === 0)
+      .forEach((asset) => add("WW-016", asset, "The manhole has no explicit relationship to a wastewater main."));
   }
 
   const now = new Date().toISOString();
@@ -824,6 +898,7 @@ function summarize(qaRunId: string, findings: ConnectivityFinding[], rulesExecut
     message: "Synthetic connectivity QA completed from explicit canonical relationships only.",
     limitations: [
       "This is not an ArcFM, GE Smallworld, or telecom network-inventory trace.",
+      "Water and wastewater findings use represented topology only; they are not hydraulic-model results.",
       "No topology repair, snapping, service publishing, or source editing occurs.",
       "All demo evidence is synthetic and session-scoped.",
     ],
